@@ -1,4 +1,6 @@
-
+"""
+FastAPI App Main
+"""
 from typing import Any, List, Union
 
 from fastapi import FastAPI
@@ -13,8 +15,19 @@ from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.backends.base import Backend
 from dataproc.helpers import Boundary
 
+from api.db import database
+from api.config import DEPLOYMENT_ENV
 
-app = FastAPI()
+app = FastAPI(debug=True if DEPLOYMENT_ENV == 'dev' else False)
+
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
 
 class Job(BaseModel):
     boundary_id: int

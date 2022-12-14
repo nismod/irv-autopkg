@@ -1,5 +1,22 @@
 version: '3'
 services:
+  db:
+    image: postgis/postgis:13-3.1-alpine
+    restart: on-failure
+    ports:
+      - 5432:5432
+    volumes:
+      - ./data/db:/var/lib/postgresql/data:rw
+    env_file:
+      - ./envs/.db.env
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    env_file:
+      - ./envs/.pgadmin.env
+    ports:
+      - 5000:80
+
   redis:
     image: redis:6.2-alpine
     restart: always
@@ -26,7 +43,6 @@ services:
       - ./ccgautopkg:/usr/src/app
     ports:
       - 8000:8000
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379
-      - CELERY_RESULT_BACKEND=redis://redis:6379
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - envs/.api.env
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
