@@ -8,3 +8,4 @@ alembic==1.8.1
 asyncpg==0.27.0
 psycopg2-binary==2.9.5
 databases==0.6.2
+requests==2.28.1

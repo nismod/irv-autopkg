@@ -4,6 +4,7 @@ Global Config
 
 from os import getenv
 import sqlalchemy as sa
+import logging
 
 # DATAPROC VARS
 CELERY_BROKER = getenv("CCG_CELERY_BROKER", 'redis://localhost')
@@ -39,3 +40,5 @@ def get_db_uri_sync(dbname: str) -> sa.engine.URL:
 
 DBURI_API = get_db_uri(API_DB_NAME) # For API Usage
 DEPLOYMENT_ENV = getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "dev")
+LOG_LEVEL = logging.getLevelName(getenv("CCGAUTOPKG_LOG_LEVEL", "DEBUG"))
+INTEGRATION_TEST_ENDPOINT="http://localhost:8000"
