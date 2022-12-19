@@ -15,6 +15,7 @@ sys.path.insert(0, parent_dir)
 
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
 from api.config import INTEGRATION_TEST_ENDPOINT
+from tests.helpers import build_route
 
 
 class TestProbes(unittest.TestCase):
@@ -26,9 +27,7 @@ class TestProbes(unittest.TestCase):
             _route = LIVENESS_ROUTE
         else:
             _route = READINESS_ROUTE
-        return "{}{}".format(
-            INTEGRATION_TEST_ENDPOINT, _route
-        )
+        return build_route(_route)
 
     def test_liveness(self):
         expected_code = 200

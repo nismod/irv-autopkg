@@ -42,3 +42,6 @@ DBURI_API = get_db_uri(API_DB_NAME) # For API Usage
 DEPLOYMENT_ENV = getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "dev")
 LOG_LEVEL = logging.getLevelName(getenv("CCGAUTOPKG_LOG_LEVEL", "DEBUG"))
 INTEGRATION_TEST_ENDPOINT="http://localhost:8000"
+
+# Name matching Soundex Distance Default
+NAME_SEARCH_DISTANCE=int(getenv("NAME_SEARCH_DISTANCE", "2"))

@@ -46,7 +46,7 @@ def create_dag(boundary: Boundary, backend: Backend, processors: List):
 
     # Collect the names of dataset processors from user input
     requested_processors = [get_processor_task(name) for name in processors]
-    processor_tasks = [proc.s(boundary, backend) for proc in requested_processors]
+    processor_tasks = [proc.s(boundary, backend) for proc in requested_processors] # .s generates a signature through instantiation
 
     # Build the DAG
     step_setup = boundary_setup.s(boundary, backend)

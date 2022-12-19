@@ -1,14 +1,15 @@
 """
-Generates and Validates Boundary directory structure
+Test Raster Processor
 """
 
+from time import sleep
+
 from dataproc.backends import Backend
-from dataproc.processors.base import BaseProcessorABC
 from dataproc.helpers import Boundary
+from dataproc.processors.internal.base import BaseProcessorABC
 
-
-class BoundaryProcessor(BaseProcessorABC):
-    """Top Level Boundary Structure / Project Setup Processor"""
+class RasterProcessorTwo(BaseProcessorABC):
+    """A Raster Processor"""
 
     def __init__(self, boundary: Boundary, backend: Backend) -> None:
         self.boundary = boundary
@@ -16,9 +17,8 @@ class BoundaryProcessor(BaseProcessorABC):
 
     def generate(self):
         """Generate files for a given processor"""
+        sleep(1)
         return True
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
-
-    

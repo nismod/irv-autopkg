@@ -1,22 +1,22 @@
 """
 Probes - Liveness and Readiness
 """
-
+import logging
 
 from fastapi import APIRouter, HTTPException
-from fastapi.logger import logger
 
 from api.config import LOG_LEVEL
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
 from api.db import database
 
 
-logger.setLevel(LOG_LEVEL)
 router = APIRouter(
     tags=["probes"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
 )
+logger = logging.getLogger("uvicorn.access")
+logger.setLevel(LOG_LEVEL)
 
 @router.get(LIVENESS_ROUTE, tags=["probes"])
 async def get_liveness():

@@ -1,21 +1,22 @@
 """
 Package Detail endpoints
 """
+import logging
 
 from fastapi import APIRouter, HTTPException
-from fastapi.logger import logger
 
 from api.config import LOG_LEVEL
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
 from api.helpers import handle_exception
 
 
-logger.setLevel(LOG_LEVEL)
 router = APIRouter(
     tags=["packages"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
 )
+logger = logging.getLogger("uvicorn.access")
+logger.setLevel(LOG_LEVEL)
 
 @router.get(PACKAGES_BASE_ROUTE)
 async def get_packages():

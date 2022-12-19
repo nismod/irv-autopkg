@@ -1,10 +1,10 @@
 """
 Processing Job Endpoints
 """
+import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.logger import logger
 
 from celery.result import AsyncResult
 
@@ -21,7 +21,8 @@ router = APIRouter(
     dependencies=[],
     responses={404: {"description": "Not found"}},
 )
-logger.setLevel(LOG_LEVEL)
+logger = logging.getLogger("uvicorn.access")
+logger.setLevel(logging.DEBUG)
 
 @router.post(JOBS_BASE_ROUTE)
 async def submit_processing_job(package_id: str, job: Job):

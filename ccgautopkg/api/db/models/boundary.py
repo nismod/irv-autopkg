@@ -11,7 +11,7 @@ class Boundary(Base):
     __tablename__ = "boundaries"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    name_long = Column(String, index=True)
-    admin_level = Column(String, index=True)
-    geometry = Column(Geometry("MULTIPOLYGON", srid=4326))
+    name = Column(String, index=True, unique=True, nullable=False)
+    name_long = Column(String, index=True, unique=True, nullable=False)
+    admin_level = Column(String, index=True, nullable=False)
+    geometry = Column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)

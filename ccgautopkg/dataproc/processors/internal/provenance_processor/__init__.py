@@ -4,7 +4,7 @@ Manages provenance files for a given boundary
 
 from dataproc.backends import Backend
 from dataproc.helpers import Boundary
-from dataproc.processors.base import BaseProcessorABC
+from dataproc.processors.internal.base import BaseProcessorABC
 
 class ProvenanceProcessor(BaseProcessorABC):
     """Management of Provenance files for a boundary"""

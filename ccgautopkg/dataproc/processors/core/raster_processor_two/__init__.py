@@ -6,7 +6,15 @@ from time import sleep
 
 from dataproc.backends import Backend
 from dataproc.helpers import Boundary
-from dataproc.processors.base import BaseProcessorABC
+from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
+
+class Metadata(BaseMetadataABC):
+    """Processor metadata"""
+    processor_name="Raster Processor Two"
+    dataset_name="A raster dataset named Two"
+    data_author="An Author"
+    data_license="License"
+    data_origin_url="http://url"
 
 class RasterProcessorTwo(BaseProcessorABC):
     """A Raster Processor"""

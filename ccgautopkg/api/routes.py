@@ -9,8 +9,10 @@ API_ROUTE_BASE = f"/{API_VERSION}"
 LIVENESS_ROUTE = API_ROUTE_BASE + "/liveness"
 READINESS_ROUTE = API_ROUTE_BASE + "/readiness"
 
-# Retrieval of Boundaries
+# Retrieval of all Boundaries (no detail)
 BOUNDARIES_BASE_ROUTE = API_ROUTE_BASE + "/boundaries"
+BOUNDARY_SEARCH_ROUTE = BOUNDARIES_BASE_ROUTE + "/boundaries/search"
+BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/boundaries/{name}"
 
 # Retrieval of information about availabel processors
 PROCESSORS_BASE_ROUTE = API_ROUTE_BASE + "/processors"

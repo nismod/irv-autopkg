@@ -2,6 +2,9 @@
 
 from abc import ABC
 
+class BaseMetadataABC(ABC):
+    """Base Metadata ABC"""
+
 class BaseProcessorABC(ABC):
     """Base Processor ABC"""
 
