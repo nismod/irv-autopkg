@@ -9,7 +9,8 @@ from fastapi.responses import JSONResponse
 from celery.result import AsyncResult
 
 from dataproc.helpers import Boundary
-from dataproc.backends.localfs import LocalFSBackend
+from dataproc.backends.storage.localfs import LocalFSStorageBackend
+from dataproc.backends.processing.localfs import LocalFSProcessingBackend
 
 from api.helpers import create_dag, handle_exception
 from api.schemas import Job
@@ -29,7 +30,8 @@ async def submit_processing_job(package_id: str, job: Job):
     """Submit a job for a given package"""
     try:
         boundary = Boundary(job.boundary_id, job.boundary_name, job.boundary_geojson, 1)
-        backend = LocalFSBackend()
+        storage_backend = LocalFSStorageBackend()
+        processing_backend = LocalFSProcessingBackend()
         dag = create_dag(boundary, backend, job.processors)
         # Run DAG
         res = dag.apply_async()

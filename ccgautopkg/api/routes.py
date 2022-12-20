@@ -19,7 +19,7 @@ PROCESSORS_BASE_ROUTE = API_ROUTE_BASE + "/processors"
 
 # Retrieval of information about packages
 PACKAGES_BASE_ROUTE = API_ROUTE_BASE + "/packages"
-PACKAGE_ROUTE = PACKAGES_BASE_ROUTE + "/{package_id}"
+PACKAGE_ROUTE = PACKAGES_BASE_ROUTE + "/{boundary_name}"
 
 # Processing Jobs associated with packages
 JOBS_BASE_ROUTE = PACKAGE_ROUTE + "/jobs"

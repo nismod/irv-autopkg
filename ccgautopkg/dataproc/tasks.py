@@ -6,7 +6,8 @@ from typing import Any
 
 from celery import Celery
 
-from dataproc.backends.base import Backend
+from dataproc.backends.base import StorageBackend
+from dataproc.backends.processing.localfs import LocalFSProcessingBackend
 from dataproc.helpers import Boundary
 from dataproc.processors.internal import (
     BoundaryProcessor,
@@ -20,24 +21,28 @@ app.conf.result_backend = os.environ.get(
     "CELERY_RESULT_BACKEND", "redis://localhost:6379"
 )
 
+TMP_PROCESSING_DIR = '/Users/dusted/Documents/code/oxford/gri-autopkg/data/tmp'
+
 # SETUP TASK
 @app.task()
-def boundary_setup(boundary: Boundary, backend: Backend) -> bool:
+def boundary_setup(boundary: Boundary, storage_backend: StorageBackend) -> bool:
     """Instantiate the top-level structure for a boundary"""
-    proc = BoundaryProcessor(boundary, backend)
+    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
+    proc = BoundaryProcessor(boundary, storage_backend, processing_backend)
     proc.generate()
     return "boundary setup done"
 
 
 # DATASET PROCESSOR TASKS
 @app.task()
-def raster_processor_one(sink: Any, boundary: Boundary, backend: Backend):
+def raster_processor_one(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
     """
     Check and if required Generate a dataset for a given boundary
 
     ::param sink Any Sink for result of previous processor in the group
     """
-    proc = available_processors.raster_processor_one.RasterProcessorOne(boundary, backend)
+    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
+    proc = available_processors.raster_processor_one.RasterProcessorOne(boundary, storage_backend, processing_backend)
     proc.generate()
     # Potentially do this during execution - get the progress from the processor
     # self.update_state(state="PROGRESS", meta={'progress': 50})
@@ -45,21 +50,23 @@ def raster_processor_one(sink: Any, boundary: Boundary, backend: Backend):
 
 
 @app.task()
-def raster_processor_two(sink: Any, boundary: Boundary, backend: Backend):
+def raster_processor_two(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
     """
     Check and if required Generate a dataset for a given boundary
 
     ::param sink Any Sink for result of previous processor in the group
     """
-    proc = available_processors.raster_processor_two.RasterProcessorTwo(boundary, backend)
+    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
+    proc = available_processors.raster_processor_two.RasterProcessorTwo(boundary, storage_backend, processing_backend)
     proc.generate()
 
 
 # COMPLETION TASK
 @app.task()
-def generate_provenance(sink: Any, boundary: Boundary, backend: Backend):
+def generate_provenance(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
     """Generate / update the processing provenance for a given boundary"""
-    proc = ProvenanceProcessor(boundary, backend)
+    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
+    proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)
     res = proc.generate()
     return res
 
