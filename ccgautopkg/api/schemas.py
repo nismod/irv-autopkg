@@ -6,12 +6,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-class Job(BaseModel):
-    boundary_id: int
-    boundary_name: str
-    boundary_geojson: dict
-    processors: List[str]
-
 class BoundarySummary(BaseModel):
     """Summary of a boundary"""
     id=int
@@ -31,12 +25,14 @@ class Boundary(BoundarySummary):
 
 class ProcessorMetadata(BaseModel):
     """Detail about a Data Processor"""
+    name: str
     description: str
     dataset: str
     author: str
     license: str
     origin_url: str
     version: str
+    status: Optional[str]=""
 
 class ProcessorVersion(BaseModel):
     """A Version of a Processor"""
@@ -61,3 +57,17 @@ class Package(PackageSummary):
     boundary: Boundary # Boundary from-which the package has been created
     datasets: List[Dataset] # Datasets within this package
 
+# Jobs
+
+class Job(BaseModel):
+    boundary_name: str
+    processors: List[str] # List of processor names
+
+class SubmittedJob(BaseModel):
+    """A successfully submitted Job"""
+    job_id: str
+
+class JobStatus(SubmittedJob):
+    """Status of a Submitted Job"""
+    job_status: str
+    job_result: str

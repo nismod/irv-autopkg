@@ -14,7 +14,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
-from api.config import INTEGRATION_TEST_ENDPOINT
+from config import INTEGRATION_TEST_ENDPOINT
 from tests.helpers import build_route
 
 

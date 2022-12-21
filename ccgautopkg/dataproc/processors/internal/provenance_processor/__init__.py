@@ -3,7 +3,7 @@ Manages provenance files for a given boundary
 """
 
 from dataproc.backends import StorageBackend, ProcessingBackend
-from dataproc.helpers import Boundary
+from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC
 
 

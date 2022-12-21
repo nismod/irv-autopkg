@@ -7,9 +7,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from api.config import LOG_LEVEL
+from config import LOG_LEVEL
 from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE, BOUNDARY_SEARCH_ROUTE
-from api.db import database, DBController
+from api.db import DBController
 from api.helpers import handle_exception
 from api import schemas
 from api.exceptions import BoundarySearchException, BoundaryNotFoundException

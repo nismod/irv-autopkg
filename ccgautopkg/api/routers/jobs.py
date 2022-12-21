@@ -2,20 +2,24 @@
 Processing Job Endpoints
 """
 import logging
+import inspect
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
 
 from celery.result import AsyncResult
 
-from dataproc.helpers import Boundary
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
-from dataproc.backends.processing.localfs import LocalFSProcessingBackend
-
-from api.helpers import create_dag, handle_exception
-from api.schemas import Job
-from api.config import LOG_LEVEL
+from config import LOG_LEVEL
+from dataproc import Boundary as DataProcBoundary
+from dataproc.helpers import get_processor_by_name
+from api import schemas
+from api.helpers import handle_exception, create_dag
 from api.routes import JOB_STATUS_ROUTE, JOBS_BASE_ROUTE
+from api.exceptions import (
+    BoundaryNotFoundException,
+    ProcessorNotFoundException,
+    JobNotFoundException,
+)
+from api.db import DBController
 
 router = APIRouter(
     tags=["jobs"],
@@ -23,34 +27,61 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 logger = logging.getLogger("uvicorn.access")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(LOG_LEVEL)
 
-@router.post(JOBS_BASE_ROUTE)
-async def submit_processing_job(package_id: str, job: Job):
-    """Submit a job for a given package"""
+
+@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobStatus)
+def get_status(job_id: str):
+    """Get status of a DAG associated with a given package"""
     try:
-        boundary = Boundary(job.boundary_id, job.boundary_name, job.boundary_geojson, 1)
-        storage_backend = LocalFSStorageBackend()
-        processing_backend = LocalFSProcessingBackend()
-        dag = create_dag(boundary, backend, job.processors)
-        # Run DAG
-        res = dag.apply_async()
-        return {"jobid": res.id}
+        logger.debug("performing %s", inspect.stack()[0][3])
+        job_result = AsyncResult(job_id)
+        if not job_result.result or not job_result.status:
+            raise JobNotFoundException(f"{job_id}")
+        result = schemas.JobStatus(
+            job_id=job_id, job_status=job_result.status, job_result=job_result.result
+        )
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
+        return result
+    except JobNotFoundException as err:
+        handle_exception(logger, err)
+        raise HTTPException(status_code=404, detail=f"Job not found: {str(err)}")
     except Exception as err:
         handle_exception(logger, err)
         raise HTTPException(status_code=500)
 
-@router.get(JOB_STATUS_ROUTE)
-def get_status(package_id: str, task_id: str):
-    """Get status of a DAG associated with a given package"""
+
+@router.post(JOBS_BASE_ROUTE, response_model=schemas.SubmittedJob)
+async def submit_processing_job(job: schemas.Job):
+    """Submit a job for a given package to run a list of dataset-processors"""
     try:
-        task_result = AsyncResult(task_id)
-        result = {
-            "task_id": task_id,
-            "task_status": task_result.status,
-            "task_result": task_result.result
-        }
-        return JSONResponse(result)
+        logger.debug("performing %s", inspect.stack()[0][3])
+        # Collect boundary geojson
+        boundary_db = await DBController().get_boundary_by_name(job.boundary_name)
+        boundary_dataproc = DataProcBoundary(job.boundary_name, boundary_db.geometry)
+        # Check processors are all valid
+        for processor in job.processors:
+            module = get_processor_by_name(processor)
+            if not module:
+                raise ProcessorNotFoundException(f"Invalid Processor: {processor}")
+        dag = create_dag(boundary_dataproc, job.processors)
+        # Run DAG
+        res = dag.apply_async()
+        result = schemas.SubmittedJob(job_id=res.id)
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
+        return result
+    except ProcessorNotFoundException as err:
+        handle_exception(logger, err)
+        raise HTTPException(
+            status_code=400,
+            detail=f"{str(err)}",
+        )
+    except BoundaryNotFoundException as err:
+        handle_exception(logger, err)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Requested boundary {job.boundary_name} could not be found",
+        )
     except Exception as err:
         handle_exception(logger, err)
         raise HTTPException(status_code=500)

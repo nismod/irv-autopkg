@@ -1,25 +1,25 @@
 """
-Example Version 2 of a Raster Processor
+Test Raster Processor
 """
 
 from time import sleep
 
 from dataproc.backends import StorageBackend, ProcessingBackend
-from dataproc.helpers import Boundary
+from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
-    name="raster_processor_one"
-    description="Raster Processor One"
-    dataset_name="A raster dataset named one"
-    data_author="An Author"
-    data_license="License"
+    name="test_processor" # this must follow snakecase formatting, without special chars
+    description="A test processor for nightlights" # Logner processor description
+    version="1" # Version of the Processor
+    dataset_name="nightlights" # The dataset this processor targets
+    data_author="Nightlights Author"
+    data_license="Nightlights License"
     data_origin_url="http://url"
-    version="2"
 
-class RasterProcessorOne(BaseProcessorABC):
-    """A Raster Processor"""
+class Processor(BaseProcessorABC):
+    """A Processor for Nightlights"""
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
         self.boundary = boundary
@@ -28,6 +28,7 @@ class RasterProcessorOne(BaseProcessorABC):
 
     def generate(self):
         """Generate files for a given processor"""
+        # Pause to allow inspection
         sleep(5)
         return True
 

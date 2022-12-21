@@ -6,7 +6,7 @@ import json
 from typing import List
 from fastapi.logger import logger
 
-from api.config import LOG_LEVEL, NAME_SEARCH_DISTANCE
+from config import LOG_LEVEL, NAME_SEARCH_DISTANCE
 from api.db import database
 from api import schemas
 from api.db.queries import Queries

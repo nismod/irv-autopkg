@@ -6,66 +6,68 @@ from typing import Any
 
 from celery import Celery
 
-from dataproc.backends.base import StorageBackend
-from dataproc.backends.processing.localfs import LocalFSProcessingBackend
-from dataproc.helpers import Boundary
+from config import (
+    CELERY_BACKEND,
+    CELERY_BROKER,
+    STORAGE_BACKEND,
+    LOCALFS_STORAGE_BACKEND_ROOT,
+    PROCESSING_BACKEND,
+    LOCALFS_PROCESSING_BACKEND_ROOT,
+)
+from dataproc import Boundary
+from dataproc.helpers import (init_storage_backend, init_processing_backend, get_processor_by_name)
 from dataproc.processors.internal import (
     BoundaryProcessor,
     ProvenanceProcessor,
 )
-from dataproc.processors import core as available_processors
 
-app = Celery("proj")
-app.conf.broker_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379")
-app.conf.result_backend = os.environ.get(
-    "CELERY_RESULT_BACKEND", "redis://localhost:6379"
-)
 
-TMP_PROCESSING_DIR = '/Users/dusted/Documents/code/oxford/gri-autopkg/data/tmp'
+app = Celery("CCG-AutoPackage")
+# app.conf.broker_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379")
+# app.conf.result_backend = os.environ.get(
+#     "CELERY_RESULT_BACKEND", "redis://localhost:6379"
+# )
+app.conf.broker_url = CELERY_BROKER
+app.conf.result_backend = CELERY_BACKEND
+
+
+# Setup Configured Processing Backend
+processing_backend = init_processing_backend(PROCESSING_BACKEND)(LOCALFS_PROCESSING_BACKEND_ROOT)
+# Setup Configured Storage Backend
+storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
 
 # SETUP TASK
 @app.task()
-def boundary_setup(boundary: Boundary, storage_backend: StorageBackend) -> bool:
+def boundary_setup(boundary: Boundary) -> bool:
     """Instantiate the top-level structure for a boundary"""
-    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
     proc = BoundaryProcessor(boundary, storage_backend, processing_backend)
     proc.generate()
     return "boundary setup done"
 
 
-# DATASET PROCESSOR TASKS
+# DATASET PROCESSOR TASK
 @app.task()
-def raster_processor_one(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
+def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
     """
-    Check and if required Generate a dataset for a given boundary
+    Generic task that implements a processor
 
     ::param sink Any Sink for result of previous processor in the group
     """
-    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
-    proc = available_processors.raster_processor_one.RasterProcessorOne(boundary, storage_backend, processing_backend)
+    module = get_processor_by_name(processor_name_version)
+    proc = module(
+        boundary, storage_backend, processing_backend
+    )
     proc.generate()
     # Potentially do this during execution - get the progress from the processor
     # self.update_state(state="PROGRESS", meta={'progress': 50})
     # See: https://docs.celeryq.dev/en/stable/userguide/calling.html#on-message
 
 
-@app.task()
-def raster_processor_two(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
-    """
-    Check and if required Generate a dataset for a given boundary
-
-    ::param sink Any Sink for result of previous processor in the group
-    """
-    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
-    proc = available_processors.raster_processor_two.RasterProcessorTwo(boundary, storage_backend, processing_backend)
-    proc.generate()
-
 
 # COMPLETION TASK
 @app.task()
-def generate_provenance(sink: Any, boundary: Boundary, storage_backend: StorageBackend):
+def generate_provenance(sink: Any, boundary: Boundary):
     """Generate / update the processing provenance for a given boundary"""
-    processing_backend = LocalFSProcessingBackend(TMP_PROCESSING_DIR)
     proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)
     res = proc.generate()
     return res

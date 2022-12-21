@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from api.config import DBURI_API
+from config import DBURI_API
 
 SQLALCHEMY_DATABASE_URL = DBURI_API
 

@@ -11,7 +11,7 @@ from alembic import context
 # Import Config and Helpers
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from api import db
-from api.config import DBURI_API, get_db_uri_sync, API_DB_NAME
+from config import DBURI_API, get_db_uri_sync, API_DB_NAME
 
 
 # this is the Alembic Config object, which provides

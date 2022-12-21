@@ -1,9 +1,9 @@
 
 import databases
 
-from .models import *
+from config import DBURI_API
 
-from api.config import DBURI_API
+from .models import *
 
 database = databases.Database(str(DBURI_API))
 

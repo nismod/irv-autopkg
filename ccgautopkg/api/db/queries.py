@@ -10,7 +10,7 @@ from geoalchemy2 import Geometry
 from fastapi.logger import logger
 from databases import Database
 
-from api.config import LOG_LEVEL
+from config import LOG_LEVEL
 from api.db import models
 from api.exceptions import BoundaryNotFoundException
 

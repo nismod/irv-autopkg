@@ -8,7 +8,7 @@ from fastapi import FastAPI
 import uvicorn
 
 from api.db import database
-from api.config import DEPLOYMENT_ENV, LOG_LEVEL
+from config import DEPLOYMENT_ENV, LOG_LEVEL
 
 from api.routers import jobs, packages, probes, boundaries, processors
 from api.helpers import OPENAPI_TAGS_META

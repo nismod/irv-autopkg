@@ -5,7 +5,7 @@ Test Raster Processor
 from time import sleep
 
 from dataproc.backends import Backend
-from dataproc.helpers import Boundary
+from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC
 
 class RasterProcessorTwo(BaseProcessorABC):

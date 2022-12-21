@@ -8,6 +8,12 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # install dependencies
+# TODO: RASTIO PARTICULARS:
+# sudo add-apt-repository ppa:ubuntugis/ppa
+# $ sudo apt-get update
+# $ sudo apt-get install python-numpy gdal-bin libgdal-dev
+# $ pip install rasterio
+
 RUN pip install --upgrade pip
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt

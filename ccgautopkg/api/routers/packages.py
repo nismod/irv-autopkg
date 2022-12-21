@@ -7,13 +7,17 @@ import inspect
 
 from fastapi import APIRouter, HTTPException
 
-from api.config import LOG_LEVEL, STORAGE_BACKEND, LOCALFS_STORAGE_BACKEND_ROOT
+from config import LOG_LEVEL, STORAGE_BACKEND, LOCALFS_STORAGE_BACKEND_ROOT
+from dataproc.helpers import (
+    get_processor_meta_by_name,
+    processor_name,
+    build_processor_name_version
+)
+from dataproc.exceptions import PackageNotFoundException, DatasetNotFoundException
+from dataproc.helpers import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
 from api.helpers import (
-    handle_exception,
-    init_storage_backend,
-    get_processor_by_name,
-    processor_name,
+    handle_exception
 )
 from api.schemas import (
     Package,
@@ -23,7 +27,7 @@ from api.schemas import (
     ProcessorVersion,
 )
 from api.db.controller import DBController
-from dataproc.exceptions import PackageNotFoundException, DatasetNotFoundException
+
 
 router = APIRouter(
     tags=["packages"],
@@ -33,6 +37,7 @@ router = APIRouter(
 logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
+# Initialise the storage backend helpers
 storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
 
 
@@ -66,13 +71,13 @@ async def get_package(boundary_name: str):
             processor_versions = []
             for version in storage_backend.dataset_versions(boundary_name, dataset):
                 proc_name = processor_name(dataset, version)
-                meta = get_processor_by_name(proc_name).Metadata()
+                meta = get_processor_meta_by_name(proc_name)()
                 if meta is not None:
                     processors_meta.append(meta)
                     processor_versions.append(
                         ProcessorVersion(
                             processor=ProcessorMetadata(
-                                name=meta.name,
+                                name=build_processor_name_version(meta.name, version),
                                 description=meta.description,
                                 dataset=meta.dataset_name,
                                 author=meta.data_author,

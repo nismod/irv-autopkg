@@ -7,7 +7,7 @@ import inspect
 
 import sqlalchemy as sa
 
-from api.config import get_db_uri_sync, API_DB_NAME, INTEGRATION_TEST_ENDPOINT
+from config import get_db_uri_sync, API_DB_NAME, INTEGRATION_TEST_ENDPOINT
 from api import db
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

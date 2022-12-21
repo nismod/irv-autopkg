@@ -5,7 +5,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from api.config import LOG_LEVEL
+from config import LOG_LEVEL
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
 from api.db import database
 
