@@ -19,6 +19,7 @@ from api.schemas import (
     Dataset,
 )
 from api.db.controller import DBController
+from api.exceptions import PackageHasNoDatasetsException
 
 
 router = APIRouter(
@@ -79,15 +80,27 @@ async def get_package(boundary_name: str):
             output_datasets.append(Dataset(name=dataset, versions=versions))
 
         # Check for existing datasets
-        existing_datasets = storage_backend.package_datasets(boundary_name)
-        # One to one mapping between dataset.version name and the processor version name that creates it
-        logger.debug("found existing datasets: %s", existing_datasets)
-        for dataset in existing_datasets:
-            processor_versions = []
-            for version in storage_backend.dataset_versions(boundary_name, dataset):
-                proc_name = processor_name(dataset, version)
-                processor_versions.append(processor_meta(proc_name))
-            output_datasets.append(Dataset(name=dataset, versions=processor_versions))
+        try:
+            existing_datasets = storage_backend.package_datasets(boundary_name)
+            # One to one mapping between dataset.version name and the processor version name that creates it
+            logger.debug("found existing datasets: %s", existing_datasets)
+            for dataset in existing_datasets:
+                processor_versions = []
+                try:
+                    for version in storage_backend.dataset_versions(boundary_name, dataset):
+                        proc_name = processor_name(dataset, version)
+                        processor_versions.append(processor_meta(proc_name))
+                except DatasetNotFoundException:
+                    logger.debug("No dataset with the given name was found on the FS: %s", dataset)
+                output_datasets.append(Dataset(name=dataset, versions=processor_versions))
+        except PackageNotFoundException:
+            logger.debug("No package with the given name was found on the FS: %s", boundary_name)
+        
+        # If there are no executing processors, nor existing datasets then return a 404 for this package
+        if not output_datasets:
+            raise PackageHasNoDatasetsException(boundary_name)
+
+        # Return combined info about executing and/or existing datasets for this package
         boundary = await DBController().get_boundary_by_name(boundary_name)
         result = Package(
             boundary_name=boundary_name,
@@ -97,16 +110,9 @@ async def get_package(boundary_name: str):
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
-    except PackageNotFoundException as err:
+    except PackageHasNoDatasetsException as err:
         handle_exception(logger, err)
-        raise HTTPException(
-            status_code=404, detail=f"Package not found: {boundary_name}"
-        )
-    except DatasetNotFoundException as err:
-        handle_exception(logger, err)
-        raise HTTPException(
-            status_code=500, detail="Internal error finding a dataset for a package"
-        )
+        raise HTTPException(status_code=404, detail=f"Package {boundary_name} has no existing or executing datasets")
     except Exception as err:
         handle_exception(logger, err)
         raise HTTPException(status_code=500)

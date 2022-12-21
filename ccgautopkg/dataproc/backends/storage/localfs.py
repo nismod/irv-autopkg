@@ -118,7 +118,7 @@ class LocalFSStorageBackend(StorageBackend):
     def boundary_data_folder_exists(self, boundary_name: str):
         """If a given boundary data folder exists"""
         return os.path.exists(
-            self._build_absolute_path(boundary_name, self.dataset_data_folder_name)
+            self._build_absolute_path(boundary_name, self.datasets_folder_name)
         )
 
     def boundary_file_exists(self, boundary_name: str, filename: str):
@@ -138,7 +138,7 @@ class LocalFSStorageBackend(StorageBackend):
         """
         Create a boundary data folder
         """
-        full_path = self._build_absolute_path(boundary_name, "data")
+        full_path = self._build_absolute_path(boundary_name, self.datasets_folder_name)
         os.mkdir(full_path)
         if not self.boundary_folder_exists(full_path):
             raise FolderCreationException(f"boundary folder path {full_path} not found")

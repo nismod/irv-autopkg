@@ -73,10 +73,6 @@ def create_dag(boundary: Boundary, processors: List[str]):
     for idx, processor_task in enumerate(processor_tasks):
         processor_task_signatures.append(processor_task.s(boundary, processors[idx]))
 
-    # processor_tasks = [
-    #     proc.s(boundary) for proc in processors
-    # ]  # .s generates a signature through instantiation
-
     # Build the DAG
     step_setup = boundary_setup.s(boundary)
     step_finalise = generate_provenance.s(boundary)

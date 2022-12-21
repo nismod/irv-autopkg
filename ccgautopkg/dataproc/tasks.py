@@ -56,7 +56,8 @@ def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
     proc = module(
         boundary, storage_backend, processing_backend
     )
-    proc.generate()
+    res = proc.generate()
+    return str(sink) + "|" + str(res) + "-" + processor_name_version
     # Potentially do this during execution - get the progress from the processor
     # self.update_state(state="PROGRESS", meta={'progress': 50})
     # See: https://docs.celeryq.dev/en/stable/userguide/calling.html#on-message
@@ -68,17 +69,5 @@ def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
 def generate_provenance(sink: Any, boundary: Boundary):
     """Generate / update the processing provenance for a given boundary"""
     proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)
-    res = proc.generate()
+    res = proc.generate(sink)
     return res
-
-
-# HELPER TASKS
-@app.task
-def processor_group_finisher():
-    """
-    Serves as a sink-task which follows a group of tasks run in a Chord
-        __NOTE__: this is required to enable a DAG
-            to include a group of processor tasks to be run in parallel,
-            where there is no inter-dependence between the given Group tasks
-    """
-    return "Processor group results: OK"

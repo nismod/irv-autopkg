@@ -20,9 +20,9 @@ class ProvenanceProcessor(BaseProcessorABC):
         self.storage_backend = storage_backend
         self.processing_backend = processing_backend
 
-    def generate(self):
+    def generate(self, previous_result_sink):
         """Generate files for a given processor"""
-        return True
+        return previous_result_sink
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
