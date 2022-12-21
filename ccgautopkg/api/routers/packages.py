@@ -8,23 +8,15 @@ import inspect
 from fastapi import APIRouter, HTTPException
 
 from config import LOG_LEVEL, STORAGE_BACKEND, LOCALFS_STORAGE_BACKEND_ROOT
-from dataproc.helpers import (
-    get_processor_meta_by_name,
-    processor_name,
-    build_processor_name_version
-)
+from dataproc.helpers import processor_name, dataset_name_from_processor
 from dataproc.exceptions import PackageNotFoundException, DatasetNotFoundException
 from dataproc.helpers import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
-from api.helpers import (
-    handle_exception
-)
+from api.helpers import handle_exception, currently_executing_processors, processor_meta
 from api.schemas import (
     Package,
     PackageSummary,
-    ProcessorMetadata,
     Dataset,
-    ProcessorVersion,
 )
 from api.db.controller import DBController
 
@@ -59,41 +51,42 @@ async def get_packages():
 
 @router.get(PACKAGE_ROUTE, response_model=Package)
 async def get_package(boundary_name: str):
-    """Retrieve information a specific package (which has been created from a given boundary)"""
+    """
+    Retrieve information a specific package (which has been created from a given boundary)
+
+    Datasets are either executing (being generated),  completed (exist on the FS), or do not exist.
+    """
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        datasets = storage_backend.package_datasets(boundary_name)
-        # One to one mapping between dataset.version name and the processor version name that creates it
-        logger.debug("found datasets: %s", datasets)
-        processors_meta = []
         output_datasets = []
-        for dataset in datasets:
+
+        # Check for executing tasks (processor.versions)
+        executing_processors = currently_executing_processors(boundary_name)
+        logger.debug("found executing processors: %s", executing_processors)
+        executing_versions = {}
+        for processor_name_version in executing_processors:
+            dataset = dataset_name_from_processor(processor_name_version)
+            if dataset not in executing_versions.keys():
+                executing_versions[dataset] = [
+                    processor_meta(processor_name_version, executing=True)
+                ]
+            else:
+                executing_versions[dataset].append(
+                    processor_meta(processor_name_version, executing=True)
+                )
+        # Collate into Datasets for output schema
+        for dataset, versions in executing_versions.items():
+            output_datasets.append(Dataset(name=dataset, versions=versions))
+
+        # Check for existing datasets
+        existing_datasets = storage_backend.package_datasets(boundary_name)
+        # One to one mapping between dataset.version name and the processor version name that creates it
+        logger.debug("found existing datasets: %s", existing_datasets)
+        for dataset in existing_datasets:
             processor_versions = []
             for version in storage_backend.dataset_versions(boundary_name, dataset):
                 proc_name = processor_name(dataset, version)
-                meta = get_processor_meta_by_name(proc_name)()
-                if meta is not None:
-                    processors_meta.append(meta)
-                    processor_versions.append(
-                        ProcessorVersion(
-                            processor=ProcessorMetadata(
-                                name=build_processor_name_version(meta.name, version),
-                                description=meta.description,
-                                dataset=meta.dataset_name,
-                                author=meta.data_author,
-                                license=meta.data_license,
-                                origin_url=meta.data_origin_url,
-                                version=meta.version,
-                            ),
-                            version=meta.version,
-                        )
-                    )
-                else:
-                    logger.warning(
-                        "Processor Meta not found for dataset: %s, version: %s",
-                        dataset,
-                        version,
-                    )
+                processor_versions.append(processor_meta(proc_name))
             output_datasets.append(Dataset(name=dataset, versions=processor_versions))
         boundary = await DBController().get_boundary_by_name(boundary_name)
         result = Package(

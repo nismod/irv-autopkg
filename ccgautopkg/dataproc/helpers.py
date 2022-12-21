@@ -31,6 +31,10 @@ def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""
     return f"{dataset}.{version}"
 
+def dataset_name_from_processor(processor_name_version: str) -> str:
+    """Generate a dataset name from a processor name ane version"""
+    return processor_name_version.split(".")[0]
+
 
 def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
     """Check if a Processor is valid and can be used"""
