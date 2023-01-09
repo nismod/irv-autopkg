@@ -3,6 +3,7 @@ Test Raster Processor
 """
 
 from time import sleep
+import logging
 
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc import Boundary
@@ -26,12 +27,13 @@ class Processor(BaseProcessorABC):
         self.storage_backend = storage_backend
         self.processing_backend = processing_backend
         self.provenance_log = {}
+        self.log = logging.getLogger(__name__)
 
     def generate(self):
         """Generate files for a given processor"""
         # Pause to allow inspection
         sleep(5)
-        self.provenance_log['test_processor_completed'] = True
+        self.provenance_log[Metadata().name] = "Completed"
         return self.provenance_log
 
     def exists(self):

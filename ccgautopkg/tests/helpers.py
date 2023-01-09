@@ -4,6 +4,7 @@ Test Helpers
 import os
 import sys
 import inspect
+import json
 
 import sqlalchemy as sa
 
@@ -13,6 +14,8 @@ from api import db
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
+
+test_data_dir = os.path.join(current_dir, "data")
 
 db_uri = get_db_uri_sync(API_DB_NAME)
 # Init DB and Load via SA
@@ -32,3 +35,10 @@ def build_route(postfix_url: str):
     return "{}{}".format(
         INTEGRATION_TEST_ENDPOINT, postfix_url
     )
+
+def load_country_geojson(name: str) -> dict:
+    """
+    Load the geojson for a given country
+    """
+    with open(os.path.join(test_data_dir, "countries", f"{name}.geojson"), 'r') as fptr:
+        return json.load(fptr)
