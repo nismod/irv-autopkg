@@ -6,11 +6,15 @@ from os import getenv
 import logging
 
 import sqlalchemy as sa
+from celery import Celery
 
 
 # DATAPROC VARS
 CELERY_BROKER = getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost")
 CELERY_BACKEND = getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost")
+CELERY_APP = Celery("CCG-AutoPackage")
+CELERY_APP.conf.broker_url = CELERY_BROKER
+CELERY_APP.conf.result_backend = CELERY_BACKEND
 
 
 # API VARS

@@ -164,3 +164,4 @@ data/redis/*
 .DS_Store
 data/db
 envs/*
+data/*

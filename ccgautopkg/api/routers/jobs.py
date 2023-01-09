@@ -6,9 +6,7 @@ import inspect
 
 from fastapi import APIRouter, HTTPException
 
-from celery.result import AsyncResult
-
-from config import LOG_LEVEL
+from config import LOG_LEVEL, CELERY_APP
 from dataproc import Boundary as DataProcBoundary
 from dataproc.helpers import get_processor_by_name
 from api import schemas
@@ -35,11 +33,12 @@ def get_status(job_id: str):
     """Get status of a DAG associated with a given package"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        job_result = AsyncResult(job_id)
-        if not job_result.result or not job_result.status:
+        job_result = CELERY_APP.backend.get_result(job_id)
+        job_status = CELERY_APP.backend.get_status(job_id)
+        if not job_result or not job_status:
             raise JobNotFoundException(f"{job_id}")
         result = schemas.JobStatus(
-            job_id=job_id, job_status=job_result.status, job_result=job_result.result
+            job_id=job_id, job_status=job_result, job_result=job_result
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result

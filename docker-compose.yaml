@@ -32,8 +32,8 @@ services:
     volumes:
       - ./data/dataproc:/data
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379
-      - CELERY_RESULT_BACKEND=redis://redis:6379
+      - CCGAUTOPKG_CELERY_BROKER=redis://redis:6379
+      - CCGAUTOPKG_CELERY_BACKEND=redis://redis:6379
     command: celery --app dataproc.tasks worker --loglevel=debug
 
   api:

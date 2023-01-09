@@ -6,8 +6,7 @@ from typing import Any
 from celery import Celery
 
 from config import (
-    CELERY_BACKEND,
-    CELERY_BROKER,
+    CELERY_APP,
     STORAGE_BACKEND,
     LOCALFS_STORAGE_BACKEND_ROOT,
     PROCESSING_BACKEND,
@@ -21,22 +20,13 @@ from dataproc.processors.internal import (
 )
 
 
-app = Celery("CCG-AutoPackage")
-# app.conf.broker_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379")
-# app.conf.result_backend = os.environ.get(
-#     "CELERY_RESULT_BACKEND", "redis://localhost:6379"
-# )
-app.conf.broker_url = CELERY_BROKER
-app.conf.result_backend = CELERY_BACKEND
-
-
 # Setup Configured Processing Backend
 processing_backend = init_processing_backend(PROCESSING_BACKEND)(LOCALFS_PROCESSING_BACKEND_ROOT)
 # Setup Configured Storage Backend
 storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
 
 # SETUP TASK
-@app.task()
+@CELERY_APP.task()
 def boundary_setup(boundary: Boundary) -> bool:
     """Instantiate the top-level structure for a boundary"""
     proc = BoundaryProcessor(boundary, storage_backend, processing_backend)
@@ -45,7 +35,7 @@ def boundary_setup(boundary: Boundary) -> bool:
 
 
 # DATASET PROCESSOR TASK
-@app.task()
+@CELERY_APP.task()
 def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
     """
     Generic task that implements a processor
@@ -65,7 +55,7 @@ def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
 
 
 # COMPLETION TASK
-@app.task()
+@CELERY_APP.task()
 def generate_provenance(sink: Any, boundary: Boundary):
     """Generate / update the processing provenance for a given boundary"""
     proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)

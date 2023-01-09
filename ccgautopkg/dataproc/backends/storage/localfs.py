@@ -5,12 +5,14 @@ Local Filesystem Backend
 import os
 import shutil
 from typing import List
+import json
+from datetime import datetime
 
 from dataproc.exceptions import (
     FolderCreationException,
     FileCreationException,
     PackageNotFoundException,
-    DatasetNotFoundException
+    DatasetNotFoundException,
 )
 from ..base import StorageBackend
 
@@ -43,9 +45,7 @@ class LocalFSStorageBackend(StorageBackend):
         }
         """
         tree = {}
-        for _, dirs, _ in os.walk(
-            os.path.join(self.top_level_folder_path)
-        ):
+        for _, dirs, _ in os.walk(os.path.join(self.top_level_folder_path)):
             # First level packages
             for package in dirs:
                 tree[package] = {}
@@ -55,7 +55,9 @@ class LocalFSStorageBackend(StorageBackend):
         for package, _ in tree.items():
             for _, dataset_dirs, _ in os.walk(
                 os.path.join(
-                    self.top_level_folder_path, package, self.datasets_folder_name, 
+                    self.top_level_folder_path,
+                    package,
+                    self.datasets_folder_name,
                 )
             ):
                 for dataset in dataset_dirs:
@@ -67,7 +69,10 @@ class LocalFSStorageBackend(StorageBackend):
             for dataset, _ in tree[package].items():
                 for _, version_dirs, _ in os.walk(
                     os.path.join(
-                        self.top_level_folder_path, package, self.datasets_folder_name, dataset 
+                        self.top_level_folder_path,
+                        package,
+                        self.datasets_folder_name,
+                        dataset,
                     )
                 ):
                     for version in version_dirs:
@@ -85,7 +90,7 @@ class LocalFSStorageBackend(StorageBackend):
         """
         List of Datasets that currently exist for a given Package
 
-        ::param package str The name of the package 
+        ::param package str The name of the package
             (which maps directly to a Boundary name)
         """
         tree = self.tree()
@@ -99,7 +104,7 @@ class LocalFSStorageBackend(StorageBackend):
         """
         List of versions that currently exist for a given Dataset
 
-        ::param package str The name of the package 
+        ::param package str The name of the package
             (which maps directly to a Boundary name)
 
         ::param dataset str the name of the dataset for which to retrieve versions
@@ -110,6 +115,30 @@ class LocalFSStorageBackend(StorageBackend):
         except KeyError:
             # The dataset does not exist
             raise DatasetNotFoundException(f"{dataset}")
+
+    def add_provenance(
+        self,
+        boundary_name: str,
+        processing_log: dict,
+        filename: str = "provenance.json",
+    ) -> bool:
+        """
+        Generate new and/or append given processing log to a boundaries provenance file
+
+        {
+            "isoformat dtg": {log}, ...
+        }
+        """
+        dest_abs_path = self._build_absolute_path(boundary_name, filename)
+        if not os.path.exists(dest_abs_path):
+            with open(dest_abs_path, "w") as fptr:
+                json.dump({datetime.utcnow().isoformat(): processing_log}, fptr)
+        else:
+            with open(dest_abs_path, "a") as fptr:
+                log = json.load(fptr)
+                log[datetime.utcnow().isoformat()] = processing_log
+                json.dump(log, fptr)
+        return os.path.exists(dest_abs_path)
 
     def boundary_folder_exists(self, boundary_name: str):
         """If a given boundary folder exists"""

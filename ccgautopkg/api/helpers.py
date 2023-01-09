@@ -11,8 +11,10 @@ from celery import group
 from api import schemas
 
 from dataproc import tasks, Boundary
-from dataproc.tasks import boundary_setup, generate_provenance, app
+from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import processor_name, get_processor_meta_by_name, build_processor_name_version
+
+from config import CELERY_APP
 
 # API
 
@@ -103,7 +105,7 @@ def processor_meta(processor_name_version: str, executing:bool=False) -> schemas
 
 def get_celery_executing_tasks() -> dict:
     """Return list of tasks currently executed by Celery workers"""
-    task_inspector = app.control.inspect()
+    task_inspector = CELERY_APP.control.inspect()
     return task_inspector.active()
 
 

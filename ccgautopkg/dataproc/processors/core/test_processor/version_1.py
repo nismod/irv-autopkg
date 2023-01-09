@@ -11,7 +11,7 @@ from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
     name="test_processor" # this must follow snakecase formatting, without special chars
-    description="A test processor for nightlights" # Logner processor description
+    description="A test processor for nightlights" # Longer processor description
     version="1" # Version of the Processor
     dataset_name="nightlights" # The dataset this processor targets
     data_author="Nightlights Author"

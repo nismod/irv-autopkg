@@ -22,5 +22,5 @@ PACKAGES_BASE_ROUTE = API_ROUTE_BASE + "/packages"
 PACKAGE_ROUTE = PACKAGES_BASE_ROUTE + "/{boundary_name}"
 
 # Processing Jobs associated with packages
-JOBS_BASE_ROUTE = PACKAGE_ROUTE + "/jobs"
+JOBS_BASE_ROUTE = API_ROUTE_BASE + "/jobs"
 JOB_STATUS_ROUTE = JOBS_BASE_ROUTE + "/{job_id}"
