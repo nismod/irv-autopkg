@@ -6,7 +6,6 @@ import logging
 
 from fastapi import FastAPI
 import uvicorn
-from celery import Celery
 
 from api.db import database
 from config import DEPLOYMENT_ENV, LOG_LEVEL, CELERY_APP

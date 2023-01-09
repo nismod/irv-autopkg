@@ -10,16 +10,16 @@ from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
-    name="test_processor" # this must follow snakecase formatting, without special chars
-    description="A test processor for nightlights" # Longer processor description
+    name="test_processor_two" # this must follow snakecase formatting, without special chars
+    description="A test processor for _two" # Longer processor description
     version="1" # Version of the Processor
-    dataset_name="nightlights" # The dataset this processor targets
-    data_author="Nightlights Author"
-    data_license="Nightlights License"
+    dataset_name="_two" # The dataset this processor targets
+    data_author="_two Author"
+    data_license="_two License"
     data_origin_url="http://url"
 
 class Processor(BaseProcessorABC):
-    """A Processor for Nightlights"""
+    """A Processor for _two"""
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
         self.boundary = boundary
@@ -30,8 +30,8 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         # Pause to allow inspection
-        sleep(5)
-        self.provenance_log['test_processor_completed'] = True
+        sleep(1)
+        self.provenance_log['test_processor_two_completed'] = True
         return self.provenance_log
 
     def exists(self):

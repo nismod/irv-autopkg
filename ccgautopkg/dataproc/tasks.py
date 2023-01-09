@@ -1,7 +1,7 @@
 """
 Processor Task Wrappers
 """
-from typing import Any
+from typing import Any, List
 
 from celery import Celery
 
@@ -27,16 +27,16 @@ storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_
 
 # SETUP TASK
 @CELERY_APP.task()
-def boundary_setup(boundary: Boundary) -> bool:
+def boundary_setup(boundary: Boundary) -> dict:
     """Instantiate the top-level structure for a boundary"""
     proc = BoundaryProcessor(boundary, storage_backend, processing_backend)
-    proc.generate()
-    return "boundary setup done"
+    result = proc.generate()
+    return result
 
 
 # DATASET PROCESSOR TASK
 @CELERY_APP.task()
-def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
+def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) -> dict:
     """
     Generic task that implements a processor
 
@@ -46,8 +46,10 @@ def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
     proc = module(
         boundary, storage_backend, processing_backend
     )
-    res = proc.generate()
-    return str(sink) + "|" + str(res) + "-" + processor_name_version
+    result = proc.generate()
+    # Update sink for this processor
+    sink[processor_name_version] = result
+    return sink
     # Potentially do this during execution - get the progress from the processor
     # self.update_state(state="PROGRESS", meta={'progress': 50})
     # See: https://docs.celeryq.dev/en/stable/userguide/calling.html#on-message
@@ -58,6 +60,9 @@ def processor_task(sink: Any, boundary: Boundary, processor_name_version: str):
 @CELERY_APP.task()
 def generate_provenance(sink: Any, boundary: Boundary):
     """Generate / update the processing provenance for a given boundary"""
+    # The sink can come in as a list (multiple processors ran) or dict (one processor ran)
+    if isinstance(sink, dict):
+        sink = [sink]
     proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)
     res = proc.generate(sink)
     return res

@@ -37,18 +37,21 @@ class BoundaryProcessor(BaseProcessorABC):
         self.storage_backend = storage_backend
         self.processing_backend = processing_backend
         self.log = logging.getLogger(__name__)
+        self.provenance_log = {}
 
-    def generate(self):
+    def generate(self) -> dict:
         """Generate files for a given processor"""
         # Check Boundary folder exists and generate if not
         if not self.storage_backend.boundary_folder_exists(self.boundary["name"]):
             self.storage_backend.create_boundary_folder(self.boundary["name"])
             self.log.debug("Boundary folder created: True")
+            self.provenance_log['boundary_folder'] = 'created'
         else:
             self.log.debug("Boundary folder exists")
         if not self.storage_backend.boundary_data_folder_exists(self.boundary["name"]):
             self.storage_backend.create_boundary_data_folder(self.boundary["name"])
             self.log.debug("Boundary data folder created: True")
+            self.provenance_log['boundary_data_folder'] = 'created'
         else:
             self.log.debug("Boundary data folder exists")
         # Generate missing files for the boundary
@@ -61,6 +64,7 @@ class BoundaryProcessor(BaseProcessorABC):
                 index_fpath, self.boundary["name"]
             )
             self.log.debug("Boundary index created: %s", index_create)
+            self.provenance_log['boundary_index'] = 'created'
         else:
             self.log.debug("Boundary index exists")
         if not self.storage_backend.boundary_file_exists(
@@ -71,6 +75,7 @@ class BoundaryProcessor(BaseProcessorABC):
                 license_fpath, self.boundary["name"]
             )
             self.log.debug("Boundary license created: %s", license_create)
+            self.provenance_log['boundary_license'] = 'created'
         else:
             self.log.debug("Boundary license exists")
         if not self.storage_backend.boundary_file_exists(
@@ -81,6 +86,7 @@ class BoundaryProcessor(BaseProcessorABC):
                 version_fpath, self.boundary["name"]
             )
             self.log.debug("Boundary version created: %s", version_create)
+            self.provenance_log['boundary_version'] = 'created'
         else:
             self.log.debug("Boundary version exists")
         if not self.storage_backend.boundary_file_exists(
@@ -91,8 +97,10 @@ class BoundaryProcessor(BaseProcessorABC):
                 datapkg_fpath, self.boundary["name"]
             )
             self.log.debug("Boundary datapackage created: %s", datapkg_create)
+            self.provenance_log['boundary_datapackage'] = 'created'
         else:
             self.log.debug("Boundary datapackage exists")
+        return self.provenance_log
 
     def _generate_index_file(self) -> str:
         """

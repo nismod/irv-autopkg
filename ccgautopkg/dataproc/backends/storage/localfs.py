@@ -119,7 +119,7 @@ class LocalFSStorageBackend(StorageBackend):
     def add_provenance(
         self,
         boundary_name: str,
-        processing_log: dict,
+        processing_log: List[dict],
         filename: str = "provenance.json",
     ) -> bool:
         """
@@ -132,11 +132,13 @@ class LocalFSStorageBackend(StorageBackend):
         dest_abs_path = self._build_absolute_path(boundary_name, filename)
         if not os.path.exists(dest_abs_path):
             with open(dest_abs_path, "w") as fptr:
-                json.dump({datetime.utcnow().isoformat(): processing_log}, fptr)
+                log = {datetime.utcnow().isoformat(): processing_log}
+                json.dump(log, fptr)
         else:
-            with open(dest_abs_path, "a") as fptr:
+            with open(dest_abs_path, "r") as fptr:
                 log = json.load(fptr)
-                log[datetime.utcnow().isoformat()] = processing_log
+            log[datetime.utcnow().isoformat()] = processing_log
+            with open(dest_abs_path, "w") as fptr:
                 json.dump(log, fptr)
         return os.path.exists(dest_abs_path)
 

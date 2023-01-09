@@ -4,7 +4,7 @@ Pydantic Schemas
 
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 class BoundarySummary(BaseModel):
     """Summary of a boundary"""
@@ -62,6 +62,12 @@ class Package(PackageSummary):
 class Job(BaseModel):
     boundary_name: str
     processors: List[str] # List of processor names
+
+    @validator('processors')
+    def no_dups(cls, v):
+        if len(set(v)) != len(v):
+            raise ValueError('duplicate processors not allowed')
+        return v
 
 class SubmittedJob(BaseModel):
     """A successfully submitted Job"""

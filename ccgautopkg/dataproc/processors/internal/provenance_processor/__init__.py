@@ -2,6 +2,7 @@
 Manages provenance files for a given boundary
 """
 import os
+from typing import Any, List
 
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc import Boundary
@@ -23,17 +24,19 @@ class ProvenanceProcessor(BaseProcessorABC):
         self.storage_backend = storage_backend
         self.processing_backend = processing_backend
 
-    def generate(self, processing_log: dict):
+    def generate(self, processing_log: List[dict]):
         """Generate files for a given processor"""
         return self._update_boundary_provenance(processing_log)
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
 
-    def _update_boundary_provenance(self, processing_log: dict) -> bool:
+    def _update_boundary_provenance(self, processing_log: List[dict]) -> bool:
         """
         Update a given provenance file for a boundary
         """
+        # Add log about provenance running
+        processing_log.append({"provenance":"updated"})
         return self.storage_backend.add_provenance(
             self.boundary["name"], processing_log, self.provenance_log_filename
         )

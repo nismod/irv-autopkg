@@ -35,10 +35,11 @@ def get_status(job_id: str):
         logger.debug("performing %s", inspect.stack()[0][3])
         job_result = CELERY_APP.backend.get_result(job_id)
         job_status = CELERY_APP.backend.get_status(job_id)
+        logger.debug("Job Status: %s, Job Result: %s", job_status, job_result)
         if not job_result or not job_status:
             raise JobNotFoundException(f"{job_id}")
         result = schemas.JobStatus(
-            job_id=job_id, job_status=job_result, job_result=job_result
+            job_id=job_id, job_status=str(job_result), job_result=str(job_result)
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
@@ -58,7 +59,7 @@ async def submit_processing_job(job: schemas.Job):
         # Collect boundary geojson
         boundary_db = await DBController().get_boundary_by_name(job.boundary_name)
         boundary_dataproc = DataProcBoundary(job.boundary_name, boundary_db.geometry)
-        # Check processors are all valid
+        # Check processors are all valid and remove duplicate processors
         for processor in job.processors:
             module = get_processor_by_name(processor)
             if not module:
