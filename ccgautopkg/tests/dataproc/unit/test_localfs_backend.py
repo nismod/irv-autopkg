@@ -2,6 +2,7 @@
 Unit tests for Dataproc classes
 """
 import os
+import shutil
 import unittest
 
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
@@ -19,14 +20,65 @@ class TestLocalFSBackend(unittest.TestCase):
     def setUp(self):
         self.backend = LocalFSStorageBackend(LOCAL_FS_DATA_TOP_DIR)
 
+    def create_tree(self):
+        """
+        Create a tree so we can check reading
+        """
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "gambia", "datasets", "aqueduct", "0.1"
+            ),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "gambia", "datasets", "biodiversity", "version_1"
+            ),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "gambia", "datasets", "biodiversity", "version_2"
+            ),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "gambia", "datasets", "osm_roads", "20221201"
+            ),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "gambia", "datasets", "osm_roads", "20230401"
+            ),
+            exist_ok=True,
+        )
+        os.makedirs(
+            os.path.join(
+                LOCAL_FS_DATA_TOP_DIR, "zambia", "datasets", "osm_roads", "20230401"
+            ),
+            exist_ok=True,
+        )
+
+    def remove_tree(self):
+        """
+        Cleanup the test tree
+        """
+        shutil.rmtree(os.path.join(LOCAL_FS_DATA_TOP_DIR, "gambia"))
+        shutil.rmtree(os.path.join(LOCAL_FS_DATA_TOP_DIR, "zambia"))
+
     def expected_fs_structure(self):
         """
         The expected initial FS structure
         """
         return {
-            "aqueduct": ["version_0.1"],
-            "biodiversity": ["version_1", "version_2"],
-            "osm_roads": ["version_20221201", "version_20230401"],
+            "gambia": {
+                "aqueduct": ["0.1"],
+                "biodiversity": ["version_1", "version_2"],
+                "osm_roads": ["20230401", "20221201"],
+            },
+            "zambia": {"osm_roads": ["20230401"]},
         }
 
     def test_init(self):
@@ -39,5 +91,7 @@ class TestLocalFSBackend(unittest.TestCase):
 
     def test_tree(self):
         """Test Generation of the package / dataset / version structure"""
+        self.create_tree()
         tree = self.backend.tree()
         self.assertDictEqual(tree, self.expected_fs_structure())
+        self.remove_tree()
