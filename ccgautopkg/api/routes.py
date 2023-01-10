@@ -11,8 +11,8 @@ READINESS_ROUTE = API_ROUTE_BASE + "/readiness"
 
 # Retrieval of all Boundaries (no detail)
 BOUNDARIES_BASE_ROUTE = API_ROUTE_BASE + "/boundaries"
-BOUNDARY_SEARCH_ROUTE = BOUNDARIES_BASE_ROUTE + "/boundaries/search"
-BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/boundaries/{name}"
+BOUNDARY_SEARCH_ROUTE = BOUNDARIES_BASE_ROUTE + "/search"
+BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/{name}"
 
 # Retrieval of information about availabel processors
 PROCESSORS_BASE_ROUTE = API_ROUTE_BASE + "/processors"

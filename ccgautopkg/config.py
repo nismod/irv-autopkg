@@ -55,15 +55,13 @@ INTEGRATION_TEST_ENDPOINT = "http://localhost:8000"
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
 # The root-level folder when using localfs storage backend
 LOCALFS_STORAGE_BACKEND_ROOT = getenv(
-    "CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT",
-    "/Users/dusted/Documents/code/oxford/gri-autopkg/data/package_bucket",
+    "CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT"
 )
 # Processing backend to use
 PROCESSING_BACKEND = getenv("CCGAUTOPKG_PROCESSING_BACKEND", "localfs")
 # The root-level folder when using localfs processing backend
 LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
-    "CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT",
-    "/Users/dusted/Documents/code/oxford/gri-autopkg/data/tmp",
+    "CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT"
 )
 
 # Name matching Soundex Distance Default

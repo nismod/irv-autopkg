@@ -9,7 +9,7 @@ from dataproc.processors.internal.base import BaseProcessorABC
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc.backends.processing.localfs import LocalFSProcessingBackend
-
+from dataproc.exceptions import ConfigException
 
 # DAGs and Processing
 
@@ -19,6 +19,8 @@ def init_storage_backend(storage_backend: str) -> StorageBackend:
     """
     if storage_backend == 'localfs':
         return LocalFSStorageBackend
+    else:
+        raise ConfigException(f"Unsupported / Unset StorageBackend {storage_backend} - check env")
 
 def init_processing_backend(processing_backend: str) -> ProcessingBackend:
     """
@@ -26,6 +28,8 @@ def init_processing_backend(processing_backend: str) -> ProcessingBackend:
     """
     if processing_backend == 'localfs':
         return LocalFSProcessingBackend
+    else:
+        raise ConfigException(f"Unsupported / Unset ProcessingBackend {processing_backend} - check env")
 
 def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""

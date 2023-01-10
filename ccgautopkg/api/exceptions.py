@@ -20,4 +20,5 @@ class JobNotFoundException(ApiException):
 class PackageHasNoDatasetsException(ApiException):
     """The given package had no executing or existing datasets"""
 
-
+class CannotGetExecutingTasksException(ApiException):
+    """Call to Celery for processing tasks failed"""

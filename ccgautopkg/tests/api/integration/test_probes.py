@@ -20,7 +20,9 @@ from tests.helpers import build_route
 
 class TestProbes(unittest.TestCase):
 
-    """"""
+    """
+    These tests require API and Celery Worker to be run ning (with redis)
+    """
 
     def build_probes_route(self, probe_type):
         if probe_type == 'liveness':

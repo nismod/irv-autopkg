@@ -33,37 +33,37 @@ if __name__ == "__main__":
     # res = dag.get()
     # print (res)
 
-    print(sys.argv[1])
+    # print(sys.argv[1])
 
-    # Setup Job Meta
-    boundary = Boundary(1, "uk", {}, "1")
-    backend = LocalFSBackend()
+    # # Setup Job Meta
+    # boundary = Boundary(1, "uk", {}, "1")
+    # backend = LocalFSBackend()
 
-    # Collect the names of dataset processors from user input
-    proc_names = sys.argv[1].split(',')
-    requested_processors = [get_processor_task(name) for name in proc_names]
-    processor_tasks = [proc.s(boundary, backend) for proc in requested_processors]
+    # # Collect the names of dataset processors from user input
+    # proc_names = sys.argv[1].split(',')
+    # requested_processors = [get_processor_task(name) for name in proc_names]
+    # processor_tasks = [proc.s(boundary, backend) for proc in requested_processors]
 
-    # Build the DAG
-    step_setup = boundary_setup.s(boundary, backend)
-    step_finalise = generate_provenance.s(boundary, backend)
-    dag = chain(step_setup, group(processor_tasks), step_finalise)()
-    celery_inspector = app.control.inspect()
-    print (celery_inspector.active())
+    # # Build the DAG
+    # step_setup = boundary_setup.s(boundary, backend)
+    # step_finalise = generate_provenance.s(boundary, backend)
+    # dag = chain(step_setup, group(processor_tasks), step_finalise)()
+    # celery_inspector = app.control.inspect()
+    # print (celery_inspector.active())
 
-    # Do some collection of status during execution
-    from time import sleep
+    # # Do some collection of status during execution
+    # from time import sleep
     
-    while dag.state != 'SUCCESS':
-        print (dag.state)
-        print (dag.parent.completed_count()) # Number of completed tasks in the GROUP
-        print (celery_inspector.active())
-        # print (celery_inspector.scheduled())
-        if dag.state == 'FAILURE':
-            break
-        sleep(0.5)
-    print ('END CHAIN RESULT (generate_provenance): ', dag.get())
-    print ('PROCESSOR GROUP RESULTS: ', dag.parent.get())
-    print ('WERE ALL GROUP RESULTS SUCCESSFUL?: ', dag.parent.successful())
-    print ('Boundary result:', dag.parent.parent.get())
+    # while dag.state != 'SUCCESS':
+    #     print (dag.state)
+    #     print (dag.parent.completed_count()) # Number of completed tasks in the GROUP
+    #     print (celery_inspector.active())
+    #     # print (celery_inspector.scheduled())
+    #     if dag.state == 'FAILURE':
+    #         break
+    #     sleep(0.5)
+    # print ('END CHAIN RESULT (generate_provenance): ', dag.get())
+    # print ('PROCESSOR GROUP RESULTS: ', dag.parent.get())
+    # print ('WERE ALL GROUP RESULTS SUCCESSFUL?: ', dag.parent.successful())
+    # print ('Boundary result:', dag.parent.parent.get())
     

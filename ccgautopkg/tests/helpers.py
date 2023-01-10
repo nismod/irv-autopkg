@@ -6,7 +6,7 @@ import sys
 import inspect
 import json
 from typing import Tuple
-from math import floor
+import shutil
 
 import sqlalchemy as sa
 import rasterio
@@ -54,6 +54,78 @@ def load_country_geojson(name: str) -> Tuple[dict, dict]:
 
     return boundary, envelope
 
+
+def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datasets: list=['aqueduct', 'biodiversity', 'osm_roads']):
+    """
+    Create a fake tree so we can check reading packages
+    """
+    if 'gambia' in packages:
+        if 'noexist' in datasets:
+            # An invalid processor or dataset was placed in the tree
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "noexist"
+                ),
+                exist_ok=True,
+            )
+        if 'aqueduct' in datasets:
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "aqueduct", "0.1"
+                ),
+                exist_ok=True,
+            )
+        if 'biodiversity' in datasets:
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "biodiversity", "version_1"
+                ),
+                exist_ok=True,
+            )
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "biodiversity", "version_2"
+                ),
+                exist_ok=True,
+            )
+        if 'osm_roads' in datasets:
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "osm_roads", "20221201"
+                ),
+                exist_ok=True,
+            )
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "osm_roads", "20230401"
+                ),
+                exist_ok=True,
+            )
+        if 'natural_earth' in datasets:
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "gambia", "datasets", "natural_earth", "version_1"
+                ),
+                exist_ok=True,
+            )
+    if 'zambia' in packages:
+        if 'osm_roads' in datasets:
+            os.makedirs(
+                os.path.join(
+                    top_level_path, "zambia", "datasets", "osm_roads", "20230401"
+                ),
+                exist_ok=True,
+            )
+
+def remove_tree(top_level_path: str, packages=['gambia', 'zambia']):
+    """
+    Cleanup the test tree
+    """
+    for package in packages:
+        try:
+            shutil.rmtree(os.path.join(top_level_path, package))
+        except FileNotFoundError:
+            print (f'failed to delete {package} - not found')
 
 def assert_raster_bounds_correct(
     raster_fpath: str, envelope: dict, tolerence: float = 0.1

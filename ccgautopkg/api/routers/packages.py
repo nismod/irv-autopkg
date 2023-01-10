@@ -9,7 +9,11 @@ from fastapi import APIRouter, HTTPException
 
 from config import LOG_LEVEL, STORAGE_BACKEND, LOCALFS_STORAGE_BACKEND_ROOT
 from dataproc.helpers import processor_name, dataset_name_from_processor
-from dataproc.exceptions import PackageNotFoundException, DatasetNotFoundException
+from dataproc.exceptions import (
+    PackageNotFoundException,
+    DatasetNotFoundException,
+    InvalidProcessorException,
+)
 from dataproc.helpers import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
 from api.helpers import handle_exception, currently_executing_processors, processor_meta
@@ -19,7 +23,7 @@ from api.schemas import (
     Dataset,
 )
 from api.db.controller import DBController
-from api.exceptions import PackageHasNoDatasetsException
+from api.exceptions import PackageHasNoDatasetsException, CannotGetExecutingTasksException
 
 
 router = APIRouter(
@@ -39,7 +43,7 @@ async def get_packages():
     """Retrieve information on available top-level packages (which are created from boundaries)"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        logger.debug("found pacakges in backend: %s", storage_backend.packages())
+        logger.debug("found packages in backend: %s", storage_backend.packages())
         result = []
         for boundary_name in storage_backend.packages():
             result.append(PackageSummary(boundary_name=boundary_name, uri="TODO"))
@@ -80,22 +84,35 @@ async def get_package(boundary_name: str):
             output_datasets.append(Dataset(name=dataset, versions=versions))
 
         # Check for existing datasets
-        try:
-            existing_datasets = storage_backend.package_datasets(boundary_name)
-            # One to one mapping between dataset.version name and the processor version name that creates it
-            logger.debug("found existing datasets: %s", existing_datasets)
-            for dataset in existing_datasets:
-                processor_versions = []
-                try:
-                    for version in storage_backend.dataset_versions(boundary_name, dataset):
-                        proc_name = processor_name(dataset, version)
-                        processor_versions.append(processor_meta(proc_name))
-                except DatasetNotFoundException:
-                    logger.debug("No dataset with the given name was found on the FS: %s", dataset)
-                output_datasets.append(Dataset(name=dataset, versions=processor_versions))
-        except PackageNotFoundException:
-            logger.debug("No package with the given name was found on the FS: %s", boundary_name)
-        
+        existing_datasets = storage_backend.package_datasets(boundary_name)
+        # One to one mapping between dataset.version name and the processor version name that creates it
+        logger.debug("found existing datasets: %s", existing_datasets)
+        for dataset in existing_datasets:
+            processor_versions = []
+            try:
+                for version in storage_backend.dataset_versions(boundary_name, dataset):
+                    proc_name = processor_name(dataset, version)
+                    logger.debug(
+                        "collecting meta for processor %s, built from dataset %s and version %s",
+                        proc_name,
+                        dataset,
+                        version,
+                    )
+                    meta = processor_meta(proc_name)
+                    processor_versions.append(meta)
+                if processor_versions:
+                    output_datasets.append(
+                        Dataset(name=dataset, versions=processor_versions)
+                    )
+                else:
+                    raise PackageHasNoDatasetsException(boundary_name)
+            except DatasetNotFoundException:
+                logger.debug(
+                    "No dataset with the given name was found on the FS: %s", dataset
+                )
+            except InvalidProcessorException:
+                logger.debug("The processor %s relating to dataset %s with version %s is invalid", proc_name, version, dataset)
+
         # If there are no executing processors, nor existing datasets then return a 404 for this package
         if not output_datasets:
             raise PackageHasNoDatasetsException(boundary_name)
@@ -110,9 +127,22 @@ async def get_package(boundary_name: str):
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
+    except CannotGetExecutingTasksException as err:
+        handle_exception(logger, err)
+        raise HTTPException(
+            status_code=500, detail=f""
+        )
+    except PackageNotFoundException as err:
+        handle_exception(logger, err)
+        raise HTTPException(
+            status_code=404, detail=f"Package {boundary_name} not found"
+        )
     except PackageHasNoDatasetsException as err:
         handle_exception(logger, err)
-        raise HTTPException(status_code=404, detail=f"Package {boundary_name} has no existing or executing datasets")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Package {boundary_name} has no existing or executing datasets",
+        )
     except Exception as err:
         handle_exception(logger, err)
         raise HTTPException(status_code=500)

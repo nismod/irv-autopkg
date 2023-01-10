@@ -8,10 +8,16 @@ import logging
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
+from dataproc.exceptions import DatasetNotFoundException
 
 
 class Metadata(BaseMetadataABC):
-    """Processor metadata"""
+    """
+    Processor metadata
+
+    __NOTE__: this MUST match the name of the processors python file
+    
+    """
 
     name = (
         "natural_earth"  # this must follow snakecase formatting, without special chars
@@ -19,7 +25,7 @@ class Metadata(BaseMetadataABC):
     description = (
         "A Test Processor for Natural Earth image"  # Longer processor description
     )
-    version = "1"  # Version of the Processor
+    version = "version_1"  # Version of the Processor
     dataset_name = "natural_earth"  # The dataset this processor targets
     data_author = "Natural Earth Data"
     data_license = "https://www.naturalearthdata.com/about/terms-of-use/"
@@ -27,7 +33,7 @@ class Metadata(BaseMetadataABC):
 
 
 class Processor(BaseProcessorABC):
-    """A Processor for _two"""
+    """A Processor for Natural Earth"""
 
     source_zip_filename = "NE2_50M_SR.zip"
     source_zip_url = os.path.join(
@@ -48,7 +54,9 @@ class Processor(BaseProcessorABC):
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
-        return False
+        return self.storage_backend.processor_file_exists(
+            self.boundary['name'], Metadata().name, Metadata().version, f"{self.boundary['name']}.tif"
+        )
 
     def generate(self):
         """Generate files for a given processor"""

@@ -5,6 +5,12 @@ Custom Dataproc exceptions
 class DataProcException(Exception):
     pass
 
+class ConfigException(DataProcException):
+    """Error with configuration """
+
+class InvalidProcessorException(DataProcException):
+    """A processor cannot be used / is invalid"""
+
 class FolderCreationException(DataProcException):
     """Error creating a folder"""
 

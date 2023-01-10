@@ -36,7 +36,8 @@ class DBController:
             name=boundary.name,
             name_long=boundary.name_long,
             admin_level=boundary.admin_level,
-            geometry=json.loads(boundary.ST_AsGeoJSON_1)
+            geometry=json.loads(boundary.ST_AsGeoJSON_1),
+            envelope=json.loads(boundary.ST_AsGeoJSON_2)
         )
 
     async def get_boundary_by_name(self, name: str) -> schemas.Boundary:

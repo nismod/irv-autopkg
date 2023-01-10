@@ -13,6 +13,8 @@ from api import schemas
 from dataproc import tasks, Boundary
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import processor_name, get_processor_meta_by_name, build_processor_name_version
+from dataproc.exceptions import InvalidProcessorException
+from api.exceptions import CannotGetExecutingTasksException
 
 from config import CELERY_APP
 
@@ -85,8 +87,13 @@ def processor_meta(processor_name_version: str, executing:bool=False) -> schemas
     """
     Generate ProcessorVersion (with nested metadata) for a given procesor version
     """
-    meta = get_processor_meta_by_name(processor_name_version)()
-    if meta is not None:
+    meta_cls = get_processor_meta_by_name(processor_name_version)
+    if not meta_cls:
+        # Either the processor is missing its meta or 
+        # the dataset name on the FS has no applicable processor
+        raise InvalidProcessorException()
+    if meta_cls is not None:
+        meta = meta_cls()
         return schemas.ProcessorVersion(
                 processor=schemas.ProcessorMetadata(
                     name=processor_name_version,
@@ -154,6 +161,9 @@ def currently_executing_processors(boundary_name: str) -> List[str]:
     """
     # Filter the currently executing tasks for the given boundary
     executing_tasks = get_celery_executing_tasks()
+    if executing_tasks is None:
+        # The processing backend has probably failed / is not running
+        raise CannotGetExecutingTasksException()
     executing_processors = []
     for worker, worker_executing_tasks in executing_tasks.items():
         for task in worker_executing_tasks:

@@ -192,7 +192,7 @@ class LocalFSStorageBackend(StorageBackend):
         self, boundary_name: str, processor_dataset: str, version: str
     ) -> bool:
         """
-        Test if a given dataset folder exists within the given boundary and dataet version
+        Test if a given dataset folder exists within the given boundary and dataset version
         """
         abs_path = self._build_absolute_path(
             boundary_name,
