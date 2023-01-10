@@ -9,7 +9,6 @@ import zipfile
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.processors.common import assert_geotiff, crop_raster
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
@@ -26,8 +25,6 @@ class Processor(BaseProcessorABC):
 
     source_zip_filename = "NE2_50M_SR.zip"
     source_zip_url = os.path.join("https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/50m/raster/NE2_50M_SR.zip")
-    # The relative path components where we expect the extracted source data to exist
-    extracted_source_relative_path = ["natural_earth/NE2_50M_SR/NE2_50M_SR.tif"]
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
         self.boundary = boundary
@@ -40,10 +37,6 @@ class Processor(BaseProcessorABC):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
         return False
 
-    def source_exists(self):
-        """Whether all source files for a given processor exist on the FS on not"""
-        return 
-
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
@@ -52,20 +45,21 @@ class Processor(BaseProcessorABC):
         # Check if the source TIFF exists and fetch it if not
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
-        output_folder = self.processing_backend.create_processing_folder("natural_earth/version_1/outputs")
+        output_folder = self.processing_backend.create_processing_folder(f"natural_earth/{Metadata().version}/outputs")
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.tif")
         self.log.debug("Natural earth - cropping geotiff")
-        crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
+        crop_success = self.processing_backend.crop_raster(geotiff_fpath, output_fpath, self.boundary)
         self.provenance_log[f"{Metadata().name} - crop success"] = crop_success
         # Move cropped data to backend
         self.log.debug("Natural earth - moving cropped data to backend")
-        self.storage_backend.put_processor_data(
+        result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary['name'],
             Metadata().name,
             Metadata().version,
         )
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = "Complete"
+        self.provenance_log[f"{Metadata().name} - move to storage success"] = True
+        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
         # Cleanup as required
         return self.provenance_log
 
@@ -77,7 +71,7 @@ class Processor(BaseProcessorABC):
         return fpath str The path to the fetch source file
         """
         # Check if the files exist
-        expected_source_path = self.processing_backend.build_absolute_path(self.extracted_source_relative_path)
+        expected_source_path = self.processing_backend.build_absolute_path("natural_earth", "NE2_50M_SR", "NE2_50M_SR.tif")
         if self.processing_backend.path_exists(expected_source_path):
             self.provenance_log[f"{Metadata().name} - source files exist"] = expected_source_path
             self.log.debug("Natural earth - source exists")
@@ -89,12 +83,12 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - zip download path"] = local_zip_fpath
         # Unpack
         self.log.debug("Natural earth - unpacking zip")
-        local_extract_path = self._unpack_zip(local_zip_fpath)
+        local_extract_path = self.processing_backend.unpack_zip(local_zip_fpath)
         geotiff_fpath = os.path.join(local_extract_path, "NE2_50M_SR.tif")
-        assert os.path.exists(geotiff_fpath), f"extracted ZIP did not exist at expected path {geotiff_fpath}"
+        assert os.path.exists(geotiff_fpath), f"extracted GTIFF did not exist at expected path {geotiff_fpath}"
         # Assert the Tiff
         self.log.debug("Natural earth - asserting geotiff")
-        assert_geotiff(geotiff_fpath, check_crs='EPSG:4326')
+        self.processing_backend.assert_geotiff(geotiff_fpath, check_crs='EPSG:4326')
         self.provenance_log[f"{Metadata().name} - valid GeoTIFF fetched/extracted"] = True
         return geotiff_fpath
 
@@ -105,16 +99,7 @@ class Processor(BaseProcessorABC):
         ::returns filepath str Result local filepath
         """
         # Pull the zip file to the configured processing backend
-        zip_path = self.processing_backend.download_file(self.source_zip_url, "natural_earth")
+        zip_path = self.processing_backend.download_file(self.source_zip_url, "natural_earth/NE2_50M_SR.zip")
         return zip_path
 
-    def _unpack_zip(self, zip_fpath: str, extract_directory: str="NE2_50M_SR") -> str:
-        """
-        Unpack a Downloaded Zip
-
-        ::returns extracted folder path str
-        """
-        path = self.processing_backend.create_processing_folder(extract_directory)
-        with zipfile.ZipFile(zip_fpath, 'r') as zip_ref:
-            zip_ref.extractall(path)
-        return path
+    

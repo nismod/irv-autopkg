@@ -19,6 +19,7 @@ class Boundary(BoundarySummary):
     """Complete boundary information"""
     admin_level:str
     geometry:dict # GeoJSON
+    envelope:dict # GeoJSON
 
     class Config:
         orm_mode = True

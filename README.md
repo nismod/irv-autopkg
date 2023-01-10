@@ -4,7 +4,8 @@ FastAPI + Celery + Individual processors per Dataset for DAG ETL Pipeline
 
 TODO:
 
-Provenance processor for run-logging
+Tests for Natural Earth - Bounding box of multipolygon geojson to shape rasterio can interpret
+
 Create a processor that fetches a raster, crops it and saves it to a localfs backend
 
     Rasterio for raster clipping to geojson

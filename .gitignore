@@ -165,3 +165,5 @@ data/redis/*
 data/db
 envs/*
 data/*
+tests/data/tmp/*
+tests/data/package_bucket/*

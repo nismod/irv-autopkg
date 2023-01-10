@@ -58,7 +58,7 @@ async def submit_processing_job(job: schemas.Job):
         logger.debug("performing %s", inspect.stack()[0][3])
         # Collect boundary geojson
         boundary_db = await DBController().get_boundary_by_name(job.boundary_name)
-        boundary_dataproc = DataProcBoundary(job.boundary_name, boundary_db.geometry)
+        boundary_dataproc = DataProcBoundary(job.boundary_name, boundary_db.geometry, boundary_db.envelope)
         # Check processors are all valid and remove duplicate processors
         for processor in job.processors:
             module = get_processor_by_name(processor)

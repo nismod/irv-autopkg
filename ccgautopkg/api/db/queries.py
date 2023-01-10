@@ -49,7 +49,10 @@ class Queries:
             This includes a GeoJSON repr of the geometry under field ST_AsGeoJSON
         """
         stmt = (
-            select(models.Boundary, func.ST_AsGeoJSON(models.Boundary.geometry))
+            select(
+                models.Boundary,
+                func.ST_AsGeoJSON(models.Boundary.geometry),
+                func.ST_AsGeoJSON(func.ST_Envelope(models.Boundary.geometry)))
                 .where(models.Boundary.name == name)
         )
         res = await self.database.fetch_one(stmt)

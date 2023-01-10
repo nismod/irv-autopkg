@@ -223,8 +223,13 @@ class LocalFSStorageBackend(StorageBackend):
         boundary_name: str,
         dataset_name: str,
         version: str,
-    ):
-        """Put an data output from a processor for a particular dataset and version onto the backend"""
+    ) -> str:
+        """
+        Put an data output from a processor for a particular dataset and 
+        version onto the backend
+        
+        ::returns dest_abs_path str URI of the moved file
+        """
         filename = os.path.basename(local_source_fpath)
         dest_abs_path = self._build_absolute_path(
             boundary_name,
@@ -234,8 +239,11 @@ class LocalFSStorageBackend(StorageBackend):
             self.dataset_data_folder_name,
             filename,
         )
+        # Create the output dirs
+        os.makedirs(os.path.dirname(dest_abs_path), exist_ok=True)
         _ = shutil.copy(local_source_fpath, dest_abs_path)
         if not os.path.exists(dest_abs_path):
             raise FileCreationException(
                 f"destination file path {dest_abs_path} not found after creation attempt"
             )
+        return dest_abs_path
