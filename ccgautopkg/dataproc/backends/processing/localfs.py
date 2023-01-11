@@ -3,6 +3,7 @@ Local Filesystem Backend
 """
 
 import os
+from typing import List
 import requests
 import os
 import zipfile
@@ -38,12 +39,16 @@ class LocalFSProcessingBackend(ProcessingBackend):
         path = os.path.join(self.top_level_folder_path, relative_path)
         return os.path.exists(path)
 
-    def create_processing_folder(self, folder_path: str) -> str:
+    def create_processing_folder(self, path_components: List[str]) -> str:
         """
-        Create a folder, or tree on the processing backend top level
+        Create a folder, or tree relative to the processing backend top level
+
+        ::param folder_path str Relative path to create, e.g.: "some/path/here"
         """
-        path = self.build_absolute_path(folder_path)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        path = self.build_absolute_path(*path_components)
+        os.makedirs(path, exist_ok=True)
+        if not os.path.exists(path):
+            raise FolderCreationException(path)
         return path
 
     def download_file(self, source_url: str, destination_relative_fpath: str) -> str:
@@ -128,3 +133,10 @@ class LocalFSProcessingBackend(ProcessingBackend):
         with zipfile.ZipFile(zip_fpath, "r") as zip_ref:
             zip_ref.extractall(extract_path)
         return os.path.join(extract_path, os.path.splitext(zip_fpath)[0])
+
+    def create_test_file(self, fpath: str):
+        """
+        Generate a blank test-file
+        """
+        with open(fpath, 'w') as fptr:
+            fptr.write("test\n")

@@ -67,7 +67,7 @@ class Processor(BaseProcessorABC):
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
         output_folder = self.processing_backend.create_processing_folder(
-            f"natural_earth/{Metadata().version}/outputs"
+            [self.boundary['name'], "natural_earth", Metadata().version, "outputs"]
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.tif")
         self.log.debug("Natural earth - cropping geotiff")

@@ -34,7 +34,7 @@ services:
     environment:
       - CCGAUTOPKG_CELERY_BROKER=redis://redis:6379
       - CCGAUTOPKG_CELERY_BACKEND=redis://redis:6379
-    command: celery --app dataproc.tasks worker --loglevel=debug
+    command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=1
 
   api:
     image: ccgautopkg:0.1-dev

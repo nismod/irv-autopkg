@@ -4,6 +4,7 @@ Helper methods / classes
 import inspect
 from typing import List
 from types import ModuleType
+import os
 
 from dataproc.processors.internal.base import BaseProcessorABC
 from dataproc.backends import StorageBackend, ProcessingBackend
@@ -53,6 +54,11 @@ def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
             return True
     return False
 
+def version_name_from_file(filename: str):
+    """
+    Generate a version from the name of a processors version file
+    """
+    return os.path.basename(filename).replace('.py', '')
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
     """Build a full processor name from name and version"""
@@ -79,7 +85,7 @@ def list_processors() -> List[BaseProcessorABC]:
 
 
 def get_processor_by_name(processor_name_version: str) -> BaseProcessorABC:
-    """Retrieve a processor module by its name (including version)"""
+    """Retrieve a processor module by its name (including version) and check its validity"""
     import dataproc.processors.core as available_processors
 
     for name, processor in inspect.getmembers(available_processors):

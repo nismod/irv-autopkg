@@ -4,16 +4,19 @@ Test Raster Processor
 
 from time import sleep
 import logging
+import os
+import inspect
 
 from dataproc.backends import StorageBackend, ProcessingBackend
 from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
+from dataproc.helpers import version_name_from_file
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
     name="test_processor" # this must follow snakecase formatting, without special chars
     description="A test processor for nightlights" # Longer processor description
-    version="1" # Version of the Processor
+    version=version_name_from_file(inspect.stack()[1].filename) # Version of the Processor
     dataset_name="nightlights" # The dataset this processor targets
     data_author="Nightlights Author"
     data_license="Nightlights License"
@@ -32,8 +35,21 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         # Pause to allow inspection
-        sleep(5)
-        self.provenance_log[Metadata().name] = "Completed"
+        sleep(3)
+        output_folder = self.processing_backend.create_processing_folder(
+            [self.boundary['name'], "test_processor", Metadata().version, "outputs"]
+        )
+        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
+        # Generate a blank tests dataset
+        self.processing_backend.create_test_file(output_fpath)
+        result_uri = self.storage_backend.put_processor_data(
+            output_fpath,
+            self.boundary["name"],
+            Metadata().name,
+            Metadata().version,
+        )
+        self.provenance_log[f"{Metadata().name} - move to storage success"] = True
+        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
         return self.provenance_log
 
     def exists(self):

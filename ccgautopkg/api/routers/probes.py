@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from config import LOG_LEVEL
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
 from api.db import database
-from api.helpers import get_celery_executing_tasks
+from api.helpers import get_celery_active_tasks
 
 
 router = APIRouter(
@@ -33,7 +33,7 @@ async def get_readiness():
     else:
         readiness.append(False)
     # Check celery is contactable
-    if get_celery_executing_tasks() is not None:
+    if get_celery_active_tasks() is not None:
         readiness.append(True)
     else:
         readiness.append(False)

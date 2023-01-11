@@ -77,4 +77,4 @@ class SubmittedJob(BaseModel):
 class JobStatus(SubmittedJob):
     """Status of a Submitted Job"""
     job_status: str
-    job_result: str
+    job_result: Optional[dict]

@@ -12,9 +12,11 @@ from celery import Celery
 # DATAPROC VARS
 CELERY_BROKER = getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost")
 CELERY_BACKEND = getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost")
-CELERY_APP = Celery("CCG-AutoPackage")
+CELERY_APP = Celery("CCG-AutoPackage", worker_prefetch_multiplier=1)
 CELERY_APP.conf.broker_url = CELERY_BROKER
 CELERY_APP.conf.result_backend = CELERY_BACKEND
+REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
+TASK_LOCK_TIMEOUT = int(getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")) # seconds
 
 
 # API VARS

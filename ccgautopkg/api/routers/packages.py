@@ -16,14 +16,14 @@ from dataproc.exceptions import (
 )
 from dataproc.helpers import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
-from api.helpers import handle_exception, currently_executing_processors, processor_meta
+from api.helpers import handle_exception, currently_active_or_reserved_processors, processor_meta
 from api.schemas import (
     Package,
     PackageSummary,
     Dataset,
 )
 from api.db.controller import DBController
-from api.exceptions import PackageHasNoDatasetsException, CannotGetExecutingTasksException
+from api.exceptions import PackageHasNoDatasetsException, CannotGetCeleryTasksInfoException
 
 
 router = APIRouter(
@@ -65,11 +65,11 @@ async def get_package(boundary_name: str):
         logger.debug("performing %s", inspect.stack()[0][3])
         output_datasets = []
 
-        # Check for executing tasks (processor.versions)
-        executing_processors = currently_executing_processors(boundary_name)
-        logger.debug("found executing processors: %s", executing_processors)
+        # Check for executing or queued tasks (processor.versions)
+        internal_processors = currently_active_or_reserved_processors(boundary_name)
+        logger.debug("found executing processors: %s", internal_processors)
         executing_versions = {}
-        for processor_name_version in executing_processors:
+        for processor_name_version in internal_processors:
             dataset = dataset_name_from_processor(processor_name_version)
             if dataset not in executing_versions.keys():
                 executing_versions[dataset] = [
@@ -127,7 +127,7 @@ async def get_package(boundary_name: str):
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
-    except CannotGetExecutingTasksException as err:
+    except CannotGetCeleryTasksInfoException as err:
         handle_exception(logger, err)
         raise HTTPException(
             status_code=500, detail=f""

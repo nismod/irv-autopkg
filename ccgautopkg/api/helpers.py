@@ -8,13 +8,14 @@ import base64
 from typing import Any, List
 
 from celery import group
+from celery.utils import uuid
 from api import schemas
 
 from dataproc import tasks, Boundary
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import processor_name, get_processor_meta_by_name, build_processor_name_version
 from dataproc.exceptions import InvalidProcessorException
-from api.exceptions import CannotGetExecutingTasksException
+from api.exceptions import CannotGetExecutingTasksException, CannotGetCeleryTasksInfoException
 
 from config import CELERY_APP
 
@@ -83,6 +84,10 @@ def create_dag(boundary: Boundary, processors: List[str]):
     dag = step_setup | group(processor_task_signatures) | step_finalise
     return dag
 
+def random_task_uuid():
+    """Generate a custom task uuid"""
+    return uuid()
+
 def processor_meta(processor_name_version: str, executing:bool=False) -> schemas.ProcessorVersion:
     """
     Generate ProcessorVersion (with nested metadata) for a given procesor version
@@ -110,65 +115,104 @@ def processor_meta(processor_name_version: str, executing:bool=False) -> schemas
 
 # Celery Queue Interactions
 
-def get_celery_executing_tasks() -> dict:
+def get_celery_active_tasks() -> dict:
     """Return list of tasks currently executed by Celery workers"""
     task_inspector = CELERY_APP.control.inspect()
     return task_inspector.active()
 
+def get_celery_registered_tasks() -> dict:
+    """List of Actual task types that have been registered to Workers (not actual jobs)"""
+    task_inspector = CELERY_APP.control.inspect()
+    return task_inspector.registered()
 
-def currently_executing_processors(boundary_name: str) -> List[str]:
+def get_celery_reserved_tasks() -> dict:
+    """Return list of tasks currently queued by Celery workers"""
+    task_inspector = CELERY_APP.control.inspect()
+    return task_inspector.reserved()
+
+def get_celery_scheduled_tasks() -> dict:
+    """Return list of tasks currently scheduled by Celery workers"""
+    task_inspector = CELERY_APP.control.inspect()
+    return task_inspector.scheduled()
+
+def get_celery_task_info(task_id: str) -> dict:
     """
-    Collect a list of currently executing processors for a given package
-    
-    Example Celery inspect output:
-        {
-        "celery@dusteds-MBP": [
+    Information about a specific task
+     Example Output
+     {
+    "celery@dusteds-MBP": {
+        "bcc2178e-4c1a-42fc-9615-783cfd602a14": [
+            "active",
             {
-                "id": "06d2528a-1a64-459c-b6cf-bf019b66a19d",
+                "id": "bcc2178e-4c1a-42fc-9615-783cfd602a14",
                 "name": "dataproc.tasks.processor_task",
                 "args": [
-                    "boundary setup done",
                     {
-                        "name": "ghana",
+                        "boundary_processor": {
+                            "boundary_folder": "exists"
+                        }
+                    },
+                    {
+                        "name": "gambia",
                         "geojson": {
                             "type": "MultiPolygon",
-                            "coordinates": [
-                                [
-                                    [
-                                        ...
-                                    ]
-                                ]
-                            ],
+                            "coordinates": []
                         },
+                        "envelope_geojson": {
+                            "type": "Polygon",
+                            "coordinates": []
+                        }
                     },
-                    "test_processor.version_1",
+                    "test_processor.version_1"
                 ],
                 "kwargs": {},
                 "type": "dataproc.tasks.processor_task",
-                "hostname": "celery@worker",
-                "time_start": 1671623963.9834435,
+                "hostname": "celery@dusteds-MBP",
+                "time_start": 1673439269.0976949,
                 "acknowledged": True,
                 "delivery_info": {
                     "exchange": "",
                     "routing_key": "celery",
                     "priority": 0,
-                    "redelivered": None,
+                    "redelivered": None
                 },
-                "worker_pid": 67036,
+                "worker_pid": 58536
             }
         ]
     }
+}
     """
-    # Filter the currently executing tasks for the given boundary
-    executing_tasks = get_celery_executing_tasks()
-    if executing_tasks is None:
+    task_inspector = CELERY_APP.control.inspect()
+    return task_inspector.query_task(task_id)
+
+def _task_arg_contains_boundary(boundary_name: str, task: dict) -> bool:
+    """
+    Whether a given task info shows it is instantiated against a given boundary
+    """
+    if task['type'] == "dataproc.tasks.processor_task":
+        # Match task to requested boundary name
+        if task['args'][1]['name'] == boundary_name: # see tasks.py -> processor_task args
+            return True
+    return False
+
+def currently_active_or_reserved_processors(boundary_name: str) -> List[str]:
+    """
+    Collect a list of name.version entries for 
+        processors wither executing (active) or queued (reserved) 
+        against a given boundary name
+    """
+    active_tasks = get_celery_active_tasks()
+    reserved_tasks = get_celery_reserved_tasks()
+    if active_tasks is None or reserved_tasks is None:
         # The processing backend has probably failed / is not running
-        raise CannotGetExecutingTasksException()
-    executing_processors = []
-    for worker, worker_executing_tasks in executing_tasks.items():
+        raise CannotGetCeleryTasksInfoException()
+    processors = []
+    for worker, worker_executing_tasks in active_tasks.items():
         for task in worker_executing_tasks:
-            if task['type'] == "dataproc.tasks.processor_task":
-                # Match task to requested boundary name
-                if task['args'][1]['name'] == boundary_name: # see tasks.py -> processor_task args
-                    executing_processors.append(task['args'][2])
-    return executing_processors
+            if _task_arg_contains_boundary(boundary_name, task):
+                processors.append(task['args'][2])
+    for worker, worker_executing_tasks in reserved_tasks.items():
+        for task in worker_executing_tasks:
+            if _task_arg_contains_boundary(boundary_name, task):
+                processors.append(task['args'][2])
+    return processors

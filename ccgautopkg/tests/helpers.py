@@ -5,7 +5,7 @@ import os
 import sys
 import inspect
 import json
-from typing import Tuple
+from typing import List, Tuple
 import shutil
 
 import sqlalchemy as sa
@@ -125,7 +125,7 @@ def remove_tree(top_level_path: str, packages=['gambia', 'zambia']):
         try:
             shutil.rmtree(os.path.join(top_level_path, package))
         except FileNotFoundError:
-            print (f'failed to delete {package} - not found')
+            pass
 
 def assert_raster_bounds_correct(
     raster_fpath: str, envelope: dict, tolerence: float = 0.1
@@ -150,3 +150,23 @@ def assert_raster_bounds_correct(
         assert (
             abs(src.bounds.bottom - min(y_coords)) < tolerence
         ), f"bounds {src.bounds.bottom} did not match expected {min(y_coords)} within tolerence {tolerence}"
+
+def assert_package(top_level_fpath: str, boundary_name: str, dataset_name_versions: List[str]):
+    """Assert integrity of a package and datasets contained within
+        This does not assert the integrity of actualy data files (raster/vector); 
+        just the folder structure
+
+    ::param dataset_name_versions str name.version
+    """
+    required_top_level_docs = [
+        'index.html', 'license.html', 'version.html', 'provenance.json', 'datapackage.json'
+    ]
+    packages = next(os.walk(top_level_fpath))[1]
+    assert boundary_name in packages, f"{boundary_name} missing in package root: {packages}"
+    for dataset in next(os.walk(os.path.join(top_level_fpath, boundary_name, "datasets")))[1]:
+        for version in next(os.walk(os.path.join(top_level_fpath, boundary_name, "datasets", dataset)))[1]:
+            chk_path = os.path.join(top_level_fpath, boundary_name, "datasets", dataset, version)
+            assert os.path.exists(chk_path), f"missing files in pacakge: {chk_path}"
+    # Ensure the top-level index and other docs exist
+    for doc in required_top_level_docs:
+        assert os.path.exists(os.path.join(top_level_fpath, boundary_name, doc)), f"top-level {doc} missing"
