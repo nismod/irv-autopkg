@@ -12,14 +12,11 @@ from config import (
     TASK_LOCK_TIMEOUT,
     STORAGE_BACKEND,
     LOCALFS_STORAGE_BACKEND_ROOT,
-    PROCESSING_BACKEND,
-    LOCALFS_PROCESSING_BACKEND_ROOT,
     REDIS_HOST
 )
 from dataproc import Boundary
 from dataproc.helpers import (
     init_storage_backend,
-    init_processing_backend,
     get_processor_by_name,
 )
 from dataproc.processors.internal import (
@@ -28,10 +25,6 @@ from dataproc.processors.internal import (
 )
 from dataproc.exceptions import ProcessorAlreadyExecutingException
 
-# Setup Configured Processing Backend
-processing_backend = init_processing_backend(PROCESSING_BACKEND)(
-    LOCALFS_PROCESSING_BACKEND_ROOT
-)
 # Setup Configured Storage Backend
 storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
 
@@ -72,7 +65,7 @@ def boundary_setup(boundary: Boundary) -> dict:
     try:
         with redis_lock(task_sig) as acquired:
             if acquired:
-                proc = BoundaryProcessor(boundary, storage_backend, processing_backend)
+                proc = BoundaryProcessor(boundary, storage_backend)
                 result = proc.generate()
                 return result
             else:
@@ -104,7 +97,7 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
             if acquired:
                 try:
                     module = get_processor_by_name(processor_name_version)
-                    proc = module(boundary, storage_backend, processing_backend)
+                    proc = module(boundary, storage_backend)
                     result = proc.generate()
                     # Update sink for this processor
                     sink[processor_name_version] = result
@@ -145,7 +138,7 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                 # The sink can come in as a list (multiple processors ran) or dict (one processor ran)
                 if isinstance(sink, dict):
                     sink = [sink]
-                proc = ProvenanceProcessor(boundary, storage_backend, processing_backend)
+                proc = ProvenanceProcessor(boundary, storage_backend)
                 res = proc.generate(sink)
             else:
                 raise ProcessorAlreadyExecutingException()

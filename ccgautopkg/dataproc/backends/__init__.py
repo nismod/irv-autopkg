@@ -1,4 +1,3 @@
 
-from .base import StorageBackend, ProcessingBackend
+from .base import StorageBackend
 from .storage.localfs import LocalFSStorageBackend
-from .processing.localfs import LocalFSProcessingBackend

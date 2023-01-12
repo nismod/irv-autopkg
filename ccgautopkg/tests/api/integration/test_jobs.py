@@ -22,7 +22,7 @@ from tests.helpers import build_route, remove_tree, assert_package
 JOB_SUBMIT_DATA_BOUNDARY_NOEXIST = {
 	"boundary_name": "noexist",
 	"processors": [
-		"natural_earth.version_1"
+		"test_natural_earth_raster.version_1"
 	]
 }
 
@@ -36,7 +36,7 @@ JOB_SUBMIT_DATA_PROC_NOEXIST = {
 JOB_SUBMIT_DATA_PROC_DUP = {
 	"boundary_name": "gambia",
 	"processors": [
-		"natural_earth.version_1", "natural_earth.version_1"
+		"test_natural_earth_raster.version_1", "test_natural_earth_raster.version_1"
 	]
 }
 

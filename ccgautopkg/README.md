@@ -2,6 +2,20 @@
 
 Encompasses API and backend-processing to generate / manage datapackages associated with boundaries
 
+## Data Processing
+
+Celery
+
+Dag structure
+
+Processors (Internal) - Boundary and Provenance 
+
+Processors (Core) - dev deployment and testing
+
+Concurrency
+
+Duplicate Task submission and execution
+
 ## API
 
 API Covering boundaries, processors, packages and processing job submission against packages.

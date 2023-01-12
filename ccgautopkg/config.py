@@ -35,6 +35,16 @@ def get_db_uri(dbname: str) -> sa.engine.URL:
         database=dbname,
     )
 
+def get_db_uri_ogr(dbname: str) -> sa.engine.URL:
+    """Standard user DBURI for use with OGR (no psycopg2)"""
+    return sa.engine.URL.create(
+        drivername="postgresql",
+        username=getenv("CCGAUTOPKG_POSTGRES_USER"),
+        password=getenv("CCGAUTOPKG_POSTGRES_PASSWORD"),
+        host=getenv("CCGAUTOPKG_POSTGRES_HOST"),
+        port=getenv("CCGAUTOPKG_POSTGRES_PORT"),
+        database=dbname,
+    )
 
 def get_db_uri_sync(dbname: str) -> sa.engine.URL:
     """Standard user DBURI - non-async"""
@@ -59,8 +69,6 @@ STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
 LOCALFS_STORAGE_BACKEND_ROOT = getenv(
     "CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT"
 )
-# Processing backend to use
-PROCESSING_BACKEND = getenv("CCGAUTOPKG_PROCESSING_BACKEND", "localfs")
 # The root-level folder when using localfs processing backend
 LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
     "CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT"

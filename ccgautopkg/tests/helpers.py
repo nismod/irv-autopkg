@@ -54,6 +54,24 @@ def load_country_geojson(name: str) -> Tuple[dict, dict]:
 
     return boundary, envelope
 
+def load_natural_earth_roads_to_pg():
+    """
+    Load the natrual earth shapefile of roads into Postgres
+    Enables testing of vector clipping Processor
+    """
+    pguri = str(get_db_uri_sync(API_DB_NAME)).replace("+psycopg2", "")
+    fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "global", "ne_10m_roads", "ne_10m_roads.shp")
+    cmd = f'ogr2ogr -f "PostgreSQL" -nlt PROMOTE_TO_MULTI PG:"{pguri}" "{fpath}"'
+    os.system(cmd)
+
+def drop_natural_earth_roads_from_pg():
+    """Drop loaded Natural Earth Roads data from DB"""
+    print("Dropping NE Test Roads from DB...")
+    db_uri = get_db_uri_sync(API_DB_NAME)
+    # Init DB and Load via SA
+    engine = sa.create_engine(db_uri, pool_pre_ping=True)
+    _ = engine.execute("DROP TABLE ne_10m_roads;")
+    print ("Dropped NE Test Roads")
 
 def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datasets: list=['aqueduct', 'biodiversity', 'osm_roads']):
     """
@@ -101,10 +119,10 @@ def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datase
                 ),
                 exist_ok=True,
             )
-        if 'natural_earth' in datasets:
+        if 'test_natural_earth_raster' in datasets:
             os.makedirs(
                 os.path.join(
-                    top_level_path, "gambia", "datasets", "natural_earth", "version_1"
+                    top_level_path, "gambia", "datasets", "test_natural_earth_raster", "version_1"
                 ),
                 exist_ok=True,
             )
@@ -170,3 +188,11 @@ def assert_package(top_level_fpath: str, boundary_name: str, dataset_name_versio
     # Ensure the top-level index and other docs exist
     for doc in required_top_level_docs:
         assert os.path.exists(os.path.join(top_level_fpath, boundary_name, doc)), f"top-level {doc} missing"
+
+def assert_table_in_pg(db_uri: str, tablename: str):
+    """Check a given table exists in PG"""
+    from sqlalchemy.sql import text
+    engine = sa.create_engine(db_uri, pool_pre_ping=True)
+    stmt = text(f'SELECT * FROM "{tablename}"')
+    engine.execute(stmt)
+   

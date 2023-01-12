@@ -2,7 +2,7 @@
 
 from abc import ABC
 
-from dataproc.backends import StorageBackend, ProcessingBackend
+from dataproc.backends import StorageBackend
 from dataproc import Boundary
 
 class BaseMetadataABC(ABC):
@@ -11,10 +11,9 @@ class BaseMetadataABC(ABC):
 class BaseProcessorABC(ABC):
     """Base Processor ABC"""
 
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
+    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.processing_backend = processing_backend
         self.provenance_log = {}
 
     def generate(self):

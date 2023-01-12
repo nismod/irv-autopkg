@@ -10,13 +10,6 @@ services:
     env_file:
       - ./envs/.db.env
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    env_file:
-      - ./envs/.pgadmin.env
-    ports:
-      - 5000:80
-
   redis:
     image: redis:6.2-alpine
     restart: always
@@ -46,3 +39,17 @@ services:
     env_file:
       - envs/.api.env
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  test-api:
+    image: ccgautopkg:0.1-dev
+    build: ./ccgautopkg
+    env_file:
+      - envs/.api.env
+    command: python /usr/src/app/ccgautopkg/api/tests/run_external.py
+
+  test-dataproc:
+    image: ccgautopkg:0.1-dev
+    build: ./ccgautopkg
+    env_file:
+      - envs/.api.env
+    command: python /usr/src/app/ccgautopkg/dataproc/tests/run_external.py

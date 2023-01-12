@@ -5,36 +5,40 @@ import inspect
 from typing import List
 from types import ModuleType
 import os
+import requests
+import zipfile
+import json
+
+import rasterio
+import rasterio.mask
+import shapely
 
 from dataproc.processors.internal.base import BaseProcessorABC
-from dataproc.backends import StorageBackend, ProcessingBackend
+from dataproc.backends import StorageBackend
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
-from dataproc.backends.processing.localfs import LocalFSProcessingBackend
 from dataproc.exceptions import ConfigException
+from dataproc import Boundary
+from dataproc.exceptions import FolderCreationException, FileCreationException
 
 # DAGs and Processing
+
 
 def init_storage_backend(storage_backend: str) -> StorageBackend:
     """
     Initialise a StorageBackend by name
     """
-    if storage_backend == 'localfs':
+    if storage_backend == "localfs":
         return LocalFSStorageBackend
     else:
-        raise ConfigException(f"Unsupported / Unset StorageBackend {storage_backend} - check env")
+        raise ConfigException(
+            f"Unsupported / Unset StorageBackend {storage_backend} - check env"
+        )
 
-def init_processing_backend(processing_backend: str) -> ProcessingBackend:
-    """
-    Initialise a ProcessingBackend by name
-    """
-    if processing_backend == 'localfs':
-        return LocalFSProcessingBackend
-    else:
-        raise ConfigException(f"Unsupported / Unset ProcessingBackend {processing_backend} - check env")
 
 def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""
     return f"{dataset}.{version}"
+
 
 def dataset_name_from_processor(processor_name_version: str) -> str:
     """Generate a dataset name from a processor name ane version"""
@@ -54,11 +58,13 @@ def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
             return True
     return False
 
+
 def version_name_from_file(filename: str):
     """
     Generate a version from the name of a processors version file
     """
-    return os.path.basename(filename).replace('.py', '')
+    return os.path.basename(filename).replace(".py", "")
+
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
     """Build a full processor name from name and version"""
@@ -95,6 +101,7 @@ def get_processor_by_name(processor_name_version: str) -> BaseProcessorABC:
         if name == processor_name_version:
             return processor.Processor
 
+
 def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
     """Retrieve a processor MetaData module by its name (including version)"""
     import dataproc.processors.core as available_processors
@@ -105,3 +112,157 @@ def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
             continue
         if name == processor_name_version:
             return processor.Metadata
+
+
+# FILE OPERATIONS
+
+
+def unpack_zip(zip_fpath: str) -> str:
+    """
+    Unpack a Downloaded Zip
+
+    ::param zip_fpath str Absolute Filepath of input
+
+    ::returns extracted folder path str
+    """
+    extract_path = os.path.dirname(zip_fpath)
+    with zipfile.ZipFile(zip_fpath, "r") as zip_ref:
+        zip_ref.extractall(extract_path)
+    return os.path.join(extract_path, os.path.splitext(zip_fpath)[0])
+
+
+def create_test_file(fpath: str):
+    """
+    Generate a blank test-file
+    """
+    with open(fpath, "w") as fptr:
+        fptr.write("test\n")
+
+
+def download_file(source_url: str, destination_fpath: str) -> str:
+    """
+    Download a file from a source URL to a given destination
+
+    Folders to the path will be created as required
+    """
+    os.makedirs(os.path.dirname(destination_fpath), exist_ok=True)
+    # urllib.request.urlretrieve(source_url, path)
+    response = requests.get(
+        source_url,
+        timeout=5,
+        stream=True,
+        headers={
+            "Accept": "application/zip",
+            "Accept-Encoding": "gzip",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+        },
+    )
+    with open(destination_fpath, "wb") as handle:
+        for data in response.iter_content(chunk_size=8192):
+            handle.write(data)
+    if not os.path.exists(destination_fpath):
+        raise FileCreationException()
+    else:
+        return destination_fpath
+
+
+# RASTER OPERATIONS
+
+
+def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326"):
+    """
+    Check a given file is a valid geotiff
+
+    ::param fpath str Absolute filepath
+    """
+    with rasterio.open(fpath) as src:
+        assert (
+            src.meta["crs"] == check_crs
+        ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
+
+
+def crop_raster(
+    raster_input_fpath: str, raster_output_fpath: str, boundary: Boundary
+) -> bool:
+    """
+    Crop a raster file to the given boundary
+
+    Generates a geotiff
+
+    ::param raster_input_fpath str Absolute Filepath of input
+    ::param raster_output_fpath str Absolute Filepath of output
+    """
+    # Create the path to output if it doesnt exist
+    os.makedirs(os.path.dirname(raster_output_fpath), exist_ok=True)
+    shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
+    with rasterio.open(raster_input_fpath) as src:
+        out_image, out_transform = rasterio.mask.mask(src, [shape], crop=True)
+        out_meta = src.meta
+
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+        }
+    )
+
+    with rasterio.open(raster_output_fpath, "w", **out_meta) as dest:
+        dest.write(out_image)
+
+    return os.path.exists(raster_output_fpath)
+
+
+# VECTOR OPERATIONS
+
+def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
+    """
+    Load a shapefile into Postgres - uses system OGR command
+
+    Uses the ogr2ogr -nlt PROMOTE_TO_MULTI flat
+    """
+    cmd = f'ogr2ogr -f "PostgreSQL" -nlt PROMOTE_TO_MULTI PG:"{pg_uri}" "{shapefile_fpath}"'
+    os.system(cmd)
+
+def gdal_crop_pg_table_to_geopkg(boundary: Boundary,
+    pg_uri: str,
+    pg_table: str,
+    output_fpath: str,
+    geometry_column: str = "geometry",
+    debug=False):
+    """
+    Uses GDAL interface to crop table to geopkg
+    https://gis.stackexchange.com/questions/397023/issue-to-convert-from-postgresql-input-to-gpkg-using-python-gdal-api-function-gd
+    
+    TODO: Select fields from input table for inclusion, ensuring we only get a single geometry coloumn (not the clipped and original)
+    """
+    from osgeo import gdal
+    if debug:
+        gdal.UseExceptions()
+        gdal.SetConfigOption('CPL_DEBUG', 'ON')
+    geojson = json.dumps(boundary["geojson"])
+    stmt = f"SELECT * from {pg_table} where st_intersects(st_geomfromgeojson(\'{geojson}\'), {geometry_column})"
+    
+    stmt = f"""
+    WITH clip_geom AS (
+        SELECT st_geomfromgeojson(\'{geojson}\') AS country_geom
+        )
+        SELECT *
+        FROM (
+            SELECT {pg_table}.ogc_fid, (ST_Dump(ST_Intersection(clip_geom.country_geom, {pg_table}.wkb_geometry))).geom AS geometry
+            FROM {pg_table}, clip_geom
+            WHERE ST_Intersects({pg_table}.wkb_geometry, clip_geom.country_geom)
+        ) AS clipped
+        WHERE ST_Dimension(clipped.geometry) = 1 ;
+    """
+    if debug:
+        print (stmt)
+    ds = gdal.OpenEx(pg_uri, gdal.OF_VECTOR)
+    gdal.VectorTranslate(
+        output_fpath,
+        ds,
+        SQLStatement=stmt,
+        layerName=pg_table,
+        format='GPKG'
+    )

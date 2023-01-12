@@ -5,12 +5,11 @@ import json
 import os
 import logging
 
-from dataproc.backends import StorageBackend, ProcessingBackend
-from dataproc.processors.internal.base import BaseProcessorABC
-from dataproc import Boundary
+from dataproc.backends.base import PathsHelper
+from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
-class BoundaryProcessor(BaseProcessorABC):
+class BoundaryProcessor:
     """Top Level Boundary Structure / Project Setup Processor"""
 
     index_filename = "index.html"
@@ -18,12 +17,7 @@ class BoundaryProcessor(BaseProcessorABC):
     license_filename = "license.html"
     datapackage_filename = "datapackage.json"
 
-    def __init__(
-        self,
-        boundary: dict,
-        storage_backend: dict,
-        processing_backend: dict,
-    ) -> None:
+    def __init__(self, boundary: dict, storage_backend: dict) -> None:
         """
         Boundary Processor initialised with a boundary, storage and processing backends
 
@@ -31,11 +25,10 @@ class BoundaryProcessor(BaseProcessorABC):
 
         ::param boundary dict Definition of the boundary
         ::param storage_backend dict Storage backend
-        ::param processing_backend dict A backend used for processing (tmp file storage etc)
         """
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.processing_backend = processing_backend
+        self.paths_helper = PathsHelper(LOCALFS_PROCESSING_BACKEND_ROOT)
         self.log = logging.getLogger(__name__)
         self.provenance_log = {}
 
@@ -44,15 +37,19 @@ class BoundaryProcessor(BaseProcessorABC):
         # Check Boundary folder exists and generate if not
         if not self.storage_backend.boundary_folder_exists(self.boundary["name"]):
             self.storage_backend.create_boundary_folder(self.boundary["name"])
-            self.log.debug("Boundary folder for %s created: True", self.boundary["name"])
-            self.provenance_log['boundary_folder'] = 'created'
+            self.log.debug(
+                "Boundary folder for %s created: True", self.boundary["name"]
+            )
+            self.provenance_log["boundary_folder"] = "created"
         else:
             self.log.debug("Boundary for %s folder exists", self.boundary["name"])
-            self.provenance_log['boundary_folder'] = 'exists'
+            self.provenance_log["boundary_folder"] = "exists"
         if not self.storage_backend.boundary_data_folder_exists(self.boundary["name"]):
             self.storage_backend.create_boundary_data_folder(self.boundary["name"])
-            self.log.debug("Boundary data folder for %s created: True", self.boundary["name"])
-            self.provenance_log['boundary_data_folder'] = 'created'
+            self.log.debug(
+                "Boundary data folder for %s created: True", self.boundary["name"]
+            )
+            self.provenance_log["boundary_data_folder"] = "created"
         else:
             self.log.debug("Boundary data folder for %s exists", self.boundary["name"])
         # Generate missing files for the boundary
@@ -64,8 +61,10 @@ class BoundaryProcessor(BaseProcessorABC):
             index_create = self.storage_backend.put_boundary_data(
                 index_fpath, self.boundary["name"]
             )
-            self.log.debug("Boundary index for %s created: %s", self.boundary["name"], index_create)
-            self.provenance_log['boundary_index'] = 'created'
+            self.log.debug(
+                "Boundary index for %s created: %s", self.boundary["name"], index_create
+            )
+            self.provenance_log["boundary_index"] = "created"
         else:
             self.log.debug("Boundary index for %s exists", self.boundary["name"])
         if not self.storage_backend.boundary_file_exists(
@@ -75,8 +74,12 @@ class BoundaryProcessor(BaseProcessorABC):
             license_create = self.storage_backend.put_boundary_data(
                 license_fpath, self.boundary["name"]
             )
-            self.log.debug("Boundary license for %s created: %s", self.boundary["name"], license_create)
-            self.provenance_log['boundary_license'] = 'created'
+            self.log.debug(
+                "Boundary license for %s created: %s",
+                self.boundary["name"],
+                license_create,
+            )
+            self.provenance_log["boundary_license"] = "created"
         else:
             self.log.debug("Boundary license for %s exists", self.boundary["name"])
         if not self.storage_backend.boundary_file_exists(
@@ -86,8 +89,12 @@ class BoundaryProcessor(BaseProcessorABC):
             version_create = self.storage_backend.put_boundary_data(
                 version_fpath, self.boundary["name"]
             )
-            self.log.debug("Boundary version for %s created: %s", self.boundary["name"], version_create)
-            self.provenance_log['boundary_version'] = 'created'
+            self.log.debug(
+                "Boundary version for %s created: %s",
+                self.boundary["name"],
+                version_create,
+            )
+            self.provenance_log["boundary_version"] = "created"
         else:
             self.log.debug("Boundary version for %s exists", self.boundary["name"])
         if not self.storage_backend.boundary_file_exists(
@@ -97,11 +104,15 @@ class BoundaryProcessor(BaseProcessorABC):
             datapkg_create = self.storage_backend.put_boundary_data(
                 datapkg_fpath, self.boundary["name"]
             )
-            self.log.debug("Boundary datapackage for %s created: %s", self.boundary["name"], datapkg_create)
-            self.provenance_log['boundary_datapackage'] = 'created'
+            self.log.debug(
+                "Boundary datapackage for %s created: %s",
+                self.boundary["name"],
+                datapkg_create,
+            )
+            self.provenance_log["boundary_datapackage"] = "created"
         else:
             self.log.debug("Boundary datapackage for %s exists", self.boundary["name"])
-        return {"boundary_processor" : self.provenance_log}
+        return {"boundary_processor": self.provenance_log}
 
     def _generate_index_file(self) -> str:
         """
@@ -110,9 +121,7 @@ class BoundaryProcessor(BaseProcessorABC):
         ::returns dest_fpath str Destination filepath on the processing backend
         """
         # Create the file locally
-        dest_fpath = os.path.join(
-            self.processing_backend.top_level_folder_path, "index.html"
-        )
+        dest_fpath = self.paths_helper.build_absolute_path("index.html")
         with open(dest_fpath, "w") as fptr:
             # Insert some content
             fptr.writelines(
@@ -130,9 +139,7 @@ class BoundaryProcessor(BaseProcessorABC):
         ::returns dest_fpath str Destination filepath on the processing backend
         """
         # Create the file locally
-        dest_fpath = os.path.join(
-            self.processing_backend.top_level_folder_path, "license.html"
-        )
+        dest_fpath = self.paths_helper.build_absolute_path("license.html")
         with open(dest_fpath, "w") as fptr:
             # Insert some content
             fptr.writelines(
@@ -150,9 +157,7 @@ class BoundaryProcessor(BaseProcessorABC):
         ::returns dest_fpath str Destination filepath on the processing backend
         """
         # Create the file locally
-        dest_fpath = os.path.join(
-            self.processing_backend.top_level_folder_path, "version.html"
-        )
+        dest_fpath = self.paths_helper.build_absolute_path("version.html")
         with open(dest_fpath, "w") as fptr:
             # Insert some content
             fptr.writelines(
@@ -170,9 +175,7 @@ class BoundaryProcessor(BaseProcessorABC):
         ::returns dest_fpath str Destination filepath on the processing backend
         """
         # Create the file locally
-        dest_fpath = os.path.join(
-            self.processing_backend.top_level_folder_path, "datapackage.json"
-        )
+        dest_fpath = self.paths_helper.build_absolute_path("datapackage.json")
         with open(dest_fpath, "w") as fptr:
             # Insert some content
             datapackage = {
@@ -180,7 +183,7 @@ class BoundaryProcessor(BaseProcessorABC):
                 "title": self.boundary["name"],
                 "profile": f"{self.boundary['name']}-data-package",
                 "licenses": [],
-                "resources": []
+                "resources": [],
             }
             json.dump(datapackage, fptr)
         # Return the path

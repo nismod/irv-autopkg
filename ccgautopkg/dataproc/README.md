@@ -20,17 +20,15 @@ class Metadata(BaseMetadataABC):
     data_origin_url="http://url"
 
 class Processor(BaseProcessorABC):
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
+    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         """
         NOTE: Init vars arrive as Dictionaries because the Base-class has to inherit from dict for Celery to serialise
 
         ::param boundary dict Definition of the boundary
         ::param storage_backend dict Storage backend
-        ::param processing_backend dict A backend used for processing (tmp file storage etc)
         """
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.processing_backend = processing_backend
 
     def generate(self) -> Any:
         """Generate files for a given processor"""

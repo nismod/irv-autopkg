@@ -29,7 +29,7 @@ class TestPackages(unittest.TestCase):
         """
         Check the package repsonse is valid
 
-        ::param expected_dataset_names_versions list ["natural_earth.version_1", ...]
+        ::param expected_dataset_names_versions list ["test_natural_earth_raster.version_1", ...]
         """
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['boundary_name'], expected_boundary_name)
@@ -85,11 +85,11 @@ class TestPackages(unittest.TestCase):
         """
         Retrieve details of a package by boundary name
 
-        Package is created within the test, but the processor must exist and be valid (natural_earth.version_1)
+        Package is created within the test, but the processor must exist and be valid (test_natural_earth_raster.version_1)
         """
-        create_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'], datasets=['natural_earth'])
+        create_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'], datasets=['test_natural_earth_raster'])
         route = build_route(PACKAGE_ROUTE.format(boundary_name='gambia'))
         response = requests.get(route)
-        self.assert_package(response, "gambia", ["natural_earth.version_1"])
+        self.assert_package(response, "gambia", ["test_natural_earth_raster.version_1"])
         remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
 

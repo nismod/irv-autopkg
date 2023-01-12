@@ -7,28 +7,37 @@ import logging
 import os
 import inspect
 
-from dataproc.backends import StorageBackend, ProcessingBackend
+from dataproc.backends import StorageBackend
+from dataproc.backends.base import PathsHelper
 from dataproc import Boundary
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.helpers import version_name_from_file
+from dataproc.helpers import version_name_from_file, create_test_file
+from config import LOCALFS_PROCESSING_BACKEND_ROOT
+
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
-    name="test_processor" # this must follow snakecase formatting, without special chars
-    description="A test processor for nightlights" # Longer processor description
-    version=version_name_from_file(inspect.stack()[1].filename) # Version of the Processor
-    dataset_name="nightlights" # The dataset this processor targets
-    data_author="Nightlights Author"
-    data_license="Nightlights License"
-    data_origin_url="http://url"
+
+    name = (
+        "test_processor"  # this must follow snakecase formatting, without special chars
+    )
+    description = "A test processor for nightlights"  # Longer processor description
+    version = version_name_from_file(
+        inspect.stack()[1].filename
+    )  # Version of the Processor
+    dataset_name = "nightlights"  # The dataset this processor targets
+    data_author = "Nightlights Author"
+    data_license = "Nightlights License"
+    data_origin_url = "http://url"
+
 
 class Processor(BaseProcessorABC):
     """A Processor for Nightlights"""
 
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend, processing_backend: ProcessingBackend) -> None:
+    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.processing_backend = processing_backend
+        self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
 
@@ -36,12 +45,12 @@ class Processor(BaseProcessorABC):
         """Generate files for a given processor"""
         # Pause to allow inspection
         sleep(3)
-        output_folder = self.processing_backend.create_processing_folder(
-            [self.boundary['name'], "test_processor", Metadata().version, "outputs"]
+        output_folder = self.paths_helper.build_absolute_path(
+            self.boundary["name"], "test_processor", Metadata().version, "outputs"
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
         # Generate a blank tests dataset
-        self.processing_backend.create_test_file(output_fpath)
+        create_test_file(output_fpath)
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary["name"],
@@ -54,4 +63,3 @@ class Processor(BaseProcessorABC):
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
-        pass
