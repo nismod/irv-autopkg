@@ -43,7 +43,6 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
             print ('Skipped removing test data tree for', cls.__name__)
         try:
             drop_natural_earth_roads_from_pg()
-            pass
         except:
             pass
 
@@ -82,7 +81,6 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         except FileNotFoundError:
             pass
         prov_log = self.proc.generate()
-        print (prov_log)
         # # Assert the log contains a succesful entries
         self.assertTrue(prov_log[f"{Metadata().name} - crop completed"])
         self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
@@ -90,8 +88,3 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         final_uri = prov_log[f"{Metadata().name} - result URI"]
         # Assert the file exists
         self.assertTrue(os.path.exists(final_uri))
-
-
-
-
-# ogr2ogr -f "GPKG" /Users/dusted/Documents/code/oxford/gri-autopkg/data/tmp/test_natural_earth_vector/gambia/test_natural_earth_vector/version_1/outputs/gambia.gpkg PG:"postgresql://test_user:test_password@localhost:5432/ccgautopkg" -sql "SELECT * from ne_10m_roads where st_intersects(st_geomfromgeojson('{'type': 'MultiPolygon', 'coordinates': [[[[-16.713728807, 13.594958604], [-15.62459632, 13.623587348], [-15.398770311, 13.860368761], [-15.081735399, 13.876491808], [-14.687030809, 13.63035696], [-14.376713833, 13.625680243], [-14.046992357, 13.794067898], [-13.844963345, 13.505041612], [-14.277701789, 13.280585029], [-14.712197231, 13.298206692], [-15.141163296, 13.509511624], [-15.511812507, 13.278569648], [-15.691000536, 13.270353095], [-15.931295946, 13.130284125], [-16.841524624, 13.151393948], [-16.713728807, 13.594958604]]]]}'), geometry)"

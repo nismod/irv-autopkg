@@ -12,11 +12,16 @@ from celery import Celery
 # DATAPROC VARS
 CELERY_BROKER = getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost")
 CELERY_BACKEND = getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost")
-CELERY_APP = Celery("CCG-AutoPackage", worker_prefetch_multiplier=1)
-CELERY_APP.conf.broker_url = CELERY_BROKER
-CELERY_APP.conf.result_backend = CELERY_BACKEND
+CELERY_APP = Celery(
+    "CCG-AutoPackage",
+    worker_prefetch_multiplier=1,
+    broker_url=CELERY_BROKER,
+    result_backend=CELERY_BACKEND,
+)  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
 REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
-TASK_LOCK_TIMEOUT = int(getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")) # seconds
+TASK_LOCK_TIMEOUT = int(
+    getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")
+)  # seconds before locked tasks timeout
 
 
 # API VARS
@@ -35,6 +40,7 @@ def get_db_uri(dbname: str) -> sa.engine.URL:
         database=dbname,
     )
 
+
 def get_db_uri_ogr(dbname: str) -> sa.engine.URL:
     """Standard user DBURI for use with OGR (no psycopg2)"""
     return sa.engine.URL.create(
@@ -45,6 +51,7 @@ def get_db_uri_ogr(dbname: str) -> sa.engine.URL:
         port=getenv("CCGAUTOPKG_POSTGRES_PORT"),
         database=dbname,
     )
+
 
 def get_db_uri_sync(dbname: str) -> sa.engine.URL:
     """Standard user DBURI - non-async"""
@@ -66,13 +73,9 @@ INTEGRATION_TEST_ENDPOINT = "http://localhost:8000"
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
 # The root-level folder when using localfs storage backend
-LOCALFS_STORAGE_BACKEND_ROOT = getenv(
-    "CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT"
-)
+LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
 # The root-level folder when using localfs processing backend
-LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
-    "CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT"
-)
+LOCALFS_PROCESSING_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
 
 # Name matching Soundex Distance Default
 NAME_SEARCH_DISTANCE = int(getenv("CCGAUTOPKG_NAME_SEARCH_DISTANCE", "2"))

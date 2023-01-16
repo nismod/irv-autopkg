@@ -56,6 +56,9 @@ class Processor(BaseProcessorABC):
     source_zip_url = os.path.join(
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_roads.zip"
     )
+    input_geometry_column = "wkb_geometry"
+    output_geometry_operation = "clip" # Clip or intersect
+    output_geometry_column = "clipped_geometry"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
@@ -93,7 +96,9 @@ class Processor(BaseProcessorABC):
             str(get_db_uri_ogr("ccgautopkg")),
             pg_table_name,
             output_fpath,
-            geometry_column="wkb_geometry",
+            geometry_column=self.input_geometry_column,
+            extract_type=self.output_geometry_operation,
+            clipped_geometry_column_name=self.output_geometry_column
         )
         self.provenance_log[f"{Metadata().name} - crop completed"] = True
         # Move cropped data to backend
