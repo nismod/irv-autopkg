@@ -135,6 +135,7 @@ def create_test_file(fpath: str):
     """
     Generate a blank test-file
     """
+    os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "w") as fptr:
         fptr.write("test\n")
 

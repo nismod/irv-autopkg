@@ -4,8 +4,9 @@ Processing Job Endpoints
 import logging
 import inspect
 
-from fastapi import APIRouter, HTTPException
-from celery.utils import uuid
+from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 from config import LOG_LEVEL, CELERY_APP
 from dataproc import Boundary as DataProcBoundary
@@ -14,8 +15,7 @@ from api import schemas
 from api.helpers import (
     handle_exception,
     create_dag,
-    random_task_uuid,
-    currently_active_or_reserved_processors
+    random_task_uuid
 )
 from api.routes import JOB_STATUS_ROUTE, JOBS_BASE_ROUTE
 from api.exceptions import (
@@ -65,7 +65,7 @@ def get_status(job_id: str):
 
 
 @router.post(JOBS_BASE_ROUTE, response_model=schemas.SubmittedJob)
-async def submit_processing_job(job: schemas.Job):
+async def submit_processing_job(job: schemas.Job, status_code=status.HTTP_202_ACCEPTED):
     """Submit a job for a given package to run a list of dataset-processors"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
@@ -74,25 +74,20 @@ async def submit_processing_job(job: schemas.Job):
         boundary_dataproc = DataProcBoundary(
             job.boundary_name, boundary_db.geometry, boundary_db.envelope
         )
-        # Check processors are all valid and ensure a given boundary-processor-version,
-        # combination is not already executing / queued
-        internal_processors = currently_active_or_reserved_processors(job.boundary_name)
+        # Check processors are all valid
         for processor_name_version in job.processors:
             module = get_processor_by_name(processor_name_version)
             if not module:
                 raise ProcessorNotFoundException(
                     f"Invalid processor.version: {processor_name_version}"
                 )
-            if processor_name_version in internal_processors:
-                raise ProcessorAlreadyExecutingException(
-                    f"processor.version {processor_name_version} already executing for boundary {job.boundary_name}"
-                )
         dag = create_dag(boundary_dataproc, job.processors)
         # Run DAG
         res = dag.apply_async(task_id=random_task_uuid())
         result = schemas.SubmittedJob(job_id=res.id)
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
-        return result
+        encoded_result = jsonable_encoder(result)
+        return JSONResponse(status_code=status_code, content=encoded_result)
     except CannotGetCeleryTasksInfoException as err:
         handle_exception(logger, err)
         raise HTTPException(

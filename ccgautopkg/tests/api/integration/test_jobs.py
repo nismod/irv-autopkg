@@ -20,32 +20,28 @@ from config import INTEGRATION_TEST_ENDPOINT, LOCALFS_STORAGE_BACKEND_ROOT
 from tests.helpers import build_route, remove_tree, assert_package
 
 JOB_SUBMIT_DATA_BOUNDARY_NOEXIST = {
-	"boundary_name": "noexist",
-	"processors": [
-		"test_natural_earth_raster.version_1"
-	]
+    "boundary_name": "noexist",
+    "processors": ["test_natural_earth_raster.version_1"],
 }
 
 JOB_SUBMIT_DATA_PROC_NOEXIST = {
-	"boundary_name": "gambia",
-	"processors": [
-		"noexist.version_1"
-	]
+    "boundary_name": "gambia",
+    "processors": ["noexist.version_1"],
 }
 
 JOB_SUBMIT_DATA_PROC_DUP = {
-	"boundary_name": "gambia",
-	"processors": [
-		"test_natural_earth_raster.version_1", "test_natural_earth_raster.version_1"
-	]
+    "boundary_name": "gambia",
+    "processors": [
+        "test_natural_earth_raster.version_1",
+        "test_natural_earth_raster.version_1",
+    ],
 }
 
 JOB_SUBMIT_DATA_GAMBIA_TEST_PROC = {
-	"boundary_name": "gambia",
-	"processors": [
-		"test_processor.version_1"
-	]
-} # Awaits 5 secs
+    "boundary_name": "gambia",
+    "processors": ["test_processor.version_1"],
+}  # Awaits 5 secs
+
 
 class TestProcessingJobs(unittest.TestCase):
 
@@ -54,7 +50,7 @@ class TestProcessingJobs(unittest.TestCase):
     """
 
     def setUp(self):
-        self.max_job_await = 6 # secs
+        self.max_job_await = 6  # secs
 
     def test_get_job_no_exist(self):
         """"""
@@ -86,7 +82,6 @@ class TestProcessingJobs(unittest.TestCase):
         self.assertDictEqual(response.json(), {
             "detail": f"Invalid processor.version: {JOB_SUBMIT_DATA_PROC_NOEXIST['processors'][0]}"
         })
-        
 
     def test_submit_job_duplicate_processor(self):
         """Submission of a job with duplicate processors in the request"""
@@ -95,12 +90,12 @@ class TestProcessingJobs(unittest.TestCase):
         response = requests.post(route, json=JOB_SUBMIT_DATA_PROC_DUP)
         self.assertEqual(response.status_code, expected_code)
         self.assertEqual(response.json()['detail'][0]['msg'], "duplicate processors not allowed")
-        
+
     def test_submit_job(self):
         """Simple submission and await completion of a job"""
         # Ensure the package tree is clean
         remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
-        expected_code = 200
+        expected_code = 202
         route = build_route(JOBS_BASE_ROUTE)
         response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
         self.assertEqual(response.status_code, expected_code)
@@ -126,29 +121,56 @@ class TestProcessingJobs(unittest.TestCase):
 
     def test_submit_job_already_processing(self):
         """
-        Submission of a second job containing 
+        Submission of a second job containing
             the same boundary and processor while one is already executing
-
-        __NOTE__: If these requests are fired immediated after each other then 
-            the tasks have not had time to be either reserved or become active,
-            so the second request will be accepted by the backend.
-            There are additional check in-place within the tasks.py method
-            to ensure duplicate tasks are not executed in parallel.
         """
+        max_wait = 10  # secs
         dup_processors_to_submit = 2
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
+        expected_responses = [202, 202]
+        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
             response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
-            sleep(1)
             responses.append(response)
         self.assertListEqual(
             [i.status_code for i in responses],
-            [200, 400]
+            # Both jobs have been accepted
+            expected_responses,
         )
-        self.assertEqual(
-            responses[1].json(),
-            {'detail': f"processor.version {JOB_SUBMIT_DATA_GAMBIA_TEST_PROC['processors'][0]} already executing for boundary gambia"}
+        submitted_ids = [data.json()["job_id"] for data in responses]
+        # Wait for both processors to finish
+        completed = [False for i in expected_responses]
+        statuses = ["NULL", "NULL"]
+        results = [{}, {}]
+        start = time()
+        while not all(completed) or (time() - start) > max_wait:
+            for idx, job_id in enumerate(submitted_ids):
+                route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
+                response = requests.get(route)
+                completed[idx] = (
+                    True
+                    if response.json()["job_status"] in ["SUCCESS", "FAILED"]
+                    else False
+                )
+                results[idx] = response.json()["job_result"]
+                statuses[idx] = response.json()["job_status"]
+            sleep(0.5)
+        # Both jobs completed successfully
+        self.assertEqual(statuses, ["SUCCESS", "SUCCESS"])
+        # The second job shows the dataets already exist
+        self.assertListEqual(
+            list(results[1].items())[0][1],
+            [
+                {"boundary_processor": {"boundary_folder": "exists"}},
+                {"test_processor.version_1": {"test_processor - exists": True}},
+                {"provenance_processor": {"updated in backend": True}},
+            ],
         )
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
+        # Assert we only get a single package output
+        assert_package(
+            LOCALFS_STORAGE_BACKEND_ROOT,
+            "gambia",
+            JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
+        )
+        # remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])

@@ -44,22 +44,30 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         # Pause to allow inspection
-        sleep(3)
+        sleep(1)
         output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], "test_processor", Metadata().version, "outputs"
+            "test_processor", Metadata().version, "outputs"
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
-        # Generate a blank tests dataset
-        create_test_file(output_fpath)
-        result_uri = self.storage_backend.put_processor_data(
-            output_fpath,
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = True
-        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+        if self.exists() is True:
+            self.provenance_log[f"{Metadata().name}"] = "exists"
+        else:
+            # Generate a blank tests dataset
+            create_test_file(output_fpath)
+            result_uri = self.storage_backend.put_processor_data(
+                output_fpath,
+                self.boundary["name"],
+                Metadata().name,
+                Metadata().version,
+            )
+            self.provenance_log[f"{Metadata().name} - move to storage success"] = True
+            self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
         return self.provenance_log
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
+        output_folder = self.paths_helper.build_absolute_path(
+            "test_processor", Metadata().version, "outputs"
+        )
+        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
+        return os.path.exists(output_fpath)
