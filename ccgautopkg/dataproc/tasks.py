@@ -65,9 +65,16 @@ def boundary_setup(boundary: Boundary) -> dict:
     try:
         with redis_lock(task_sig) as acquired:
             if acquired:
-                proc = BoundaryProcessor(boundary, storage_backend)
-                result = proc.generate()
-                return result
+                try:
+                    proc = BoundaryProcessor(boundary, storage_backend)
+                    result = proc.generate()
+                    return result
+                except Exception as err:
+                    logger.exception("")
+                    # Update sink for this processor
+                    return {"boundary_processor" : {"failed": type(err).__name__}}
+                finally:
+                    _ = redis_client.getdel(task_sig) 
             else:
                 raise ProcessorAlreadyExecutingException()
     except ProcessorAlreadyExecutingException:
@@ -75,8 +82,7 @@ def boundary_setup(boundary: Boundary) -> dict:
             "task with signature %s skipped because it was already executing", task_sig
         )
         return {"boundary_processor" : {"skipped": f"{task_sig} already executing"}}
-    finally:
-        _ = redis_client.getdel(task_sig)
+    
 
 
 # DATASET PROCESSOR TASK
@@ -105,6 +111,8 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
                     logger.exception("")
                     # Update sink for this processor
                     sink[processor_name_version] = {"failed": type(err).__name__}
+                finally:
+                    _ = redis_client.getdel(task_sig)
                 return sink
             else:
                 raise ProcessorAlreadyExecutingException()
@@ -114,8 +122,6 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
                 )
         sink[processor_name_version] = {"skipped": f"{task_sig} already executing"}
         return sink
-    finally:
-        _ = redis_client.getdel(task_sig)
     # Potentially do this during execution - get the progress from the processor
     # self.update_state(state="PROGRESS", meta={'progress': 50})
     # See: https://docs.celeryq.dev/en/stable/userguide/calling.html#on-message
@@ -135,11 +141,18 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
     try:
         with redis_lock(task_sig) as acquired:
             if acquired:
-                # The sink can come in as a list (multiple processors ran) or dict (one processor ran)
-                if isinstance(sink, dict):
-                    sink = [sink]
-                proc = ProvenanceProcessor(boundary, storage_backend)
-                res = proc.generate(sink)
+                try:
+                    # The sink can come in as a list (multiple processors ran) or dict (one processor ran)
+                    if isinstance(sink, dict):
+                        sink = [sink]
+                    proc = ProvenanceProcessor(boundary, storage_backend)
+                    res = proc.generate(sink)
+                except Exception as err:
+                    logger.exception("")
+                    # Update sink for this processor
+                    sink["generate_provenance"] = {"failed": type(err).__name__}
+                finally:
+                    _ = redis_client.getdel(task_sig)
             else:
                 raise ProcessorAlreadyExecutingException()
     except ProcessorAlreadyExecutingException:
@@ -147,6 +160,4 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
             "task with signature %s skipped because it was already executing", task_sig
         )
         self.retry(countdown=5)
-    finally:
-        _ = redis_client.getdel(task_sig)
     return res

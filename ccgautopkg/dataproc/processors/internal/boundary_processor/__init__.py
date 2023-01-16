@@ -126,7 +126,8 @@ class BoundaryProcessor:
             # Insert some content
             fptr.writelines(
                 [
-                    f"<!doctype html><html><b>Documentation for {self.boundary['name']} Boundary</b></html>"
+                    f'<!doctype html><html><b>Documentation for {self.boundary["name"]} Boundary - datasets are <a href="/packages/{self.boundary["name"]}/datasets/">here</a></b></html>',
+                    
                 ]
             )
         # Return the path

@@ -10,6 +10,15 @@ services:
     env_file:
       - ./envs/.db.env
 
+  nginx:
+    image: nginx:latest
+    build: ./nginx
+    restart: on-failure
+    ports:
+      - 80:80
+    volumes:
+      - ./data/packages:/www/data/packages
+
   redis:
     image: redis:6.2-alpine
     restart: always
@@ -23,33 +32,43 @@ services:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
     volumes:
-      - ./data/dataproc:/data
-    environment:
-      - CCGAUTOPKG_CELERY_BROKER=redis://redis:6379
-      - CCGAUTOPKG_CELERY_BACKEND=redis://redis:6379
-    command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=1
+      - ./data/packages:/data/packages
+      - ./data/tmp:/data/tmp
+    env_file:
+      - envs/.api_and_dataproc.env
+    command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=4
 
   api:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
     volumes:
       - ./ccgautopkg:/usr/src/app
+      - ./data/packages:/data/packages
     ports:
       - 8000:8000
     env_file:
-      - envs/.api.env
+      - envs/.api_and_dataproc.env
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
+
+  # These test-harness containers require API and Dataproc to be running
+  # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
   test-api:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
+    volumes:
+      - ./ccgautopkg:/usr/src/app
+      - ./data/packages:/data/packages
     env_file:
-      - envs/.api.env
-    command: python /usr/src/app/ccgautopkg/api/tests/run_external.py
+      - envs/.api_and_dataproc.env
+    command: python3 -m unittest discover /usr/src/app/tests/api
 
   test-dataproc:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
+    volumes:
+      - ./data/packages:/data/packages
+      - ./data/tmp:/data/tmp
     env_file:
-      - envs/.api.env
-    command: python /usr/src/app/ccgautopkg/dataproc/tests/run_external.py
+      - envs/.api_and_dataproc.env
+    command: python -m unittest discover /usr/src/app/tests/dataproc

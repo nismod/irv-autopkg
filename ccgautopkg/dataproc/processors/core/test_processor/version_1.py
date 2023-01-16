@@ -66,8 +66,9 @@ class Processor(BaseProcessorABC):
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
-        output_folder = self.paths_helper.build_absolute_path(
-            "test_processor", Metadata().version, "outputs"
+        return self.storage_backend.processor_file_exists(
+            self.boundary["name"],
+            Metadata().name,
+            Metadata().version,
+            f"{self.boundary['name']}_test.tif",
         )
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
-        return os.path.exists(output_fpath)

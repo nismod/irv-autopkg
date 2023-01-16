@@ -166,4 +166,4 @@ data/db
 envs/*
 data/*
 tests/data/tmp/*
-tests/data/package_bucket/*
+tests/data/packages/*

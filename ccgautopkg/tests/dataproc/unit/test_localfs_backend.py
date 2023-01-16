@@ -10,7 +10,7 @@ from tests.helpers import create_tree, remove_tree
 LOCAL_FS_DATA_TOP_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data",
-    "package_bucket",
+    "packages",
 )
 
 
@@ -28,8 +28,8 @@ class TestLocalFSBackend(unittest.TestCase):
         return {
             "gambia": {
                 "aqueduct": ["0.1"],
-                "biodiversity": ["version_1", "version_2"],
-                "osm_roads": ["20230401", "20221201"],
+                "biodiversity": ["version_1"],
+                "osm_roads": ["20221201"],
             },
             "zambia": {"osm_roads": ["20230401"]},
         }

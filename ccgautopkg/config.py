@@ -10,13 +10,11 @@ from celery import Celery
 
 
 # DATAPROC VARS
-CELERY_BROKER = getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost")
-CELERY_BACKEND = getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost")
 CELERY_APP = Celery(
     "CCG-AutoPackage",
     worker_prefetch_multiplier=1,
-    broker_url=CELERY_BROKER,
-    result_backend=CELERY_BACKEND,
+    broker_url=getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost"),
+    result_backend=getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost"),
 )  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
 REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
 TASK_LOCK_TIMEOUT = int(
@@ -68,7 +66,7 @@ def get_db_uri_sync(dbname: str) -> sa.engine.URL:
 DBURI_API = get_db_uri(API_DB_NAME)  # For API Usage
 DEPLOYMENT_ENV = getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "dev")
 LOG_LEVEL = logging.getLevelName(getenv("CCGAUTOPKG_LOG_LEVEL", "DEBUG"))
-INTEGRATION_TEST_ENDPOINT = "http://localhost:8000"
+INTEGRATION_TEST_ENDPOINT = getenv("CCGAUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000")
 
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")

@@ -100,22 +100,10 @@ def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datase
                 ),
                 exist_ok=True,
             )
-            os.makedirs(
-                os.path.join(
-                    top_level_path, "gambia", "datasets", "biodiversity", "version_2"
-                ),
-                exist_ok=True,
-            )
         if 'osm_roads' in datasets:
             os.makedirs(
                 os.path.join(
                     top_level_path, "gambia", "datasets", "osm_roads", "20221201"
-                ),
-                exist_ok=True,
-            )
-            os.makedirs(
-                os.path.join(
-                    top_level_path, "gambia", "datasets", "osm_roads", "20230401"
                 ),
                 exist_ok=True,
             )
