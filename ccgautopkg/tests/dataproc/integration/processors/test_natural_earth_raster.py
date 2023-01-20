@@ -13,8 +13,10 @@ from dataproc.processors.core.test_natural_earth_raster.version_1 import (
     Metadata,
 )
 from dataproc.helpers import assert_geotiff
-from tests.dataproc.integration.processors import LOCAL_FS_PROCESSING_DATA_TOP_DIR, LOCAL_FS_PACKAGE_DATA_TOP_DIR
-
+from tests.dataproc.integration.processors import (
+    LOCAL_FS_PROCESSING_DATA_TOP_DIR,
+    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+)
 
 
 class TestNaturalEarthRasterProcessor(unittest.TestCase):
@@ -25,7 +27,7 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
         cls.test_processing_data_dir = os.path.join(
             LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_natural_earth_raster"
         )
-        os.makedirs(cls.test_processing_data_dir, exist_ok = True)
+        os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
         cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
@@ -36,7 +38,6 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
         shutil.rmtree(cls.test_processing_data_dir)
         # Package data
         shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
-
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
@@ -69,7 +70,9 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
         try:
-            shutil.rmtree(os.path.join(self.storage_backend.top_level_folder_path, "gambia"))
+            shutil.rmtree(
+                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
+            )
         except FileNotFoundError:
             pass
         prov_log = self.proc.generate()
