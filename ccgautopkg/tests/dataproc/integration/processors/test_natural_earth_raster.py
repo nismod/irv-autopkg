@@ -13,14 +13,8 @@ from dataproc.processors.core.test_natural_earth_raster.version_1 import (
     Metadata,
 )
 from dataproc.helpers import assert_geotiff
+from tests.dataproc.integration.processors import LOCAL_FS_PROCESSING_DATA_TOP_DIR, LOCAL_FS_PACKAGE_DATA_TOP_DIR
 
-LOCAL_FS_DATA_TOP_DIR = os.path.join(
-    os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ),
-    "data",
-    "tmp",
-)
 
 
 class TestNaturalEarthRasterProcessor(unittest.TestCase):
@@ -28,20 +22,32 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.test_data_dir = os.path.join(
-            LOCAL_FS_DATA_TOP_DIR, "test_natural_earth_raster"
+        cls.test_processing_data_dir = os.path.join(
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_natural_earth_raster"
         )
-        os.makedirs(cls.test_data_dir, exist_ok = True)
+        os.makedirs(cls.test_processing_data_dir, exist_ok = True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_DATA_TOP_DIR)
+        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.test_data_dir)
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
+        # __NOTE__: Reset the paths helper to reflect the test environment for processing root
+        self.proc.paths_helper.top_level_folder_path = self.test_processing_data_dir
+        self.proc.source_folder = self.proc.paths_helper.build_absolute_path(
+            "source_data"
+        )
+        self.proc.tmp_processing_folder = self.proc.paths_helper.build_absolute_path(
+            "tmp"
+        )
         self.meta = Metadata()
 
     def test_processor_init(self):

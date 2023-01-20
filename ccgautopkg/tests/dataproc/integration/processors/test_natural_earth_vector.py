@@ -6,20 +6,16 @@ import unittest
 import shutil
 
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
-from tests.helpers import load_country_geojson, assert_table_in_pg, drop_natural_earth_roads_from_pg
 from dataproc import Boundary
 from dataproc.processors.core.test_natural_earth_vector.version_1 import (
     Processor,
     Metadata,
 )
-from config import get_db_uri_sync, API_DB_NAME, LOCALFS_PROCESSING_BACKEND_ROOT
-
-LOCAL_FS_DATA_TOP_DIR = os.path.join(
-    os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ),
-    "data",
-    "tmp",
+from config import get_db_uri_sync, API_DB_NAME
+from tests.helpers import load_country_geojson, assert_table_in_pg, drop_natural_earth_roads_from_pg
+from tests.dataproc.integration.processors import (
+    LOCAL_FS_PROCESSING_DATA_TOP_DIR,
+    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
 
 
@@ -28,17 +24,23 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.test_processing_data_dir = os.path.join(
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_natural_earth_vector"
+        )
+        os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         cls.test_data_dir = None
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_DATA_TOP_DIR)
+        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
     @classmethod
     def tearDownClass(cls):
         # Cleans processing data
         try:
-            if cls.test_data_dir:
-                shutil.rmtree(cls.test_data_dir)
+            # Tmp and Source data
+            shutil.rmtree(cls.test_processing_data_dir)
+            # Package data
+            shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
         except FileNotFoundError:
             print ('Skipped removing test data tree for', cls.__name__)
         try:
@@ -48,9 +50,15 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
+        # __NOTE__: Reset the paths helper to reflect the test environment for processing root
+        self.proc.paths_helper.top_level_folder_path = self.test_processing_data_dir
+        self.proc.source_folder = self.proc.paths_helper.build_absolute_path(
+            "source_data"
+        )
+        self.proc.tmp_processing_folder = self.proc.paths_helper.build_absolute_path(
+            "tmp"
+        )
         self.meta = Metadata()
-        # Set test data directory as the same as configuration in processor
-        self.test_data_dir = self.proc.paths_helper.top_level_folder_path
 
     def test_processor_init(self):
         """"""

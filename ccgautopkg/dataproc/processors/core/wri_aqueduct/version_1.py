@@ -60,6 +60,8 @@ class Processor(BaseProcessorABC):
         self.source_folder = self.paths_helper.build_absolute_path("source_data")
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        # Custom init vars for this processor
+        self.aqueduct_fetcher = HazardAqueduct()
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
@@ -118,7 +120,7 @@ class Processor(BaseProcessorABC):
         # Check results look sensible
         assert (
             len(results_fpaths) == self.total_expected_files
-        ), f"number of successfully cropped files {len(results_fpaths)} down not match expected {self.total_expected_files}"
+        ), f"number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
 
         self.log.debug("WRI Aqueduct - moving cropped data to backend")
         result_uris = []
@@ -142,9 +144,6 @@ class Processor(BaseProcessorABC):
     def _fetch_source(self):
         """
         Fetch and unpack the required source data if required.
-            Returns the path to existing files if they already exist
-
-        return fpath str The path to the fetch source file
         """
         # Build Source Path
         os.makedirs(self.source_folder, exist_ok=True)
@@ -152,10 +151,13 @@ class Processor(BaseProcessorABC):
             self.log.debug("WRI Aqueduct - all source files appear to exist and are valid")
             return
         else:
-            aqueduct_fetcher = HazardAqueduct()
-            metadata = aqueduct_fetcher.file_metadata()
+            self.aqueduct_fetcher = HazardAqueduct()
+            metadata = self.aqueduct_fetcher.file_metadata()
+            if self.total_expected_files != len(metadata):
+                self.log.warning("Aqueduct limiting total_expected_files to %s", self.total_expected_files)
+                metadata = metadata[:self.total_expected_files]
             # Generate path info by downloading (will skip if files exist)
-            metadata = aqueduct_fetcher.download_files(
+            metadata = self.aqueduct_fetcher.download_files(
                 metadata,
                 self.source_folder,
             )
@@ -163,7 +165,7 @@ class Processor(BaseProcessorABC):
             self.log.debug("WRI Aqueduct - Download Complete")
             assert (
                 len(metadata) == self.total_expected_files
-            ), "after aqueduct download not all source files were present"
+            ), "after aqueduct download - not all source files were present"
             return
 
     def _all_source_exists(self, remove_invalid=True) -> bool:
