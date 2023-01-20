@@ -9,10 +9,6 @@ import requests
 import zipfile
 import json
 
-import rasterio
-import rasterio.mask
-import shapely
-
 from dataproc.processors.internal.base import BaseProcessorABC
 from dataproc.backends import StorageBackend
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
@@ -176,6 +172,7 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326"):
 
     ::param fpath str Absolute filepath
     """
+    import rasterio
     with rasterio.open(fpath) as src:
         assert (
             src.meta["crs"] == check_crs
@@ -193,6 +190,9 @@ def crop_raster(
     ::param raster_input_fpath str Absolute Filepath of input
     ::param raster_output_fpath str Absolute Filepath of output
     """
+    import rasterio
+    import rasterio.mask
+    import shapely
     # Create the path to output if it doesnt exist
     os.makedirs(os.path.dirname(raster_output_fpath), exist_ok=True)
     shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))

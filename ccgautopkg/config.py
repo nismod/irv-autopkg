@@ -39,14 +39,23 @@ def get_db_uri(dbname: str) -> sa.engine.URL:
     )
 
 
-def get_db_uri_ogr(dbname: str) -> sa.engine.URL:
+def get_db_uri_ogr(
+    dbname: str,
+    username_env="CCGAUTOPKG_POSTGRES_USER",
+    password_env="CCGAUTOPKG_POSTGRES_PASSWORD",
+    host_env="CCGAUTOPKG_POSTGRES_HOST",
+    port_env="CCGAUTOPKG_POSTGRES_PORT",
+) -> sa.engine.URL:
     """Standard user DBURI for use with OGR (no psycopg2)"""
+    for var in [username_env, password_env, host_env, port_env]:
+        if not getenv(var):
+            raise Exception(f"Environment failed to parse - check var: {var}")
     return sa.engine.URL.create(
         drivername="postgresql",
-        username=getenv("CCGAUTOPKG_POSTGRES_USER"),
-        password=getenv("CCGAUTOPKG_POSTGRES_PASSWORD"),
-        host=getenv("CCGAUTOPKG_POSTGRES_HOST"),
-        port=getenv("CCGAUTOPKG_POSTGRES_PORT"),
+        username=getenv(username_env),
+        password=getenv(password_env),
+        host=getenv(host_env),
+        port=getenv(port_env),
         database=dbname,
     )
 
@@ -66,7 +75,9 @@ def get_db_uri_sync(dbname: str) -> sa.engine.URL:
 DBURI_API = get_db_uri(API_DB_NAME)  # For API Usage
 DEPLOYMENT_ENV = getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "dev")
 LOG_LEVEL = logging.getLevelName(getenv("CCGAUTOPKG_LOG_LEVEL", "DEBUG"))
-INTEGRATION_TEST_ENDPOINT = getenv("CCGAUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000")
+INTEGRATION_TEST_ENDPOINT = getenv(
+    "CCGAUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000"
+)
 
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
