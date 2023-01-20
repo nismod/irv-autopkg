@@ -15,6 +15,13 @@ class BaseProcessorABC(ABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.provenance_log = {}
+        self.paths_helper = None
+        self.provenance_log = {}
+        self.log = None
+        # Source folder will persist between processor runs
+        self.source_folder = None
+        # Tmp Processing data will be cleaned
+        self.tmp_processing_folder = None
 
     def generate(self):
         """Generate files for a given processor"""

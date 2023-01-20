@@ -13,6 +13,7 @@ from dataproc.exceptions import (
     FileCreationException,
     PackageNotFoundException,
     DatasetNotFoundException,
+    FolderNotFoundException
 )
 from ..base import StorageBackend
 
@@ -225,9 +226,9 @@ class LocalFSStorageBackend(StorageBackend):
         version: str,
     ) -> str:
         """
-        Put an data output from a processor for a particular dataset and 
+        Put an data output from a processor for a particular dataset and
         version onto the backend
-        
+
         ::returns dest_abs_path str URI of the moved file
         """
         filename = os.path.basename(local_source_fpath)
@@ -247,3 +248,64 @@ class LocalFSStorageBackend(StorageBackend):
                 f"destination file path {dest_abs_path} not found after creation attempt"
             )
         return dest_abs_path
+
+    @staticmethod
+    def count_file_types_in_folder(folder_path: str, file_type='tif') -> int:
+        """
+        Count the number of tiffs in a folder
+        """
+        count = 0
+        for dir_info in os.scandir(folder_path):
+            if os.path.splitext(dir_info.name)[1] == file_type:
+                count+=1
+        return count
+
+    def count_boundary_data_files(
+        self,
+        boundary_name: str,
+        dataset_name: str,
+        version: str,
+        datafile_ext: str = ".tif",
+    ) -> int:
+        """
+        Count the number of datafiles for a given boundary folder
+        """
+        folder = self._build_absolute_path(
+            boundary_name,
+            self.datasets_folder_name,
+            dataset_name,
+            version,
+            self.dataset_data_folder_name,
+        )
+        if not os.path.exists(folder):
+            raise FolderNotFoundException()
+        return self.count_file_types_in_folder(folder, datafile_ext)
+
+    def remove_boundary_data_files(
+        self,
+        boundary_name: str,
+        dataset_name: str,
+        version: str,
+    ):
+        """Remove all datafiles associated with a particular boundary + processing version"""
+        folder = self._build_absolute_path(
+            boundary_name,
+            self.datasets_folder_name,
+            dataset_name,
+            version,
+            self.dataset_data_folder_name,
+        )
+        if not os.path.exists(folder):
+            raise FolderNotFoundException()
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+

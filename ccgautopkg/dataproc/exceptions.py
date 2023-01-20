@@ -17,6 +17,9 @@ class InvalidProcessorException(DataProcException):
 class FolderCreationException(DataProcException):
     """Error creating a folder"""
 
+class FolderNotFoundException(DataProcException):
+    """A Foler could not be found on the backend"""
+
 class FileCreationException(DataProcException):
     """Error creating a file"""
 
