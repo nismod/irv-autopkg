@@ -103,8 +103,8 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
             if acquired:
                 try:
                     module = get_processor_by_name(processor_name_version)
-                    proc = module(boundary, storage_backend)
-                    result = proc.generate()
+                    with module(boundary, storage_backend) as proc:
+                        result = proc.generate()
                     # Update sink for this processor
                     sink[processor_name_version] = result
                 except Exception as err:

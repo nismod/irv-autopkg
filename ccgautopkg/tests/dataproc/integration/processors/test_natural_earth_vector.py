@@ -12,7 +12,12 @@ from dataproc.processors.core.test_natural_earth_vector.version_1 import (
     Metadata,
 )
 from config import get_db_uri_sync, API_DB_NAME
-from tests.helpers import load_country_geojson, assert_table_in_pg, drop_natural_earth_roads_from_pg
+from tests.helpers import (
+    load_country_geojson,
+    assert_table_in_pg,
+    drop_natural_earth_roads_from_pg,
+    setup_test_data_paths,
+)
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
@@ -40,9 +45,11 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
             # Tmp and Source data
             shutil.rmtree(cls.test_processing_data_dir)
             # Package data
-            shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+            shutil.rmtree(
+                os.path.join(cls.storage_backend.top_level_folder_path, "gambia")
+            )
         except FileNotFoundError:
-            print ('Skipped removing test data tree for', cls.__name__)
+            print("Skipped removing test data tree for", cls.__name__)
         try:
             drop_natural_earth_roads_from_pg()
         except:
@@ -51,18 +58,27 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
         # __NOTE__: Reset the paths helper to reflect the test environment for processing root
-        self.proc.paths_helper.top_level_folder_path = self.test_processing_data_dir
-        self.proc.source_folder = self.proc.paths_helper.build_absolute_path(
-            "source_data"
-        )
-        self.proc.tmp_processing_folder = self.proc.paths_helper.build_absolute_path(
-            "tmp"
-        )
+        setup_test_data_paths(self.proc, self.test_processing_data_dir)
         self.meta = Metadata()
 
     def test_processor_init(self):
         """"""
         self.assertIsInstance(self.proc, Processor)
+
+    def test_context_manager(self):
+        """"""
+        with Processor(self.boundary, self.storage_backend) as proc:
+            self.assertIsInstance(proc, Processor)
+
+    def test_context_manager_cleanup_on_error(self):
+        """"""
+        with Processor(self.boundary, self.storage_backend) as proc:
+            setup_test_data_paths(self.proc, self.test_processing_data_dir)
+            test_fpath = os.path.join(proc.tmp_processing_folder, "testfile")
+            # Add a file into the tmp processing backend
+            with open(test_fpath, "w") as fptr:
+                fptr.write("data")
+        self.assertFalse(os.path.exists(test_fpath))
 
     def test_meta_init(self):
         """"""
@@ -75,7 +91,7 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         """Test the fetching of source zip, unpacking and assertion"""
         zip_fpath = self.proc._fetch_zip()
         self.assertTrue(os.path.exists(zip_fpath))
-    
+
     def test_fetch_source(self):
         """Test the fetching of source zip, unpacking and assertion"""
         tablename = self.proc._fetch_source()
@@ -85,7 +101,9 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         """E2E generate test - fetch, crop, push"""
         # Remove the final package artifacts (but keep the test data artifacts if they exist)
         try:
-            shutil.rmtree(os.path.join(self.storage_backend.top_level_folder_path, "gambia"))
+            shutil.rmtree(
+                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
+            )
         except FileNotFoundError:
             pass
         prov_log = self.proc.generate()

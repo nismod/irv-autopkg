@@ -11,7 +11,7 @@ from dataproc.processors.core.gri_osm.version_1 import (
     Processor,
     Metadata,
 )
-from tests.helpers import load_country_geojson
+from tests.helpers import load_country_geojson, setup_test_data_paths
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
@@ -43,18 +43,27 @@ class TestGRIOSMProcessor(unittest.TestCase):
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
         # __NOTE__: Reset the paths helper to reflect the test environment for processing root
-        self.proc.paths_helper.top_level_folder_path = self.test_processing_data_dir
-        self.proc.source_folder = self.proc.paths_helper.build_absolute_path(
-            "source_data"
-        )
-        self.proc.tmp_processing_folder = self.proc.paths_helper.build_absolute_path(
-            "tmp"
-        )
+        setup_test_data_paths(self.proc, self.test_processing_data_dir)
         self.meta = Metadata()
 
     def test_processor_init(self):
         """"""
         self.assertIsInstance(self.proc, Processor)
+
+    def test_context_manager(self):
+        """"""
+        with Processor(self.boundary, self.storage_backend) as proc:
+            self.assertIsInstance(proc, Processor)
+
+    def test_context_manager_cleanup_on_error(self):
+        """"""
+        with Processor(self.boundary, self.storage_backend) as proc:
+            setup_test_data_paths(self.proc, self.test_processing_data_dir)
+            test_fpath = os.path.join(proc.tmp_processing_folder, "testfile")
+            # Add a file into the tmp processing backend
+            with open(test_fpath, "w") as fptr:
+                fptr.write("data")
+        self.assertFalse(os.path.exists(test_fpath))
 
     def test_meta_init(self):
         """"""

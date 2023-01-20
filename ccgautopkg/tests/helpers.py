@@ -5,7 +5,7 @@ import os
 import sys
 import inspect
 import json
-from typing import List, Tuple
+from typing import Any, List, Tuple
 import shutil
 
 import sqlalchemy as sa
@@ -184,3 +184,14 @@ def assert_table_in_pg(db_uri: str, tablename: str):
     stmt = text(f'SELECT * FROM "{tablename}"')
     engine.execute(stmt)
    
+def setup_test_data_paths(processor: Any, test_processing_data_dir: str):
+    """
+    Reset the processing paths on an instantiated processor module to reflect the test environment
+    """
+    processor.paths_helper.top_level_folder_path = test_processing_data_dir
+    processor.source_folder = processor.paths_helper.build_absolute_path(
+        "source_data"
+    )
+    processor.tmp_processing_folder = processor.paths_helper.build_absolute_path(
+        "tmp"
+    )

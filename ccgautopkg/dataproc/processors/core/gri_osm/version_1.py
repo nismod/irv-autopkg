@@ -5,6 +5,7 @@ Vector Processor for OSM (inc. damages)
 import os
 import logging
 import inspect
+import shutil
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
@@ -62,6 +63,25 @@ class Processor(BaseProcessorABC):
         self.paths_helper = PathsHelper(LOCALFS_PROCESSING_BACKEND_ROOT)
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
+        # Source folder will persist between processor runs
+        self.source_folder = self.paths_helper.build_absolute_path("source_data")
+        os.makedirs(self.source_folder, exist_ok=True)
+        # Tmp Processing data will be cleaned between processor runs
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        os.makedirs(self.tmp_processing_folder, exist_ok=True)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup any resources as required"""
+        self.log.debug(
+            "cleaning processing data on exit, exc: %s, %s, %s",
+            exc_type,
+            exc_val,
+            exc_tb,
+        )
+        try:
+            shutil.rmtree(self.tmp_processing_folder)
+        except FileNotFoundError:
+            pass
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""

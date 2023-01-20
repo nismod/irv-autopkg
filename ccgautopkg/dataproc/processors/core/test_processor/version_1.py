@@ -6,6 +6,7 @@ from time import sleep
 import logging
 import os
 import inspect
+import shutil
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
@@ -40,6 +41,27 @@ class Processor(BaseProcessorABC):
         self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
+        # Source folder will persist between processor runs
+        self.source_folder = self.paths_helper.build_absolute_path("source_data")
+        os.makedirs(self.source_folder, exist_ok=True)
+        # Tmp Processing data will be cleaned between processor runs
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        os.makedirs(self.tmp_processing_folder, exist_ok=True)
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup any resources as required"""
+        self.log.debug(
+            "cleaning processing data on exit, exc: %s, %s, %s",
+            exc_type,
+            exc_val,
+            exc_tb,
+        )
+        try:
+            shutil.rmtree(self.tmp_processing_folder)
+        except FileNotFoundError:
+            pass
+
 
     def generate(self):
         """Generate files for a given processor"""

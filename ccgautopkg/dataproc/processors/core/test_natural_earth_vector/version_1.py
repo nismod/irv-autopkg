@@ -5,6 +5,7 @@ Test vector Processor
 import os
 import logging
 import inspect
+import shutil
 
 import sqlalchemy as sa
 
@@ -17,7 +18,7 @@ from dataproc.helpers import (
     unpack_zip,
     download_file,
     ogr2ogr_load_shapefile_to_pg,
-    gdal_crop_pg_table_to_geopkg
+    gdal_crop_pg_table_to_geopkg,
 )
 from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
@@ -57,15 +58,36 @@ class Processor(BaseProcessorABC):
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_roads.zip"
     )
     input_geometry_column = "wkb_geometry"
-    output_geometry_operation = "clip" # Clip or intersect
+    output_geometry_operation = "clip"  # Clip or intersect
     output_geometry_column = "clipped_geometry"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
+        self.paths_helper = PathsHelper(
+            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name)
+        )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
+        # Source folder will persist between processor runs
+        self.source_folder = self.paths_helper.build_absolute_path("source_data")
+        os.makedirs(self.source_folder, exist_ok=True)
+        # Tmp Processing data will be cleaned between processor runs
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        os.makedirs(self.tmp_processing_folder, exist_ok=True)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup any resources as required"""
+        self.log.debug(
+            "cleaning processing data on exit, exc: %s, %s, %s",
+            exc_type,
+            exc_val,
+            exc_tb,
+        )
+        try:
+            shutil.rmtree(self.tmp_processing_folder)
+        except FileNotFoundError:
+            pass
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
@@ -98,7 +120,7 @@ class Processor(BaseProcessorABC):
             output_fpath,
             geometry_column=self.input_geometry_column,
             extract_type=self.output_geometry_operation,
-            clipped_geometry_column_name=self.output_geometry_column
+            clipped_geometry_column_name=self.output_geometry_column,
         )
         self.provenance_log[f"{Metadata().name} - crop completed"] = True
         # Move cropped data to backend
@@ -131,7 +153,9 @@ class Processor(BaseProcessorABC):
         # Unpack
         self.log.debug("Natural earth vector - unpacking zip")
         local_extract_path = unpack_zip(local_zip_fpath)
-        shp_fpath = os.path.join(os.path.dirname(local_extract_path), "ne_10m_roads.shp")
+        shp_fpath = os.path.join(
+            os.path.dirname(local_extract_path), "ne_10m_roads.shp"
+        )
         assert os.path.exists(
             shp_fpath
         ), f"extracted SHP did not exist at expected path {shp_fpath}"

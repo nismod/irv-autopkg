@@ -28,3 +28,9 @@ class BaseProcessorABC(ABC):
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup any resources as required"""
