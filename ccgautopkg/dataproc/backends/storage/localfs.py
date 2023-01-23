@@ -13,8 +13,10 @@ from dataproc.exceptions import (
     FileCreationException,
     PackageNotFoundException,
     DatasetNotFoundException,
-    FolderNotFoundException
+    FolderNotFoundException,
 )
+from dataproc import Boundary, DataPackageLicense, DataPackageResource
+from dataproc import helpers
 from ..base import StorageBackend
 
 
@@ -250,14 +252,14 @@ class LocalFSStorageBackend(StorageBackend):
         return dest_abs_path
 
     @staticmethod
-    def count_file_types_in_folder(folder_path: str, file_type='tif') -> int:
+    def count_file_types_in_folder(folder_path: str, file_type="tif") -> int:
         """
         Count the number of tiffs in a folder
         """
         count = 0
         for dir_info in os.scandir(folder_path):
             if os.path.splitext(dir_info.name)[1] == file_type:
-                count+=1
+                count += 1
         return count
 
     def count_boundary_data_files(
@@ -304,8 +306,27 @@ class LocalFSStorageBackend(StorageBackend):
                     os.unlink(file_path)
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-            except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+            except Exception as err:
+                print(f"Failed to delete {file_path}. Reason: {err}")
 
+    def update_datapackage(self, boundary_name: str, dp_resource: DataPackageResource):
+        """
+        Update a packages datapackage.json file with details of a given dataset.
 
+        __NOTE__: Assumes the Boundary processor has already run and datapcakge exists (even as just template)
+        """
+        # Load existing datapackage
+        datapackage_fpath = self._build_absolute_path(boundary_name, "datapackage.json")
+        with open(datapackage_fpath, "r") as fptr:
+            datapackage = json.load(fptr)
 
+        datapackage = helpers.add_license_to_datapackage(
+            dp_resource.dp_license, datapackage
+        )
+        datapackage = helpers.add_dataset_to_datapackage(
+            dp_resource,
+            datapackage,
+        )
+
+        with open(datapackage_fpath, "w") as fptr:
+            json.dump(datapackage, fptr)

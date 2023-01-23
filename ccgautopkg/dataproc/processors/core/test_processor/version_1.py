@@ -7,12 +7,16 @@ import logging
 import os
 import inspect
 import shutil
+from typing import List
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
-from dataproc import Boundary
-from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.helpers import version_name_from_file, create_test_file
+from dataproc import Boundary, DataPackageLicense, DataPackageResource
+from dataproc.processors.internal.base import (
+    BaseProcessorABC,
+    BaseMetadataABC,
+)
+from dataproc.helpers import version_name_from_file, create_test_file, data_file_hash
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
@@ -28,7 +32,11 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "nightlights"  # The dataset this processor targets
     data_author = "Nightlights Author"
-    data_license = "Nightlights License"
+    data_license = DataPackageLicense(
+        name="CC-BY-4.0",
+        title="Creative Commons Attribution 4.0",
+        path="https://creativecommons.org/licenses/by/4.0/",
+    )
     data_origin_url = "http://url"
 
 
@@ -38,7 +46,9 @@ class Processor(BaseProcessorABC):
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
+        self.paths_helper = PathsHelper(
+            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name)
+        )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
         # Source folder will persist between processor runs
@@ -47,7 +57,6 @@ class Processor(BaseProcessorABC):
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Cleanup any resources as required"""
@@ -61,7 +70,6 @@ class Processor(BaseProcessorABC):
             shutil.rmtree(self.tmp_processing_folder)
         except FileNotFoundError:
             pass
-
 
     def generate(self):
         """Generate files for a given processor"""
@@ -84,6 +92,15 @@ class Processor(BaseProcessorABC):
             )
             self.provenance_log[f"{Metadata().name} - move to storage success"] = True
             self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+
+            # Generate the datapackage and add it to the output log
+            datapkg = self.datapackage_resource(
+                result_uri,
+                "GEOPKG",
+                os.path.getsize(output_fpath),
+                [data_file_hash(output_fpath)],
+            )
+            self.provenance_log[f"datapackage"] = datapkg
         return self.provenance_log
 
     def exists(self):
@@ -94,3 +111,28 @@ class Processor(BaseProcessorABC):
             Metadata().version,
             f"{self.boundary['name']}_test.tif",
         )
+
+    def datapackage_resource(
+        self,
+        uri: str,
+        dataset_format: str,
+        dataset_size_bytes: int,
+        dataset_hashes: List[str],
+    ) -> DataPackageResource:
+        """
+        Generate a datapackage resource for this processor
+
+        ::param output_fpath str Local path to the processed data used to generate the hash
+        ::uri str Final URI of the output data (on storage backend)
+        """
+        return DataPackageResource(
+            name=Metadata().name,
+            version=Metadata().version,
+            path=uri,
+            description=Metadata().description,
+            dataset_format=dataset_format,
+            dataset_size_bytes=dataset_size_bytes,
+            sources=[Metadata().data_origin_url],
+            dp_license=Metadata().data_license,
+            dataset_hashes=dataset_hashes,
+        ).asdict()

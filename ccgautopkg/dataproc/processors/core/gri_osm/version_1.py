@@ -46,6 +46,9 @@ class Metadata(BaseMetadataABC):
 class Processor(BaseProcessorABC):
     """A Processor for GRI OSM Database"""
 
+    index_filename = "index.html"
+    license_filename = "license.html"
+
     pg_osm_host_env = "CCGAUTOPKG_OSM_PGHOST"
     pg_osm_port_env = "CCGAUTOPKG_OSM_PORT"
     pg_osm_user_env = "CCGAUTOPKG_OSM_PGUSER"
@@ -132,5 +135,42 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+
+        # Generate Documentation
+        index_fpath = self._generate_index_file()
+        index_create = self.storage_backend.put_boundary_data(
+            index_fpath, self.boundary["name"]
+        )
+        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
+        license_fpath = self._generate_license_file()
+        license_create = self.storage_backend.put_boundary_data(
+            license_fpath, self.boundary["name"]
+        )
+        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
+        
         # Cleanup as required
         return self.provenance_log
+
+    def _generate_index_file(self) -> str:
+        """
+        Generate the index documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        )
+        return template_fpath
+
+    def _generate_license_file(self) -> str:
+        """
+        Generate the License documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.license_filename,
+        )
+        return template_fpath

@@ -3,10 +3,18 @@
 from abc import ABC
 
 from dataproc.backends import StorageBackend
-from dataproc import Boundary
+from dataproc import Boundary, DataPackageLicense
 
 class BaseMetadataABC(ABC):
     """Base Metadata ABC"""
+
+    name: str = "" # this must follow snakecase formatting, without special chars
+    description: str = ""  # Longer processor description
+    version: str = "" # Version of the Processor
+    dataset_name: str = ""  # The dataset this processor targets
+    data_author: str = ""
+    data_license: DataPackageLicense = None
+    data_origin_url: str = ""
 
 class BaseProcessorABC(ABC):
     """Base Processor ABC"""

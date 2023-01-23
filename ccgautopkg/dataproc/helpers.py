@@ -8,12 +8,13 @@ import os
 import requests
 import zipfile
 import json
+from subprocess import check_output
 
 from dataproc.processors.internal.base import BaseProcessorABC
 from dataproc.backends import StorageBackend
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc.exceptions import ConfigException
-from dataproc import Boundary
+from dataproc import Boundary, DataPackageLicense, DataPackageResource
 from dataproc.exceptions import FolderCreationException, FileCreationException
 
 # DAGs and Processing
@@ -110,6 +111,57 @@ def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
             return processor.Metadata
 
 
+# METADATA
+
+
+def add_license_to_datapackage(dp_license: DataPackageLicense, datapackage: dict) -> dict:
+    """
+    Append a license to the datapackage licenses array
+
+    ::returns datapackage dict Update with given license if applicable
+    """
+    if not "licenses" in datapackage.keys():
+        datapackage["licenses"] = [dp_license.asdict()]
+    else:
+        if not dp_license.asdict()["name"] in [
+            i["name"] for i in datapackage["licenses"]
+        ]:
+            datapackage["licenses"].append(dp_license.asdict())
+    return datapackage
+
+
+def add_dataset_to_datapackage(
+    dp_resource: DataPackageResource, datapackage: dict
+) -> dict:
+    """
+    Append a resource (dataset) to the datapackage resources array
+
+    ::returns datapackage dict Update with given license if applicable
+    """
+    # Generate the resource object
+    if not "resources" in datapackage.keys():
+        datapackage["resources"] = [dp_resource.asdict()]
+    else:
+        if not "-".join(
+            [dp_resource.asdict()["name"], dp_resource.asdict()["version"]]
+        ) in ["-".join([i["name"], i["version"]]) for i in datapackage["resources"]]:
+            datapackage["resources"].append(dp_resource.asdict())
+    return datapackage
+
+
+def data_file_hash(fpath: str) -> str:
+    """
+    Generate a sha256 hash of a single datafile
+    """
+    _hash = (
+        check_output(f"openssl sha1 {fpath}".split(" "))
+        .decode()
+        .replace("\n", "")
+        .split("= ")[1]
+    )
+    return _hash
+
+
 # FILE OPERATIONS
 
 
@@ -173,6 +225,7 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326"):
     ::param fpath str Absolute filepath
     """
     import rasterio
+
     with rasterio.open(fpath) as src:
         assert (
             src.meta["crs"] == check_crs
@@ -193,6 +246,7 @@ def crop_raster(
     import rasterio
     import rasterio.mask
     import shapely
+
     # Create the path to output if it doesnt exist
     os.makedirs(os.path.dirname(raster_output_fpath), exist_ok=True)
     shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
@@ -217,6 +271,7 @@ def crop_raster(
 
 # VECTOR OPERATIONS
 
+
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
     """
     Load a shapefile into Postgres - uses system OGR command
@@ -226,43 +281,48 @@ def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
     cmd = f'ogr2ogr -f "PostgreSQL" -nlt PROMOTE_TO_MULTI PG:"{pg_uri}" "{shapefile_fpath}"'
     os.system(cmd)
 
+
 def gpkg_layer_name(pg_table_name: str, boundary: Boundary) -> str:
     """
     Derive an output name for the GeoPKG from the pg table and boundary
     """
     return f"{pg_table_name}_{boundary['name']}"
 
-def gdal_crop_pg_table_to_geopkg(boundary: Boundary,
+
+def gdal_crop_pg_table_to_geopkg(
+    boundary: Boundary,
     pg_uri: str,
     pg_table: str,
     output_fpath: str,
     geometry_column: str = "wkb_geometry",
     extract_type: str = "both",
     clipped_geometry_column_name: str = "clipped_geometry",
-    debug=False) -> None:
+    debug=False,
+) -> None:
     """
     Uses GDAL interface to crop table to geopkg
     https://gis.stackexchange.com/questions/397023/issue-to-convert-from-postgresql-input-to-gpkg-using-python-gdal-api-function-gd
 
     GEOPKG Supports only a single Geometry column per table: https://github.com/opengeospatial/geopackage/issues/77
-    
+
     __NOTE__: We assume the input and output CRS is 4326
 
     __NOTE__: PG doesnt permit EXCEPT syntax with field selection,
         so all fields will be output (minus the original geometries if using "clip")
 
-    ::kwarg extract_type str 
+    ::kwarg extract_type str
         Either "intersect" - keep the entire intersecting feature in the output
         or "clip" - (Default) - includes only the clipped geometry in the output
         Defaults to "both"
     """
     from osgeo import gdal
+
     if debug:
         gdal.UseExceptions()
-        gdal.SetConfigOption('CPL_DEBUG', 'ON')
+        gdal.SetConfigOption("CPL_DEBUG", "ON")
     geojson = json.dumps(boundary["geojson"])
     if extract_type == "intersect":
-        stmt = f"SELECT * FROM {pg_table} WHERE ST_Intersects(ST_GeomFromGeoJSON(\'{geojson}\'), {geometry_column})"
+        stmt = f"SELECT * FROM {pg_table} WHERE ST_Intersects(ST_GeomFromGeoJSON('{geojson}'), {geometry_column})"
     else:
         # gdalVectorTranslate selects the first geometry column to add as the GeoPKG layer.
         # Hence we place the clipped_geometry first in the output - then other geometry layers are ignored
@@ -275,18 +335,14 @@ def gdal_crop_pg_table_to_geopkg(boundary: Boundary,
             WHERE ST_Intersects({pg_table}.{geometry_column}, clip_geom.geometry)
         """
     if debug:
-        print ("SQL TO BE EXECUTED: ", stmt)
+        print("SQL TO BE EXECUTED: ", stmt)
     ds = gdal.OpenEx(pg_uri, gdal.OF_VECTOR)
     vector_options = gdal.VectorTranslateOptions(
         dstSRS="EPSG:4326",
         srcSRS="EPSG:4326",
         reproject=False,
-        format='GPKG',
+        format="GPKG",
         SQLStatement=stmt,
-        layerName=gpkg_layer_name(pg_table, boundary)
+        layerName=gpkg_layer_name(pg_table, boundary),
     )
-    gdal.VectorTranslate(
-        output_fpath,
-        ds,
-        options=vector_options
-    )
+    gdal.VectorTranslate(output_fpath, ds, options=vector_options)

@@ -10,12 +10,12 @@ import shutil
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
 from dataproc import Boundary
-from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.helpers import (
-    version_name_from_file,
-    crop_raster,
-    assert_geotiff
+from dataproc.processors.internal.base import (
+    BaseProcessorABC,
+    BaseMetadataABC,
+    DataPackageLicense,
 )
+from dataproc.helpers import version_name_from_file, crop_raster, assert_geotiff
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 from dataproc.exceptions import FolderNotFoundException
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
@@ -35,8 +35,10 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "wri_aqueduct"  # The dataset this processor targets
     data_author = "WRI"
-    data_license = (
-        "http://wri-projects.s3.amazonaws.com/AqueductFloodTool/download/v2/index.html"
+    data_license = DataPackageLicense(
+        name="CC-BY-4.0",
+        title="Creative Commons Attribution 4.0",
+        path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = (
         "http://wri-projects.s3.amazonaws.com/AqueductFloodTool/download/v2/index.html"
@@ -47,6 +49,8 @@ class Processor(BaseProcessorABC):
     """A Processor for WRI Aqueduct"""
 
     total_expected_files = 379
+    index_filename = "index.html"
+    license_filename = "license.html"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
@@ -85,7 +89,7 @@ class Processor(BaseProcessorABC):
                 self.boundary["name"],
                 Metadata().name,
                 Metadata().version,
-                datafile_ext=".tif"
+                datafile_ext=".tif",
             )
         except FolderNotFoundException:
             return False
@@ -148,13 +152,53 @@ class Processor(BaseProcessorABC):
             )
             result_uris.append(result_uri)
 
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = (len(result_uris) == self.total_expected_files)
+        self.provenance_log[f"{Metadata().name} - move to storage success"] = (
+            len(result_uris) == self.total_expected_files
+        )
 
-        self.provenance_log[f"{Metadata().name} - result URIs"] = ','.join(result_uris)
-        # Cleanup as required
-        self.log.debug("aqueduct removing temporary processing files")
-        shutil.rmtree(self.tmp_processing_folder)
+        self.provenance_log[f"{Metadata().name} - result URIs"] = ",".join(result_uris)
+
+        # Generate Documentation
+        index_fpath = self._generate_index_file()
+        index_create = self.storage_backend.put_boundary_data(
+            index_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created index documentation"
+        ] = index_create
+        license_fpath = self._generate_license_file()
+        license_create = self.storage_backend.put_boundary_data(
+            license_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created license documentation"
+        ] = license_create
+
         return self.provenance_log
+
+    def _generate_index_file(self) -> str:
+        """
+        Generate the index documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        )
+        return template_fpath
+
+    def _generate_license_file(self) -> str:
+        """
+        Generate the License documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.license_filename,
+        )
+        return template_fpath
 
     def _fetch_source(self):
         """
@@ -163,15 +207,20 @@ class Processor(BaseProcessorABC):
         # Build Source Path
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
-            self.log.debug("WRI Aqueduct - all source files appear to exist and are valid")
+            self.log.debug(
+                "WRI Aqueduct - all source files appear to exist and are valid"
+            )
             return
         else:
             self.aqueduct_fetcher = HazardAqueduct()
             metadata = self.aqueduct_fetcher.file_metadata()
             if self.total_expected_files != len(metadata):
-                self.log.warning("Aqueduct limiting total_expected_files to %s", self.total_expected_files)
-                metadata = metadata[:self.total_expected_files]
-            # Generate path info by downloading (will skip if files exist)
+                self.log.warning(
+                    "Aqueduct limiting total_expected_files to %s",
+                    self.total_expected_files,
+                )
+                metadata = metadata[: self.total_expected_files]
+            # Generate path info by downloading (will skip if files exist - invalid files have been removed in the source check above)
             metadata = self.aqueduct_fetcher.download_files(
                 metadata,
                 self.source_folder,
@@ -195,11 +244,13 @@ class Processor(BaseProcessorABC):
                 fpath = os.path.join(self.source_folder, fileinfo.name)
                 try:
                     assert_geotiff(fpath)
-                    count_tiffs+=1
+                    count_tiffs += 1
                 except Exception:
                     # remove the file and flag we should need to re-fetch, then move on
-                    self.log.warning("Aqueduct source file appears to be invalid - removing")
+                    self.log.warning(
+                        "Aqueduct source file appears to be invalid - removing"
+                    )
                     if remove_invalid:
                         os.remove(fpath)
-                    source_valid=False
-        return source_valid and (count_tiffs==self.total_expected_files)
+                    source_valid = False
+        return source_valid and (count_tiffs == self.total_expected_files)

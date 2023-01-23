@@ -120,18 +120,10 @@ class BoundaryProcessor:
 
         ::returns dest_fpath str Destination filepath on the processing backend
         """
-        # Create the file locally
-        dest_fpath = self.paths_helper.build_absolute_path("index.html")
-        with open(dest_fpath, "w") as fptr:
-            # Insert some content
-            fptr.writelines(
-                [
-                    f'<!doctype html><html><b>Documentation for {self.boundary["name"]} Boundary - datasets are <a href="/packages/{self.boundary["name"]}/datasets/">here</a></b></html>',
-                    
-                ]
-            )
-        # Return the path
-        return dest_fpath
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        )
+        return template_fpath
 
     def _generate_license_file(self) -> str:
         """
@@ -139,17 +131,12 @@ class BoundaryProcessor:
 
         ::returns dest_fpath str Destination filepath on the processing backend
         """
-        # Create the file locally
-        dest_fpath = self.paths_helper.build_absolute_path("license.html")
-        with open(dest_fpath, "w") as fptr:
-            # Insert some content
-            fptr.writelines(
-                [
-                    f"<!doctype html><html><b>License for {self.boundary['name']} Boundary</b></html>"
-                ]
-            )
-        # Return the path
-        return dest_fpath
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.license_filename,
+        )
+        return template_fpath
 
     def _generate_version_file(self) -> str:
         """
