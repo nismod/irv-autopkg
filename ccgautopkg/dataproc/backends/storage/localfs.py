@@ -257,6 +257,42 @@ class LocalFSStorageBackend(StorageBackend):
             os.remove(local_source_fpath)
         return dest_abs_path
 
+    def put_processor_metadata(
+        self,
+        local_source_fpath: str,
+        boundary_name: str,
+        dataset_name: str,
+        version: str,
+        remove_local_source=False
+    ) -> str:
+        """
+        Put an a processor metadata file for a particular dataset and
+        version onto the backend
+
+        ::kwarg remove_local_source bool Whether to delete the local source file 
+            after a successful move
+
+        ::returns dest_abs_path str URI of the moved file
+        """
+        filename = os.path.basename(local_source_fpath)
+        dest_abs_path = self._build_absolute_path(
+            boundary_name,
+            self.datasets_folder_name,
+            dataset_name,
+            version,
+            filename,
+        )
+        # Create the output dirs
+        os.makedirs(os.path.dirname(dest_abs_path), exist_ok=True)
+        _ = shutil.copy(local_source_fpath, dest_abs_path)
+        if not os.path.exists(dest_abs_path):
+            raise FileCreationException(
+                f"destination file path {dest_abs_path} not found after creation attempt"
+            )
+        if remove_local_source is True:
+            os.remove(local_source_fpath)
+        return dest_abs_path
+
     @staticmethod
     def count_file_types_in_folder(folder_path: str, file_type="tif") -> int:
         """

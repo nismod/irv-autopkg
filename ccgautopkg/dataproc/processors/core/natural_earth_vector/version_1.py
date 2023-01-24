@@ -177,15 +177,19 @@ class Processor(BaseProcessorABC):
         """Generate documentation for the processor
         on the result backend"""
         index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_boundary_data(
-            index_fpath, self.boundary["name"]
+        index_create = self.storage_backend.put_processor_metadata(
+            index_fpath, self.boundary["name"],
+            Metadata().name,
+            Metadata().version,
         )
         self.provenance_log[
             f"{Metadata().name} - created index documentation"
         ] = index_create
         license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_boundary_data(
-            license_fpath, self.boundary["name"]
+        license_create = self.storage_backend.put_processor_metadata(
+            license_fpath, self.boundary["name"],
+            Metadata().name,
+            Metadata().version,
         )
         self.provenance_log[
             f"{Metadata().name} - created license documentation"
