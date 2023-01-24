@@ -145,6 +145,7 @@ export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT= # Path to root-directory for pac
 export CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT= # Path to root-directory for local interim processing data.  Used by Worker only
 export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST= # Path to root-directory for packages when running integration tests.  Used in API and Worker
 export CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST= # Path to root-directory for local interim processing data when running integration tests.  Used by Worker only
+export PACKAGES_HOST= # URL to the hosting engine for package data, e.g. http://localhost
 ```
 
 ### Local FileSystem Storage Backend

@@ -39,6 +39,7 @@ class ProcessorVersion(BaseModel):
     """A Version of a Processor"""
     version: str
     processor: ProcessorMetadata # Metadata about the versioned processor which created this dataset
+    uri: Optional[str]=""
 
 class Dataset(BaseModel):
     """Summary information about a Dataset (Processor)"""

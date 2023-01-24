@@ -7,7 +7,12 @@ import inspect
 
 from fastapi import APIRouter, HTTPException
 
-from config import LOG_LEVEL, STORAGE_BACKEND, LOCALFS_STORAGE_BACKEND_ROOT
+from config import (
+    LOG_LEVEL,
+    STORAGE_BACKEND,
+    LOCALFS_STORAGE_BACKEND_ROOT,
+    PACKAGES_HOST,
+)
 from dataproc.helpers import processor_name, dataset_name_from_processor
 from dataproc.exceptions import (
     PackageNotFoundException,
@@ -16,14 +21,23 @@ from dataproc.exceptions import (
 )
 from dataproc.backends.storage import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
-from api.helpers import handle_exception, currently_active_or_reserved_processors, processor_meta
+from api.helpers import (
+    handle_exception,
+    currently_active_or_reserved_processors,
+    processor_meta,
+    build_package_url,
+    build_dataset_version_url,
+)
 from api.schemas import (
     Package,
     PackageSummary,
     Dataset,
 )
 from api.db.controller import DBController
-from api.exceptions import PackageHasNoDatasetsException, CannotGetCeleryTasksInfoException
+from api.exceptions import (
+    PackageHasNoDatasetsException,
+    CannotGetCeleryTasksInfoException,
+)
 
 
 router = APIRouter(
@@ -46,7 +60,12 @@ async def get_packages():
         logger.debug("found packages in backend: %s", storage_backend.packages())
         result = []
         for boundary_name in storage_backend.packages():
-            result.append(PackageSummary(boundary_name=boundary_name, uri="TODO"))
+            result.append(
+                PackageSummary(
+                    boundary_name=boundary_name,
+                    uri=build_package_url(PACKAGES_HOST, boundary_name),
+                )
+            )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
     except Exception as err:
@@ -71,14 +90,18 @@ async def get_package(boundary_name: str):
         executing_versions = {}
         for processor_name_version in internal_processors:
             dataset = dataset_name_from_processor(processor_name_version)
+            meta = processor_meta(processor_name_version, executing=True)
+            # Set the URI
+            meta.uri = build_dataset_version_url(
+                PACKAGES_HOST,
+                boundary_name,
+                dataset,
+                meta.processor.version,
+            )
             if dataset not in executing_versions.keys():
-                executing_versions[dataset] = [
-                    processor_meta(processor_name_version, executing=True)
-                ]
+                executing_versions[dataset] = [meta]
             else:
-                executing_versions[dataset].append(
-                    processor_meta(processor_name_version, executing=True)
-                )
+                executing_versions[dataset].append(meta)
         # Collate into Datasets for output schema
         for dataset, versions in executing_versions.items():
             output_datasets.append(Dataset(name=dataset, versions=versions))
@@ -99,6 +122,13 @@ async def get_package(boundary_name: str):
                         version,
                     )
                     meta = processor_meta(proc_name)
+                    # Set the URI
+                    meta.uri = build_dataset_version_url(
+                        PACKAGES_HOST,
+                        boundary_name,
+                        dataset,
+                        version,
+                    )
                     processor_versions.append(meta)
                 if processor_versions:
                     output_datasets.append(
@@ -111,7 +141,12 @@ async def get_package(boundary_name: str):
                     "No dataset with the given name was found on the FS: %s", dataset
                 )
             except InvalidProcessorException:
-                logger.debug("The processor %s relating to dataset %s with version %s is invalid", proc_name, version, dataset)
+                logger.debug(
+                    "The processor %s relating to dataset %s with version %s is invalid",
+                    proc_name,
+                    version,
+                    dataset,
+                )
 
         # If there are no executing processors, nor existing datasets then return a 404 for this package
         if not output_datasets:
@@ -121,7 +156,7 @@ async def get_package(boundary_name: str):
         boundary = await DBController().get_boundary_by_name(boundary_name)
         result = Package(
             boundary_name=boundary_name,
-            uri="TODO",
+            uri=build_package_url(PACKAGES_HOST, boundary_name),
             boundary=boundary,
             datasets=output_datasets,
         )
@@ -129,9 +164,7 @@ async def get_package(boundary_name: str):
         return result
     except CannotGetCeleryTasksInfoException as err:
         handle_exception(logger, err)
-        raise HTTPException(
-            status_code=500, detail=f""
-        )
+        raise HTTPException(status_code=500, detail=f"")
     except PackageNotFoundException as err:
         handle_exception(logger, err)
         raise HTTPException(
