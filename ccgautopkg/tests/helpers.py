@@ -82,6 +82,35 @@ def drop_natural_earth_roads_from_pg():
     print("Dropped NE Test Roads")
 
 
+def gen_datapackage(boundary_name: str, dataset_names: List[str]) -> dict:
+    """A test datapackage"""
+    dp_license = {
+        "name": "ODbL-1.0",
+        "path": "https://opendefinition.org/licenses/odc-odbl",
+        "title": "Open Data Commons Open Database License 1.0",
+    }
+    return {
+        "name": boundary_name,
+        "title": boundary_name,
+        "profile": "data-package",
+        "licenses": [dp_license for _ in dataset_names],
+        "resources": [
+            {
+                "name": dataset_name,
+                "version": "version_1",
+                "path": ["data.gpkg"],
+                "description": "desc",
+                "format": "GEOPKG",
+                "bytes": ["d7bbfe3d26e2142ee24458df087ed154194fe5de"],
+                "hashes": [22786048],
+                "license": dp_license,
+                "sources": ["a url"],
+            }
+            for dataset_name in dataset_names
+        ],
+    }
+
+
 def create_tree(
     top_level_path: str,
     packages: list = ["gambia", "zambia"],
@@ -90,6 +119,14 @@ def create_tree(
     """
     Create a fake tree so we can check reading packages
     """
+    # Generate the datapackage.jsons
+    for package in packages:
+        os.makedirs(os.path.join(top_level_path, package), exist_ok=True)
+        dp = gen_datapackage(package, datasets)
+        with open(
+            os.path.join(top_level_path, package, "datapackage.json"), "w"
+        ) as fptr:
+            json.dump(dp, fptr)
     if "gambia" in packages:
         if "noexist" in datasets:
             # An invalid processor or dataset was placed in the tree
@@ -145,7 +182,11 @@ def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
         try:
             shutil.rmtree(os.path.join(top_level_path, package))
         except FileNotFoundError:
-            print ('warning - failed to remove package at:', os.path.join(top_level_path, package), 'file not found')
+            print(
+                "warning - failed to remove package at:",
+                os.path.join(top_level_path, package),
+                "file not found",
+            )
 
 
 def assert_raster_bounds_correct(
@@ -243,7 +284,13 @@ def assert_datapackage_resource(dp_resource: dict):
         == len(dp_resource["hashes"])
         == len(dp_resource["bytes"])
     ), f"datapackage path, hashes and bytes must be the same length {len(dp_resource['path'])}, {len(dp_resource['hashes'])}, {len(dp_resource['bytes'])}"
-    assert isinstance(dp_resource['license'], dict), "datapackage license must be dict"
-    assert "name" in dp_resource['license'].keys(), "datapackage license must include name"
-    assert "path" in dp_resource['license'].keys(), "datapackage license must include path"
-    assert "title" in dp_resource['license'].keys(), "datapackage license must include title"
+    assert isinstance(dp_resource["license"], dict), "datapackage license must be dict"
+    assert (
+        "name" in dp_resource["license"].keys()
+    ), "datapackage license must include name"
+    assert (
+        "path" in dp_resource["license"].keys()
+    ), "datapackage license must include path"
+    assert (
+        "title" in dp_resource["license"].keys()
+    ), "datapackage license must include title"

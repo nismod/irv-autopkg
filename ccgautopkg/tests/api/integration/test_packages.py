@@ -9,7 +9,7 @@ import unittest
 
 import requests
 
-from tests.helpers import build_route, create_tree, remove_tree
+from tests.helpers import build_route, create_tree, remove_tree, assert_datapackage_resource
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(current_dir)
@@ -36,13 +36,18 @@ class TestPackages(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['boundary_name'], expected_boundary_name)
         name_versions = []
-        for dataset in response.json()["datasets"]:
+        # Check the processors
+        for dataset in response.json()["processors"]:
             for version in dataset['versions']:
                 name_versions.append(f'{dataset["name"]}.{version["version"]}')
         self.assertListEqual(
             name_versions,
             expected_dataset_names_versions
         )
+        # Ensure we have a nested datapackage
+        self.assertIn("datapackage", response.json().keys())
+        for dp_resource in response.json()['datapackage']['resources']:
+            assert_datapackage_resource(dp_resource)
 
     def test_get_all_packages(self):
         """

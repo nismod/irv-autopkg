@@ -17,7 +17,8 @@ services:
     ports:
       - 80:80
     volumes:
-      - ./data/packages:/www/data/packages
+      - ./data/packages:/www/data/packages # Prod
+      # - ./ccgautopkg/tests/data/packages:/www/data/packages # Testing
 
   redis:
     image: redis:6.2-alpine

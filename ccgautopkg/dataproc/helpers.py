@@ -137,20 +137,18 @@ def datapackage_resource(
     uris: List[str],
     dataset_format: str,
     dataset_sizes_bytes: List[int],
-    dataset_hashes: List[str],
+    dataset_hashes: List[str]
 ) -> DataPackageResource:
     """
     Generate a datapackage resource for this processor
 
     ::param output_fpath str Local path to the processed data used to generate the hash
     ::uris List[str] Final URIs of the output data (on storage backend).
-        NOTE: to comply with datapackage standard these URIs will be included 
-        as basename only
     """
     return DataPackageResource(
         name=metadata.name,
         version=metadata.version,
-        path=[os.path.basename(uri) for uri in uris],
+        path=uris,
         description=metadata.description,
         dataset_format=dataset_format,
         dataset_size_bytes=dataset_sizes_bytes,

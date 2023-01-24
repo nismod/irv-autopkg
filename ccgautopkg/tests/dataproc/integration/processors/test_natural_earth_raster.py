@@ -22,6 +22,7 @@ from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
+from config import PACKAGES_HOST_URL
 
 
 class TestNaturalEarthRasterProcessor(unittest.TestCase):
@@ -96,9 +97,9 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
         # Collect the URI for the final Raster
         final_uri = prov_log[f"{Metadata().name} - result URI"]
         # Assert the geotiff is valid
-        assert_geotiff(final_uri)
+        assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
         # Assert the envelope
-        assert_raster_bounds_correct(final_uri, self.boundary["envelope_geojson"])
+        assert_raster_bounds_correct(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), self.boundary["envelope_geojson"])
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log["datapackage"])

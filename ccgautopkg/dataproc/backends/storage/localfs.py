@@ -18,6 +18,7 @@ from dataproc.exceptions import (
 from dataproc import DataPackageResource
 from dataproc import helpers
 from ..base import StorageBackend
+from config import PACKAGES_HOST_URL
 
 
 class LocalFSStorageBackend(StorageBackend):
@@ -32,6 +33,10 @@ class LocalFSStorageBackend(StorageBackend):
         Build an absolute path from a relative path, by pre-pending the configured top level directory
         """
         return os.path.join(self.top_level_folder_path, *args)
+
+    def _build_uri(self, absolute_fpath: str) -> str:
+        """Build the internet-accessible URI from a given localFS absolute fpath"""
+        return absolute_fpath.replace(self.top_level_folder_path, PACKAGES_HOST_URL)
 
     def tree(self) -> dict:
         """
@@ -255,7 +260,7 @@ class LocalFSStorageBackend(StorageBackend):
             )
         if remove_local_source is True:
             os.remove(local_source_fpath)
-        return dest_abs_path
+        return self._build_uri(dest_abs_path)
 
     def put_processor_metadata(
         self,
@@ -291,7 +296,7 @@ class LocalFSStorageBackend(StorageBackend):
             )
         if remove_local_source is True:
             os.remove(local_source_fpath)
-        return dest_abs_path
+        return self._build_uri(dest_abs_path)
 
     @staticmethod
     def count_file_types_in_folder(folder_path: str, file_type="tif") -> int:
@@ -372,3 +377,13 @@ class LocalFSStorageBackend(StorageBackend):
 
         with open(datapackage_fpath, "w") as fptr:
             json.dump(datapackage, fptr)
+
+    def load_datapackage(self, boundary_name: str) -> dict:
+        """Load the datapackage.json file from backend and return"""
+        datapackage_fpath = self._build_absolute_path(
+            boundary_name,
+            "datapackage.json"
+        )
+        with open(datapackage_fpath, "r") as fptr:
+            datapackage = json.load(fptr)
+            return datapackage

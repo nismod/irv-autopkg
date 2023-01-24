@@ -9,6 +9,7 @@ import unittest
 from uuid import uuid4
 from time import time, sleep
 import json
+import urllib.parse
 
 import requests
 
@@ -21,6 +22,7 @@ from tests.helpers import build_route, remove_tree, assert_package
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
+from config import PACKAGES_HOST_URL
 
 JOB_SUBMIT_DATA_BOUNDARY_NOEXIST = {
     "boundary_name": "noexist",
@@ -200,14 +202,11 @@ class TestProcessingJobs(unittest.TestCase):
         self.assertIn(
             {
                 "test_processor - move to storage success": True,
-                "test_processor - result URI": os.path.join(
-                    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-                    "gambia/datasets/test_processor/version_1/data/gambia_test.tif",
-                ),
+                "test_processor - result URI": f"{PACKAGES_HOST_URL}/gambia/datasets/test_processor/version_1/data/gambia_test.tif",
                 "datapackage": {
                     "name": "test_processor",
                     "version": "version_1",
-                    "path": ["gambia_test.tif"],
+                    "path": [f"{PACKAGES_HOST_URL}/gambia/datasets/test_processor/version_1/data/gambia_test.tif"],
                     "description": "A test processor for nightlights",
                     "format": "GEOPKG",
                     "bytes": [5],

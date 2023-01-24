@@ -79,8 +79,8 @@ INTEGRATION_TEST_ENDPOINT = getenv(
     "CCGAUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000"
 )
 
-# Packages service hostname
-PACKAGES_HOST = getenv("CCGAUTOPKG_PACKAGES_HOST", "http://localhost")
+# Packages URL under-which all packages are served
+PACKAGES_HOST_URL = getenv("CCGAUTOPKG_PACKAGES_HOST_URL", "http://localhost/packages")
 
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")

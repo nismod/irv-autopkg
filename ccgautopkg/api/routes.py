@@ -14,7 +14,7 @@ BOUNDARIES_BASE_ROUTE = API_ROUTE_BASE + "/boundaries"
 BOUNDARY_SEARCH_ROUTE = BOUNDARIES_BASE_ROUTE + "/search"
 BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/{name}"
 
-# Retrieval of information about availabel processors
+# Retrieval of information about available processors
 PROCESSORS_BASE_ROUTE = API_ROUTE_BASE + "/processors"
 
 # Retrieval of information about packages

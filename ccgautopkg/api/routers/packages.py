@@ -11,7 +11,7 @@ from config import (
     LOG_LEVEL,
     STORAGE_BACKEND,
     LOCALFS_STORAGE_BACKEND_ROOT,
-    PACKAGES_HOST,
+    PACKAGES_HOST_URL,
 )
 from dataproc.helpers import processor_name, dataset_name_from_processor
 from dataproc.exceptions import (
@@ -31,7 +31,7 @@ from api.helpers import (
 from api.schemas import (
     Package,
     PackageSummary,
-    Dataset,
+    Processor as SchemaProcessor,
 )
 from api.db.controller import DBController
 from api.exceptions import (
@@ -63,7 +63,7 @@ async def get_packages():
             result.append(
                 PackageSummary(
                     boundary_name=boundary_name,
-                    uri=build_package_url(PACKAGES_HOST, boundary_name),
+                    uri=build_package_url(PACKAGES_HOST_URL, boundary_name),
                 )
             )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
@@ -82,7 +82,7 @@ async def get_package(boundary_name: str):
     """
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        output_datasets = []
+        output_processors = []
 
         # Check for executing or queued tasks (processor.versions)
         internal_processors = currently_active_or_reserved_processors(boundary_name)
@@ -93,7 +93,7 @@ async def get_package(boundary_name: str):
             meta = processor_meta(processor_name_version, executing=True)
             # Set the URI
             meta.uri = build_dataset_version_url(
-                PACKAGES_HOST,
+                PACKAGES_HOST_URL,
                 boundary_name,
                 dataset,
                 meta.processor.version,
@@ -104,7 +104,7 @@ async def get_package(boundary_name: str):
                 executing_versions[dataset].append(meta)
         # Collate into Datasets for output schema
         for dataset, versions in executing_versions.items():
-            output_datasets.append(Dataset(name=dataset, versions=versions))
+            output_processors.append(SchemaProcessor(name=dataset, versions=versions))
 
         # Check for existing datasets
         existing_datasets = storage_backend.package_datasets(boundary_name)
@@ -124,15 +124,15 @@ async def get_package(boundary_name: str):
                     meta = processor_meta(proc_name)
                     # Set the URI
                     meta.uri = build_dataset_version_url(
-                        PACKAGES_HOST,
+                        PACKAGES_HOST_URL,
                         boundary_name,
                         dataset,
                         version,
                     )
                     processor_versions.append(meta)
                 if processor_versions:
-                    output_datasets.append(
-                        Dataset(name=dataset, versions=processor_versions)
+                    output_processors.append(
+                        SchemaProcessor(name=dataset, versions=processor_versions)
                     )
                 else:
                     raise PackageHasNoDatasetsException(boundary_name)
@@ -149,16 +149,25 @@ async def get_package(boundary_name: str):
                 )
 
         # If there are no executing processors, nor existing datasets then return a 404 for this package
-        if not output_datasets:
+        if not output_processors:
             raise PackageHasNoDatasetsException(boundary_name)
 
-        # Return combined info about executing and/or existing datasets for this package
+        # Collect the datapackage from FS
+        datapackage = None
+        try:
+            datapackage = storage_backend.load_datapackage(boundary_name)
+        except Exception as err:
+            handle_exception(logger, err)
+
+        # Collect the boundary geom
         boundary = await DBController().get_boundary_by_name(boundary_name)
+        # Return combined info about executing and/or existing datasets for this package
         result = Package(
             boundary_name=boundary_name,
-            uri=build_package_url(PACKAGES_HOST, boundary_name),
+            uri=build_package_url(PACKAGES_HOST_URL, boundary_name),
             boundary=boundary,
-            datasets=output_datasets,
+            processors=output_processors,
+            datapackage=datapackage if datapackage else {}
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result

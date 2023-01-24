@@ -22,6 +22,7 @@ from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
+from config import PACKAGES_HOST_URL
 
 
 class TestWRIAqueductProcessor(unittest.TestCase):
@@ -91,12 +92,13 @@ class TestWRIAqueductProcessor(unittest.TestCase):
         self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
         # Collect the URIs for the final Raster
         final_uris = prov_log[f"{Metadata().name} - result URIs"]
+        print (final_uris)
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
         for final_uri in final_uris.split(","):
             # # Assert the geotiffs are valid
-            assert_geotiff(final_uri)
+            assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
             # # Assert the envelopes
-            assert_raster_bounds_correct(final_uri, self.boundary["envelope_geojson"])
+            assert_raster_bounds_correct(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), self.boundary["envelope_geojson"])
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log['datapackage'])
