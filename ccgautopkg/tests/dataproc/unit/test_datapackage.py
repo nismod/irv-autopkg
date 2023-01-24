@@ -1,5 +1,5 @@
 """
-Unit tests for Dataproc Helpers
+Unit tests for Datapackage Generation
 """
 import os
 import unittest
@@ -9,11 +9,7 @@ from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc.processors.core.test_processor.version_1 import (
     Metadata as TestProcMetadata,
 )
-from dataproc.processors.internal.base import (
-    DataPackageResource,
-    DataPackageLicense,
-)
-from tests.helpers import create_tree, remove_tree
+from dataproc import DataPackageResource
 
 LOCAL_FS_DATA_TOP_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -22,7 +18,7 @@ LOCAL_FS_DATA_TOP_DIR = os.path.join(
 )
 
 
-class TestDataProcHelpers(unittest.TestCase):
+class TestDataPackage(unittest.TestCase):
     """"""
 
     def setUp(self):
@@ -37,44 +33,34 @@ class TestDataProcHelpers(unittest.TestCase):
 
     def test_add_license_to_datapackage(self):
         """Test addition of a license to the datapackage"""
-        to_add = {"name": "test_license"}
+        to_add = TestProcMetadata().data_license
         datapackage = add_license_to_datapackage(to_add, self.datapackage)
-        self.assertIn(to_add, datapackage["licenses"])
+        self.assertIn(to_add.asdict(), datapackage["licenses"])
         # Second addition has no effect
         datapackage = add_license_to_datapackage(to_add, self.datapackage)
         self.assertEqual(len(datapackage["licenses"]), 1)
 
     def test_add_dataset_to_datapackage(self):
         """Test addition of a dataset to a datapackage"""
-
-        expected = {
-            "name": TestProcMetadata().name,
-            "version": TestProcMetadata().version,
-            "path": "/test/uri",
-            "description": TestProcMetadata().description,
-            "format": "data_format",
-            "bytes": 1,
-            "hash": "243737210677e8f38a4bc8567c108335",
-            "sources": TestProcMetadata().data_author,
-            "license": TestProcMetadata().data_license,
-            "source": TestProcMetadata().data_origin_url,
-        }
+        expected = DataPackageResource(
+            name=TestProcMetadata().name,
+            version=TestProcMetadata().version,
+            path="/test/uri",
+            description=TestProcMetadata().description,
+            dataset_format="data_format",
+            dataset_size_bytes=1,
+            dataset_hashes=[{"/test/uri": "243737210677e8f38a4bc8567c108335"}],
+            sources=[TestProcMetadata().data_author],
+            dp_license=TestProcMetadata().data_license,
+        )
         datapackage = add_dataset_to_datapackage(
-            TestProcMetadata(),
-            expected["path"],
-            expected["format"],
-            expected["hash"],
-            expected["bytes"],
+            expected,
             self.datapackage,
         )
-        self.assertIn(expected, datapackage["resources"])
+        self.assertIn(expected.asdict(), datapackage["resources"])
         # Second addition has no effect
         datapackage = add_dataset_to_datapackage(
-            TestProcMetadata(),
-            expected["path"],
-            expected["format"],
-            expected["hash"],
-            expected["bytes"],
+            expected,
             self.datapackage,
         )
         self.assertEqual(len(datapackage["resources"]), 1)

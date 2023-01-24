@@ -6,12 +6,13 @@ import os
 import logging
 import inspect
 import shutil
+from typing import List
 
 import sqlalchemy as sa
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
-from dataproc import Boundary
+from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
@@ -19,6 +20,9 @@ from dataproc.helpers import (
     download_file,
     ogr2ogr_load_shapefile_to_pg,
     gdal_crop_pg_table_to_geopkg,
+    datapackage_resource,
+    data_file_hash,
+    data_file_size
 )
 from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
@@ -33,7 +37,7 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = "test_natural_earth_vector"  # this must follow snakecase formatting, without special chars
+    name = "natural_earth_vector"  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth vector"  # Longer processor description
     )
@@ -41,10 +45,15 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = (
-        "test_natural_earth_vector_roads"  # The dataset this processor targets
+        "natural_earth_vector_roads"  # The dataset this processor targets
     )
     data_author = "Natural Earth Data"
-    data_license = "https://www.naturalearthdata.com/about/terms-of-use/"
+    data_license = ""
+    data_license = DataPackageLicense(
+        name="Natural Earth",
+        title="Natural Earth",
+        path="https://www.naturalearthdata.com/about/terms-of-use/",
+    )
     data_origin_url = (
         "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/roads/"
     )
@@ -53,6 +62,8 @@ class Metadata(BaseMetadataABC):
 class Processor(BaseProcessorABC):
     """A Processor for Natural Earth Vector"""
 
+    index_filename = "index.html"
+    license_filename = "license.html"
     source_zip_filename = "ne_10m_roads.zip"
     source_zip_url = os.path.join(
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_roads.zip"
@@ -133,8 +144,77 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+
+        # Generate Datapackage
+        hashes = [data_file_hash(output_fpath)]
+        sizes = [data_file_size(output_fpath)]
+        self.generate_datapackage(
+            [result_uri], hashes, sizes
+        )
+
+        # Generate Docs
+        self.generate_documentation()
+
         # Cleanup as required
         return self.provenance_log
+
+    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
+        """Generate the datapackage resource for this processor
+        and append to processor log
+        """
+        # Generate the datapackage and add it to the output log
+        datapkg = datapackage_resource(
+            Metadata(),
+            uris,
+            "GEOPKG",
+            hashes,
+            sizes,
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
+
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
+        index_fpath = self._generate_index_file()
+        index_create = self.storage_backend.put_boundary_data(
+            index_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created index documentation"
+        ] = index_create
+        license_fpath = self._generate_license_file()
+        license_create = self.storage_backend.put_boundary_data(
+            license_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created license documentation"
+        ] = license_create
+        self.log.debug("Natural Earth Vector generated documentation on backend")
+
+    def _generate_index_file(self) -> str:
+        """
+        Generate the index documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        )
+        return template_fpath
+
+    def _generate_license_file(self) -> str:
+        """
+        Generate the License documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.license_filename,
+        )
+        return template_fpath
 
     def _fetch_source(self) -> str:
         """
@@ -173,7 +253,7 @@ class Processor(BaseProcessorABC):
         """
         # Pull the zip file to the configured processing backend
         zip_fpath = self.paths_helper.build_absolute_path(
-            "test_natural_earth_vector", "ne_10m_roads.zip"
+            "natural_earth_vector", "ne_10m_roads.zip"
         )
         if not os.path.exists(zip_fpath):
             zip_fpath = download_file(

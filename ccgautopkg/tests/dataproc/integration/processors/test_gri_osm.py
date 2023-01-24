@@ -11,7 +11,11 @@ from dataproc.processors.core.gri_osm.version_1 import (
     Processor,
     Metadata,
 )
-from tests.helpers import load_country_geojson, setup_test_data_paths
+from tests.helpers import (
+    load_country_geojson,
+    setup_test_data_paths,
+    assert_datapackage_resource,
+)
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
@@ -31,14 +35,12 @@ class TestGRIOSMProcessor(unittest.TestCase):
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
         cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
-
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
         shutil.rmtree(cls.test_processing_data_dir)
         # Package data
         shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
-
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
@@ -89,3 +91,6 @@ class TestGRIOSMProcessor(unittest.TestCase):
         final_uri = prov_log[f"{Metadata().name} - result URI"]
         # Assert the file exists
         self.assertTrue(os.path.exists(final_uri))
+        # Check the datapackage thats included in the prov log
+        self.assertIn("datapackage", prov_log.keys())
+        assert_datapackage_resource(prov_log["datapackage"])

@@ -15,7 +15,7 @@ from dataproc.exceptions import (
     DatasetNotFoundException,
     FolderNotFoundException,
 )
-from dataproc import Boundary, DataPackageLicense, DataPackageResource
+from dataproc import DataPackageResource
 from dataproc import helpers
 from ..base import StorageBackend
 
@@ -226,10 +226,14 @@ class LocalFSStorageBackend(StorageBackend):
         boundary_name: str,
         dataset_name: str,
         version: str,
+        remove_local_source=False
     ) -> str:
         """
         Put an data output from a processor for a particular dataset and
         version onto the backend
+
+        ::kwarg remove_local_source bool Whether to delete the local source file 
+            after a successful move
 
         ::returns dest_abs_path str URI of the moved file
         """
@@ -249,6 +253,8 @@ class LocalFSStorageBackend(StorageBackend):
             raise FileCreationException(
                 f"destination file path {dest_abs_path} not found after creation attempt"
             )
+        if remove_local_source is True:
+            os.remove(local_source_fpath)
         return dest_abs_path
 
     @staticmethod

@@ -16,7 +16,9 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from api.routes import PACKAGE_ROUTE, PACKAGES_BASE_ROUTE
-from config import INTEGRATION_TEST_ENDPOINT, LOCALFS_STORAGE_BACKEND_ROOT
+from tests.dataproc.integration.processors import (
+    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+)
 
 
 class TestPackages(unittest.TestCase):
@@ -29,7 +31,7 @@ class TestPackages(unittest.TestCase):
         """
         Check the package repsonse is valid
 
-        ::param expected_dataset_names_versions list ["test_natural_earth_raster.version_1", ...]
+        ::param expected_dataset_names_versions list ["natural_earth_raster.version_1", ...]
         """
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['boundary_name'], expected_boundary_name)
@@ -46,9 +48,9 @@ class TestPackages(unittest.TestCase):
         """
         Retrieve all packages
         """
-        if not LOCALFS_STORAGE_BACKEND_ROOT:
+        if not LOCAL_FS_PACKAGE_DATA_TOP_DIR:
             raise Exception("localfs storage root not set in env")
-        create_tree(LOCALFS_STORAGE_BACKEND_ROOT)
+        create_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
         route = build_route(PACKAGES_BASE_ROUTE)
         response = requests.get(route)
         # Ensure we can find at least the fake packages we created
@@ -60,7 +62,7 @@ class TestPackages(unittest.TestCase):
             'gambia',
             [boundary['boundary_name'] for boundary in response.json()]
         )
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT)
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
     def test_get_package_by_name_not_found(self):
         """Attempt to retrieve details of a package which does not exist"""
@@ -74,22 +76,22 @@ class TestPackages(unittest.TestCase):
         Attempt to Retrieve details of a package by boundary name, 
         where there are no datasets which have applicable processors
         """
-        create_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'], datasets=['noexist'])
+        create_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=['gambia'], datasets=['noexist'])
         route = build_route(PACKAGE_ROUTE.format(boundary_name='gambia'))
         response = requests.get(route)
         self.assertEqual(response.status_code, 404)
         self.assertDictEqual(response.json(), {'detail': 'Package gambia has no existing or executing datasets'})
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=['gambia'])
 
     def test_get_package_by_name(self):
         """
         Retrieve details of a package by boundary name
 
-        Package is created within the test, but the processor must exist and be valid (test_natural_earth_raster.version_1)
+        Package is created within the test, but the processor must exist and be valid (natural_earth_raster.version_1)
         """
-        create_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'], datasets=['test_natural_earth_raster'])
+        create_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=['gambia'], datasets=['natural_earth_raster'])
         route = build_route(PACKAGE_ROUTE.format(boundary_name='gambia'))
         response = requests.get(route)
-        self.assert_package(response, "gambia", ["test_natural_earth_raster.version_1"])
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=['gambia'])
+        self.assert_package(response, "gambia", ["natural_earth_raster.version_1"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=['gambia'])
 

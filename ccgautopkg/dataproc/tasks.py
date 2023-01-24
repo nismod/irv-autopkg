@@ -16,7 +16,6 @@ from config import (
 )
 from dataproc import Boundary
 from dataproc.helpers import (
-    init_storage_backend,
     get_processor_by_name,
 )
 from dataproc.processors.internal import (
@@ -24,6 +23,7 @@ from dataproc.processors.internal import (
     ProvenanceProcessor,
 )
 from dataproc.exceptions import ProcessorAlreadyExecutingException
+from dataproc.backends.storage import init_storage_backend
 
 # Setup Configured Storage Backend
 storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)

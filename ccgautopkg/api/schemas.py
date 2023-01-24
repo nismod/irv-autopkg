@@ -30,7 +30,7 @@ class ProcessorMetadata(BaseModel):
     description: str
     dataset: str
     author: str
-    license: str
+    license: dict
     origin_url: str
     version: str
     status: Optional[str]=""

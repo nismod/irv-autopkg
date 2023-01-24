@@ -7,7 +7,7 @@ import shutil
 
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc import Boundary
-from dataproc.processors.core.test_natural_earth_vector.version_1 import (
+from dataproc.processors.core.natural_earth_vector.version_1 import (
     Processor,
     Metadata,
 )
@@ -17,6 +17,7 @@ from tests.helpers import (
     assert_table_in_pg,
     drop_natural_earth_roads_from_pg,
     setup_test_data_paths,
+    assert_datapackage_resource,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -30,7 +31,7 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_natural_earth_vector"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "natural_earth_vector"
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         cls.test_data_dir = None
@@ -114,3 +115,6 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         final_uri = prov_log[f"{Metadata().name} - result URI"]
         # Assert the file exists
         self.assertTrue(os.path.exists(final_uri))
+        # Check the datapackage thats included in the prov log
+        self.assertIn("datapackage", prov_log.keys())
+        assert_datapackage_resource(prov_log["datapackage"])

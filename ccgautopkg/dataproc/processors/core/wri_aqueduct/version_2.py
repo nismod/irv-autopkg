@@ -6,16 +6,23 @@ import os
 import logging
 import inspect
 import shutil
+from typing import List
 
-from dataproc.backends import StorageBackend
-from dataproc.backends.base import PathsHelper
-from dataproc import Boundary
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
-    DataPackageLicense,
 )
-from dataproc.helpers import version_name_from_file, crop_raster, assert_geotiff
+from dataproc.backends import StorageBackend
+from dataproc.backends.base import PathsHelper
+from dataproc import Boundary, DataPackageLicense
+from dataproc.helpers import (
+    version_name_from_file,
+    crop_raster,
+    assert_geotiff,
+    data_file_hash,
+    data_file_size,
+    datapackage_resource,
+)
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 from dataproc.exceptions import FolderNotFoundException
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
@@ -135,7 +142,13 @@ class Processor(BaseProcessorABC):
                 "aqueduct crop %s - success: %s", fileinfo.name, crop_success
             )
             if crop_success:
-                results_fpaths.append(output_fpath)
+                results_fpaths.append(
+                    {
+                        "fpath": output_fpath,
+                        "hash": data_file_hash(output_fpath),
+                        "size": data_file_size(output_fpath),
+                    }
+                )
         # Check results look sensible
         assert (
             len(results_fpaths) == self.total_expected_files
@@ -143,9 +156,9 @@ class Processor(BaseProcessorABC):
 
         self.log.debug("WRI Aqueduct - moving cropped data to backend")
         result_uris = []
-        for fpath in results_fpaths:
+        for result in results_fpaths:
             result_uri = self.storage_backend.put_processor_data(
-                fpath,
+                result["fpath"],
                 self.boundary["name"],
                 Metadata().name,
                 Metadata().version,
@@ -155,10 +168,37 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - move to storage success"] = (
             len(result_uris) == self.total_expected_files
         )
-
         self.provenance_log[f"{Metadata().name} - result URIs"] = ",".join(result_uris)
 
-        # Generate Documentation
+        # Generate documentation on backend
+        self.generate_documentation()
+
+        # Generate datapackage in log (using directory for URI)
+        self.generate_datapackage(
+            result_uris,
+            results_fpaths
+        )
+
+        return self.provenance_log
+
+    def generate_datapackage(self, uris: str, results: List[dict]):
+        """Generate the datapackage resource for this processor
+        and append to processor log
+        """
+        # Generate the datapackage and add it to the output log
+        datapkg = datapackage_resource(
+            Metadata(),
+            uris,
+            "GeoTIFF",
+            [i['size'] for i in results],
+            [i['hash'] for i in results],
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
+
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
         index_fpath = self._generate_index_file()
         index_create = self.storage_backend.put_boundary_data(
             index_fpath, self.boundary["name"]
@@ -173,8 +213,7 @@ class Processor(BaseProcessorABC):
         self.provenance_log[
             f"{Metadata().name} - created license documentation"
         ] = license_create
-
-        return self.provenance_log
+        self.log.debug("Aqueduct generated documentation on backend")
 
     def _generate_index_file(self) -> str:
         """

@@ -10,27 +10,11 @@ import zipfile
 import json
 from subprocess import check_output
 
-from dataproc.processors.internal.base import BaseProcessorABC
-from dataproc.backends import StorageBackend
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
-from dataproc.exceptions import ConfigException
+from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
-from dataproc.exceptions import FolderCreationException, FileCreationException
+from dataproc.exceptions import FileCreationException
 
 # DAGs and Processing
-
-
-def init_storage_backend(storage_backend: str) -> StorageBackend:
-    """
-    Initialise a StorageBackend by name
-    """
-    if storage_backend == "localfs":
-        return LocalFSStorageBackend
-    else:
-        raise ConfigException(
-            f"Unsupported / Unset StorageBackend {storage_backend} - check env"
-        )
-
 
 def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""
@@ -148,6 +132,32 @@ def add_dataset_to_datapackage(
             datapackage["resources"].append(dp_resource.asdict())
     return datapackage
 
+def datapackage_resource(
+    metadata: BaseMetadataABC,
+    uris: List[str],
+    dataset_format: str,
+    dataset_sizes_bytes: List[int],
+    dataset_hashes: List[str],
+) -> DataPackageResource:
+    """
+    Generate a datapackage resource for this processor
+
+    ::param output_fpath str Local path to the processed data used to generate the hash
+    ::uris List[str] Final URIs of the output data (on storage backend).
+        NOTE: to comply with datapackage standard these URIs will be included 
+        as basename only
+    """
+    return DataPackageResource(
+        name=metadata.name,
+        version=metadata.version,
+        path=[os.path.basename(uri) for uri in uris],
+        description=metadata.description,
+        dataset_format=dataset_format,
+        dataset_size_bytes=dataset_sizes_bytes,
+        sources=[metadata.data_origin_url],
+        dp_license=metadata.data_license,
+        dataset_hashes=dataset_hashes,
+    ).asdict()
 
 def data_file_hash(fpath: str) -> str:
     """
@@ -160,6 +170,10 @@ def data_file_hash(fpath: str) -> str:
         .split("= ")[1]
     )
     return _hash
+
+def data_file_size(fpath: str) -> int:
+    """Filesize in bytes"""
+    return os.path.getsize(fpath)
 
 
 # FILE OPERATIONS

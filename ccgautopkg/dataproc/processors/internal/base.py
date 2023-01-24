@@ -31,14 +31,38 @@ class BaseProcessorABC(ABC):
         # Tmp Processing data will be cleaned
         self.tmp_processing_folder = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup any resources as required"""
+
     def generate(self):
         """Generate files for a given processor"""
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
 
-    def __enter__(self):
-        return self
+    def generate_datapackage(self):
+        """Generate the datapackage resource for this processor
+        and append to processor log
+        """
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Cleanup any resources as required"""
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
+
+    def _generate_index_file(self) -> str:
+        """
+        Generate the index documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+
+    def _generate_license_file(self) -> str:
+        """
+        Generate the License documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+

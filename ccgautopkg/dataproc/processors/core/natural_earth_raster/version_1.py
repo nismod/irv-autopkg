@@ -6,10 +6,11 @@ import os
 import logging
 import inspect
 import shutil
+from typing import List
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
-from dataproc import Boundary
+from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
@@ -17,6 +18,9 @@ from dataproc.helpers import (
     unpack_zip,
     assert_geotiff,
     download_file,
+    datapackage_resource,
+    data_file_hash,
+    data_file_size
 )
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
@@ -26,28 +30,35 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = "test_natural_earth_raster"  # this must follow snakecase formatting, without special chars
+    name = "natural_earth_raster"  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth image"  # Longer processor description
     )
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
-    dataset_name = "test_natural_earth_raster"  # The dataset this processor targets
+    dataset_name = "natural_earth_raster"  # The dataset this processor targets
     data_author = "Natural Earth Data"
-    data_license = "https://www.naturalearthdata.com/about/terms-of-use/"
+    data_license = DataPackageLicense(
+        name="CC-BY-4.0",
+        title="Creative Commons Attribution 4.0",
+        path="https://creativecommons.org/licenses/by/4.0/",
+    )
     data_origin_url = "https://www.naturalearthdata.com/downloads/50m-natural-earth-2/50m-natural-earth-ii-with-shaded-relief/"
 
 
 class Processor(BaseProcessorABC):
     """A Processor for Natural Earth"""
 
+    index_filename = "index.html"
+    license_filename = "license.html"
     source_zip_filename = "NE2_50M_SR.zip"
     source_zip_url = os.path.join(
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/50m/raster/NE2_50M_SR.zip"
     )
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
+        """"""
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
@@ -93,7 +104,7 @@ class Processor(BaseProcessorABC):
         # Crop to given boundary
         output_folder = self.paths_helper.build_absolute_path(
             self.boundary["name"],
-            "test_natural_earth_raster",
+            "natural_earth_raster",
             Metadata().version,
             "outputs",
         )
@@ -113,7 +124,17 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
-        # Cleanup as required
+
+       # Generate Datapackage
+        hashes = [data_file_hash(output_fpath)]
+        sizes = [data_file_size(output_fpath)]
+        self.generate_datapackage(
+            [result_uri], hashes, sizes
+        )
+
+        # Generate Docs
+        self.generate_documentation()
+
         return self.provenance_log
 
     def _fetch_source(self) -> str:
@@ -125,7 +146,7 @@ class Processor(BaseProcessorABC):
         """
         # Check if the files exist
         expected_source_path = self.paths_helper.build_absolute_path(
-            "test_natural_earth_raster", "NE2_50M_SR", "NE2_50M_SR.tif"
+            "natural_earth_raster", "NE2_50M_SR", "NE2_50M_SR.tif"
         )
         if os.path.exists(expected_source_path):
             self.provenance_log[
@@ -153,6 +174,64 @@ class Processor(BaseProcessorABC):
         ] = True
         return geotiff_fpath
 
+    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
+        """Generate the datapackage resource for this processor
+        and append to processor log
+        """
+        # Generate the datapackage and add it to the output log
+        datapkg = datapackage_resource(
+            Metadata(),
+            uris,
+            "GEOPKG",
+            hashes,
+            sizes,
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
+
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
+        index_fpath = self._generate_index_file()
+        index_create = self.storage_backend.put_boundary_data(
+            index_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created index documentation"
+        ] = index_create
+        license_fpath = self._generate_license_file()
+        license_create = self.storage_backend.put_boundary_data(
+            license_fpath, self.boundary["name"]
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created license documentation"
+        ] = license_create
+        self.log.debug("Natural Earth Raster generated documentation on backend")
+
+    def _generate_index_file(self) -> str:
+        """
+        Generate the index documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        )
+        return template_fpath
+
+    def _generate_license_file(self) -> str:
+        """
+        Generate the License documentation file
+
+        ::returns dest_fpath str Destination filepath on the processing backend
+        """
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.license_filename,
+        )
+        return template_fpath
+
     def _fetch_zip(self) -> str:
         """
         Fetch the Source Zip File
@@ -163,7 +242,7 @@ class Processor(BaseProcessorABC):
         zip_path = download_file(
             self.source_zip_url,
             self.paths_helper.build_absolute_path(
-                "test_natural_earth_raster", "NE2_50M_SR.zip"
+                "natural_earth_raster", "NE2_50M_SR.zip"
             ),
         )
         return zip_path

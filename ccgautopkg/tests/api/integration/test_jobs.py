@@ -17,12 +17,14 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from api.routes import JOB_STATUS_ROUTE, JOBS_BASE_ROUTE
-from config import INTEGRATION_TEST_ENDPOINT, LOCALFS_STORAGE_BACKEND_ROOT
 from tests.helpers import build_route, remove_tree, assert_package
+from tests.dataproc.integration.processors import (
+    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+)
 
 JOB_SUBMIT_DATA_BOUNDARY_NOEXIST = {
     "boundary_name": "noexist",
-    "processors": ["test_natural_earth_raster.version_1"],
+    "processors": ["natural_earth_raster.version_1"],
 }
 
 JOB_SUBMIT_DATA_PROC_NOEXIST = {
@@ -33,8 +35,8 @@ JOB_SUBMIT_DATA_PROC_NOEXIST = {
 JOB_SUBMIT_DATA_PROC_DUP = {
     "boundary_name": "gambia",
     "processors": [
-        "test_natural_earth_raster.version_1",
-        "test_natural_earth_raster.version_1",
+        "natural_earth_raster.version_1",
+        "natural_earth_raster.version_1",
     ],
 }
 
@@ -45,7 +47,7 @@ JOB_SUBMIT_DATA_GAMBIA_TEST_PROC = {
 
 JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC = {
     "boundary_name": "gambia",
-    "processors": ["test_natural_earth_vector.version_1"],
+    "processors": ["natural_earth_vector.version_1"],
 }  # Awaits 5 secs
 
 
@@ -105,7 +107,7 @@ class TestProcessingJobs(unittest.TestCase):
     def test_submit_job(self):
         """Simple submission and await completion of a job"""
         # Ensure the package tree is clean
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
         expected_code = 202
         route = build_route(JOBS_BASE_ROUTE)
         response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
@@ -124,11 +126,11 @@ class TestProcessingJobs(unittest.TestCase):
         self.assertEqual(response.json()["job_status"], "SUCCESS")
         # Assert the package integrity, including submitted processor
         assert_package(
-            LOCALFS_STORAGE_BACKEND_ROOT,
+            LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
             JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
         )
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
@@ -138,7 +140,7 @@ class TestProcessingJobs(unittest.TestCase):
         max_wait = 10  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
@@ -198,7 +200,25 @@ class TestProcessingJobs(unittest.TestCase):
         self.assertIn(
             {
                 "test_processor - move to storage success": True,
-                "test_processor - result URI": "/data/packages/gambia/datasets/test_processor/version_1/data/gambia_test.tif",
+                "test_processor - result URI": os.path.join(
+                    LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+                    "gambia/datasets/test_processor/version_1/data/gambia_test.tif",
+                ),
+                "datapackage": {
+                    "name": "test_processor",
+                    "version": "version_1",
+                    "path": ["gambia_test.tif"],
+                    "description": "A test processor for nightlights",
+                    "format": "GEOPKG",
+                    "bytes": [5],
+                    "hashes": ["4e1243bd22c66e76c2ba9eddc1f91394e57f9f83"],
+                    "license": {
+                        "name": "CC-BY-4.0",
+                        "path": "https://creativecommons.org/licenses/by/4.0/",
+                        "title": "Creative Commons Attribution 4.0",
+                    },
+                    "sources": ["http://url"],
+                },
             },
             test_proc_results,
         )
@@ -207,11 +227,11 @@ class TestProcessingJobs(unittest.TestCase):
 
         # Assert we only get a single package output
         assert_package(
-            LOCALFS_STORAGE_BACKEND_ROOT,
+            LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
             JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
         )
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
     def test_submit_job_already_processing_using_ne_vector_processor(self):
         """
@@ -221,7 +241,7 @@ class TestProcessingJobs(unittest.TestCase):
         max_wait = 60  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
@@ -264,10 +284,8 @@ class TestProcessingJobs(unittest.TestCase):
                 for task in task_results:
                     if "boundary_processor" in task.keys():
                         boundary_proc_results.append(task["boundary_processor"])
-                    if "test_natural_earth_vector.version_1" in task.keys():
-                        test_proc_results.append(
-                            task["test_natural_earth_vector.version_1"]
-                        )
+                    if "natural_earth_vector.version_1" in task.keys():
+                        test_proc_results.append(task["natural_earth_vector.version_1"])
         # Boundary success
         self.assertIn(
             {
@@ -282,24 +300,29 @@ class TestProcessingJobs(unittest.TestCase):
         )
         # Boundary success only reported once
         self.assertTrue(len(set([json.dumps(i) for i in boundary_proc_results])), 1)
+        # Correct total processing results - including 7 exists
+        self.assertEqual(len(test_proc_results), dup_processors_to_submit)
         # Test Processor Success
         self.assertIn(
-            [
-                "test_natural_earth_vector - zip download path",
-                "test_natural_earth_vector - loaded NE Roads to PG",
-                "test_natural_earth_vector - crop completed",
-                "test_natural_earth_vector - move to storage success",
-                "test_natural_earth_vector - result URI",
-            ],
-            [list(i.keys()) for i in test_proc_results],
+            sorted([
+                "natural_earth_vector - zip download path",
+                "natural_earth_vector - loaded NE Roads to PG",
+                "natural_earth_vector - crop completed",
+                "natural_earth_vector - move to storage success",
+                "natural_earth_vector - result URI",
+                "natural_earth_vector - created index documentation",
+                "natural_earth_vector - created license documentation",
+                "datapackage"
+            ]),
+            [sorted(list(i.keys())) for i in test_proc_results],
         )
         # Processor success only reported once
         self.assertTrue(len(set([json.dumps(i) for i in test_proc_results])))
 
         # Assert we only get a single package output
         assert_package(
-            LOCALFS_STORAGE_BACKEND_ROOT,
+            LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
             JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC["processors"],
         )
-        remove_tree(LOCALFS_STORAGE_BACKEND_ROOT, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])

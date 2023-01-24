@@ -2,7 +2,7 @@
 Global Config
 """
 
-from os import getenv
+from os import getenv, path
 import logging
 
 import sqlalchemy as sa
@@ -81,10 +81,17 @@ INTEGRATION_TEST_ENDPOINT = getenv(
 
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
-# The root-level folder when using localfs storage backend
-LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
-# The root-level folder when using localfs processing backend
-LOCALFS_PROCESSING_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
+# Dev / Prod switch for testing
+if DEPLOYMENT_ENV == getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "test"):
+    # The root-level folder when using localfs storage backend
+    LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"))
+    # The root-level folder when using localfs processing backend
+    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "tmp"))
+else:
+    # The root-level folder when using localfs storage backend
+    LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
+    # The root-level folder when using localfs processing backend
+    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
 
 # Name matching Soundex Distance Default
 NAME_SEARCH_DISTANCE = int(getenv("CCGAUTOPKG_NAME_SEARCH_DISTANCE", "2"))

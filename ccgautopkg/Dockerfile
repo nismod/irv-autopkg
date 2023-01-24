@@ -1,23 +1,3 @@
-# FROM python:3.10-slim
-
-# # set work directory
-# WORKDIR /usr/src/app
-
-# # set environment variables
-# ENV PYTHONDONTWRITEBYTECODE 1
-# ENV PYTHONUNBUFFERED 1
-
-# # install dependencies
-# COPY ./requirements.txt .
-# RUN apt-get update && apt-get install -y software-properties-common && \
-#     add-apt-repository ppa:ubuntugis/ppa && apt-get update && apt-get install -y \
-#     python3-numpy python3-numpy gdal-bin libgdal-dev && \
-#     pip install --upgrade pip && \
-#     pip install -r requirements.txt
-
-# # copy project
-# COPY . .
-
 FROM osgeo/gdal:alpine-small-3.6.2
 
 # set work directory

@@ -6,14 +6,18 @@ import os
 import logging
 import inspect
 import shutil
+from typing import List
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
-from dataproc import Boundary
+from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
-    gdal_crop_pg_table_to_geopkg
+    gdal_crop_pg_table_to_geopkg,
+    datapackage_resource,
+    data_file_hash,
+    data_file_size
 )
 from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
@@ -37,7 +41,11 @@ class Metadata(BaseMetadataABC):
         "gri_osm"  # The dataset this processor targets
     )
     data_author = "GRI/OSM"
-    data_license = "TBD"
+    data_license = DataPackageLicense(
+        name="ODbL-1.0",
+        title="Open Data Commons Open Database License 1.0",
+        path="https://opendefinition.org/licenses/odc-odbl",
+    )
     data_origin_url = (
         "https://global.infrastructureresilience.org"
     )
@@ -61,6 +69,7 @@ class Processor(BaseProcessorABC):
     output_layer_name = "gri-osm"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
+        """"""
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(LOCALFS_PROCESSING_BACKEND_ROOT)
@@ -148,8 +157,30 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
         
+        # Generate Datapackage
+        hashes = [data_file_hash(output_fpath)]
+        sizes = [data_file_size(output_fpath)]
+        self.generate_datapackage(
+            [result_uri], hashes, sizes
+        )
+
         # Cleanup as required
         return self.provenance_log
+
+    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
+        """Generate the datapackage resource for this processor
+        and append to processor log
+        """
+        # Generate the datapackage and add it to the output log
+        datapkg = datapackage_resource(
+            Metadata(),
+            uris,
+            "GEOPKG",
+            hashes,
+            sizes,
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
 
     def _generate_index_file(self) -> str:
         """

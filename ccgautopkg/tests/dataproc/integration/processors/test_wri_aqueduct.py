@@ -5,9 +5,9 @@ import os
 import unittest
 import shutil
 
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
+from dataproc.backends import LocalFSStorageBackend
 from dataproc import Boundary
-from dataproc.processors.core.wri_aqueduct.version_1 import (
+from dataproc.processors.core.wri_aqueduct.version_2 import (
     Processor,
     Metadata,
 )
@@ -16,6 +16,7 @@ from tests.helpers import (
     load_country_geojson,
     assert_raster_bounds_correct,
     setup_test_data_paths,
+    assert_datapackage_resource
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -96,3 +97,6 @@ class TestWRIAqueductProcessor(unittest.TestCase):
             assert_geotiff(final_uri)
             # # Assert the envelopes
             assert_raster_bounds_correct(final_uri, self.boundary["envelope_geojson"])
+        # Check the datapackage thats included in the prov log
+        self.assertIn("datapackage", prov_log.keys())
+        assert_datapackage_resource(prov_log['datapackage'])

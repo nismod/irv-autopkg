@@ -8,7 +8,7 @@ import logging
 
 from dataproc.processors.internal import base
 from dataproc.backends import StorageBackend
-from dataproc import Boundary, DataPackageResource, DataPackageLicense
+from dataproc import Boundary, DataPackageResource
 
 
 class ProvenanceProcessor:
@@ -61,30 +61,30 @@ class ProvenanceProcessor:
             with information from the processor which has run before the prov. processor
         """
         for resource in resources:
-            # try:
-            # Convert back to DPResource and License
-            dp_license = base.DataPackageLicense(
-                name=resource["license"]["name"],
-                path=resource["license"]["path"],
-                title=resource["license"]["title"],
-            )
-            dp_resource = DataPackageResource(
-                name=resource["name"],
-                version=resource["version"],
-                path=resource["path"],
-                description=resource["description"],
-                dataset_format=resource["format"],
-                dataset_size_bytes=resource["bytes"],
-                dataset_hashes=resource["hashes"],
-                sources=resource["sources"],
-                dp_license=dp_license,
-            )
-            self.storage_backend.update_datapackage(
-                self.boundary["name"],
-                dp_resource
-            )
-            # except Exception as err:
-            #     self.log.error(
-            #         "Failed to update datapackage.json for %s with resource: %s, due to: %s",
-            #         self.boundary['name'], resource, err
-            #     )
+            try:
+                # Convert back to DPResource and License
+                dp_license = base.DataPackageLicense(
+                    name=resource["license"]["name"],
+                    path=resource["license"]["path"],
+                    title=resource["license"]["title"],
+                )
+                dp_resource = DataPackageResource(
+                    name=resource["name"],
+                    version=resource["version"],
+                    path=resource["path"],
+                    description=resource["description"],
+                    dataset_format=resource["format"],
+                    dataset_size_bytes=resource["bytes"],
+                    dataset_hashes=resource["hashes"],
+                    sources=resource["sources"],
+                    dp_license=dp_license,
+                )
+                self.storage_backend.update_datapackage(
+                    self.boundary["name"],
+                    dp_resource
+                )
+            except Exception as err:
+                self.log.error(
+                    "Failed to update datapackage.json for %s with resource: %s, due to: %s",
+                    self.boundary['name'], resource, err
+                )

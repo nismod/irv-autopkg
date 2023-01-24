@@ -10,9 +10,10 @@ from tests.helpers import (
     load_country_geojson,
     assert_raster_bounds_correct,
     setup_test_data_paths,
+    assert_datapackage_resource,
 )
 from dataproc import Boundary
-from dataproc.processors.core.test_natural_earth_raster.version_1 import (
+from dataproc.processors.core.natural_earth_raster.version_1 import (
     Processor,
     Metadata,
 )
@@ -29,7 +30,7 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_natural_earth_raster"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "natural_earth_raster"
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
@@ -98,3 +99,6 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
         assert_geotiff(final_uri)
         # Assert the envelope
         assert_raster_bounds_correct(final_uri, self.boundary["envelope_geojson"])
+        # Check the datapackage thats included in the prov log
+        self.assertIn("datapackage", prov_log.keys())
+        assert_datapackage_resource(prov_log["datapackage"])

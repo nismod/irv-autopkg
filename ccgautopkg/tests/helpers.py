@@ -54,15 +54,23 @@ def load_country_geojson(name: str) -> Tuple[dict, dict]:
 
     return boundary, envelope
 
+
 def load_natural_earth_roads_to_pg():
     """
     Load the natrual earth shapefile of roads into Postgres
     Enables testing of vector clipping Processor
     """
     pguri = str(get_db_uri_sync(API_DB_NAME)).replace("+psycopg2", "")
-    fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "global", "ne_10m_roads", "ne_10m_roads.shp")
+    fpath = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "data",
+        "global",
+        "ne_10m_roads",
+        "ne_10m_roads.shp",
+    )
     cmd = f'ogr2ogr -f "PostgreSQL" -nlt PROMOTE_TO_MULTI PG:"{pguri}" "{fpath}"'
     os.system(cmd)
+
 
 def drop_natural_earth_roads_from_pg():
     """Drop loaded Natural Earth Roads data from DB"""
@@ -71,51 +79,56 @@ def drop_natural_earth_roads_from_pg():
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     _ = engine.execute("DROP TABLE ne_10m_roads;")
-    print ("Dropped NE Test Roads")
+    print("Dropped NE Test Roads")
 
-def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datasets: list=['aqueduct', 'biodiversity', 'osm_roads']):
+
+def create_tree(
+    top_level_path: str,
+    packages: list = ["gambia", "zambia"],
+    datasets: list = ["aqueduct", "biodiversity", "osm_roads"],
+):
     """
     Create a fake tree so we can check reading packages
     """
-    if 'gambia' in packages:
-        if 'noexist' in datasets:
+    if "gambia" in packages:
+        if "noexist" in datasets:
             # An invalid processor or dataset was placed in the tree
             os.makedirs(
-                os.path.join(
-                    top_level_path, "gambia", "datasets", "noexist"
-                ),
+                os.path.join(top_level_path, "gambia", "datasets", "noexist"),
                 exist_ok=True,
             )
-        if 'aqueduct' in datasets:
+        if "aqueduct" in datasets:
             os.makedirs(
-                os.path.join(
-                    top_level_path, "gambia", "datasets", "aqueduct", "0.1"
-                ),
+                os.path.join(top_level_path, "gambia", "datasets", "aqueduct", "0.1"),
                 exist_ok=True,
             )
-        if 'biodiversity' in datasets:
+        if "biodiversity" in datasets:
             os.makedirs(
                 os.path.join(
                     top_level_path, "gambia", "datasets", "biodiversity", "version_1"
                 ),
                 exist_ok=True,
             )
-        if 'osm_roads' in datasets:
+        if "osm_roads" in datasets:
             os.makedirs(
                 os.path.join(
                     top_level_path, "gambia", "datasets", "osm_roads", "20221201"
                 ),
                 exist_ok=True,
             )
-        if 'test_natural_earth_raster' in datasets:
+        if "natural_earth_raster" in datasets:
             os.makedirs(
                 os.path.join(
-                    top_level_path, "gambia", "datasets", "test_natural_earth_raster", "version_1"
+                    top_level_path,
+                    "gambia",
+                    "datasets",
+                    "natural_earth_raster",
+                    "version_1",
                 ),
                 exist_ok=True,
             )
-    if 'zambia' in packages:
-        if 'osm_roads' in datasets:
+    if "zambia" in packages:
+        if "osm_roads" in datasets:
             os.makedirs(
                 os.path.join(
                     top_level_path, "zambia", "datasets", "osm_roads", "20230401"
@@ -123,7 +136,8 @@ def create_tree(top_level_path: str, packages: list=['gambia', 'zambia'], datase
                 exist_ok=True,
             )
 
-def remove_tree(top_level_path: str, packages=['gambia', 'zambia']):
+
+def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
     """
     Cleanup the test tree
     """
@@ -131,7 +145,8 @@ def remove_tree(top_level_path: str, packages=['gambia', 'zambia']):
         try:
             shutil.rmtree(os.path.join(top_level_path, package))
         except FileNotFoundError:
-            pass
+            print ('warning - failed to remove package at:', os.path.join(top_level_path, package), 'file not found')
+
 
 def assert_raster_bounds_correct(
     raster_fpath: str, envelope: dict, tolerence: float = 0.1
@@ -157,41 +172,78 @@ def assert_raster_bounds_correct(
             abs(src.bounds.bottom - min(y_coords)) < tolerence
         ), f"bounds {src.bounds.bottom} did not match expected {min(y_coords)} within tolerence {tolerence}"
 
-def assert_package(top_level_fpath: str, boundary_name: str, dataset_name_versions: List[str]):
+
+def assert_package(
+    top_level_fpath: str, boundary_name: str, dataset_name_versions: List[str]
+):
     """Assert integrity of a package and datasets contained within
-        This does not assert the integrity of actualy data files (raster/vector); 
+        This does not assert the integrity of actualy data files (raster/vector);
         just the folder structure
 
     ::param dataset_name_versions str name.version
     """
     required_top_level_docs = [
-        'index.html', 'license.html', 'version.html', 'provenance.json', 'datapackage.json'
+        "index.html",
+        "license.html",
+        "version.html",
+        "provenance.json",
+        "datapackage.json",
     ]
     packages = next(os.walk(top_level_fpath))[1]
-    assert boundary_name in packages, f"{boundary_name} missing in package root: {packages}"
-    for dataset in next(os.walk(os.path.join(top_level_fpath, boundary_name, "datasets")))[1]:
-        for version in next(os.walk(os.path.join(top_level_fpath, boundary_name, "datasets", dataset)))[1]:
-            chk_path = os.path.join(top_level_fpath, boundary_name, "datasets", dataset, version)
+    assert (
+        boundary_name in packages
+    ), f"{boundary_name} missing in package root: {packages}"
+    for dataset in next(
+        os.walk(os.path.join(top_level_fpath, boundary_name, "datasets"))
+    )[1]:
+        for version in next(
+            os.walk(os.path.join(top_level_fpath, boundary_name, "datasets", dataset))
+        )[1]:
+            chk_path = os.path.join(
+                top_level_fpath, boundary_name, "datasets", dataset, version
+            )
             assert os.path.exists(chk_path), f"missing files in pacakge: {chk_path}"
     # Ensure the top-level index and other docs exist
     for doc in required_top_level_docs:
-        assert os.path.exists(os.path.join(top_level_fpath, boundary_name, doc)), f"top-level {doc} missing"
+        assert os.path.exists(
+            os.path.join(top_level_fpath, boundary_name, doc)
+        ), f"top-level {doc} missing"
+
 
 def assert_table_in_pg(db_uri: str, tablename: str):
     """Check a given table exists in PG"""
     from sqlalchemy.sql import text
+
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     stmt = text(f'SELECT * FROM "{tablename}"')
     engine.execute(stmt)
-   
+
+
 def setup_test_data_paths(processor: Any, test_processing_data_dir: str):
     """
     Reset the processing paths on an instantiated processor module to reflect the test environment
     """
     processor.paths_helper.top_level_folder_path = test_processing_data_dir
-    processor.source_folder = processor.paths_helper.build_absolute_path(
-        "source_data"
-    )
-    processor.tmp_processing_folder = processor.paths_helper.build_absolute_path(
-        "tmp"
-    )
+    processor.source_folder = processor.paths_helper.build_absolute_path("source_data")
+    processor.tmp_processing_folder = processor.paths_helper.build_absolute_path("tmp")
+
+
+def assert_datapackage_resource(dp_resource: dict):
+    """
+    Check if the given resource of a datapckage appear valid
+    See: https://specs.frictionlessdata.io//data-package
+    """
+    assert "path" in dp_resource.keys(), "datapackage missing path"
+    assert "name" in dp_resource.keys(), "datapackage missing name"
+    assert isinstance(dp_resource["path"], list), "datapackage path not a list"
+    assert isinstance(dp_resource["hashes"], list), "datapackage hashes not a list"
+    assert isinstance(dp_resource["bytes"], list), "datapackage bytes not a list"
+    assert (
+        len(dp_resource["path"])
+        == len(dp_resource["hashes"])
+        == len(dp_resource["bytes"])
+    ), f"datapackage path, hashes and bytes must be the same length {len(dp_resource['path'])}, {len(dp_resource['hashes'])}, {len(dp_resource['bytes'])}"
+    assert isinstance(dp_resource['license'], dict), "datapackage license must be dict"
+    assert "name" in dp_resource['license'].keys(), "datapackage license must include name"
+    assert "path" in dp_resource['license'].keys(), "datapackage license must include path"
+    assert "title" in dp_resource['license'].keys(), "datapackage license must include title"

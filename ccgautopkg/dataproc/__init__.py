@@ -39,15 +39,16 @@ class DataPackageResource:
     """
     A Resource entry for a datapackage - there is a one to one mapping
         between resources included in the datapackage a each dataset-version
+
     """
     name: str
     version: str
-    path: str
+    path: List[str]
     description: str
     dataset_format: str
-    dataset_size_bytes: str
+    dataset_size_bytes: List[int]
     dataset_hashes: List[str]
-    sources: List[str]
+    sources: List[dict]
     dp_license: DataPackageLicense
 
     def asdict(self):

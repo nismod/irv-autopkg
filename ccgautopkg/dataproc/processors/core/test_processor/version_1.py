@@ -11,12 +11,12 @@ from typing import List
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
-from dataproc import Boundary, DataPackageLicense, DataPackageResource
+from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.helpers import version_name_from_file, create_test_file, data_file_hash
+from dataproc.helpers import version_name_from_file, create_test_file, data_file_hash, datapackage_resource
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
@@ -94,13 +94,14 @@ class Processor(BaseProcessorABC):
             self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
             # Generate the datapackage and add it to the output log
-            datapkg = self.datapackage_resource(
-                result_uri,
+            datapkg = datapackage_resource(
+                Metadata(),
+                [result_uri],
                 "GEOPKG",
-                os.path.getsize(output_fpath),
+                [os.path.getsize(output_fpath)],
                 [data_file_hash(output_fpath)],
             )
-            self.provenance_log[f"datapackage"] = datapkg
+            self.provenance_log["datapackage"] = datapkg
         return self.provenance_log
 
     def exists(self):
@@ -111,28 +112,3 @@ class Processor(BaseProcessorABC):
             Metadata().version,
             f"{self.boundary['name']}_test.tif",
         )
-
-    def datapackage_resource(
-        self,
-        uri: str,
-        dataset_format: str,
-        dataset_size_bytes: int,
-        dataset_hashes: List[str],
-    ) -> DataPackageResource:
-        """
-        Generate a datapackage resource for this processor
-
-        ::param output_fpath str Local path to the processed data used to generate the hash
-        ::uri str Final URI of the output data (on storage backend)
-        """
-        return DataPackageResource(
-            name=Metadata().name,
-            version=Metadata().version,
-            path=uri,
-            description=Metadata().description,
-            dataset_format=dataset_format,
-            dataset_size_bytes=dataset_size_bytes,
-            sources=[Metadata().data_origin_url],
-            dp_license=Metadata().data_license,
-            dataset_hashes=dataset_hashes,
-        ).asdict()

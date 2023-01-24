@@ -41,7 +41,7 @@ async def get_processors():
                         description=meta.description,
                         dataset=meta.dataset_name,
                         author=meta.data_author,
-                        license=meta.data_license,
+                        license=meta.data_license.asdict(),
                         origin_url=meta.data_origin_url,
                         version=meta.version
                     )

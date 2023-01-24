@@ -34,6 +34,8 @@ services:
     volumes:
       - ./data/packages:/data/packages
       - ./data/tmp:/data/tmp
+      - ./tests/data/packages:/usr/src/app/tests/data/packages
+      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     env_file:
       - envs/.api_and_dataproc.env
     command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=4
@@ -42,8 +44,10 @@ services:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
     volumes:
-      - ./ccgautopkg:/usr/src/app
       - ./data/packages:/data/packages
+      - ./data/tmp:/data/tmp
+      - ./tests/data/packages:/usr/src/app/tests/data/packages
+      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     ports:
       - 8000:8000
     env_file:
@@ -57,8 +61,8 @@ services:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
     volumes:
-      - ./ccgautopkg:/usr/src/app
-      - ./data/packages:/data/packages
+      - ./tests/data/packages:/usr/src/app/tests/data/packages
+      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     env_file:
       - envs/.api_and_dataproc.env
     command: python3 -m unittest discover /usr/src/app/tests/api
@@ -67,8 +71,8 @@ services:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
     volumes:
-      - ./data/packages:/data/packages
-      - ./data/tmp:/data/tmp
+      - ./tests/data/packages:/usr/src/app/tests/data/packages
+      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     env_file:
       - envs/.api_and_dataproc.env
     command: python -m unittest discover /usr/src/app/tests/dataproc
