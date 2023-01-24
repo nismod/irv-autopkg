@@ -82,7 +82,7 @@ INTEGRATION_TEST_ENDPOINT = getenv(
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
 # Dev / Prod switch for testing
-if DEPLOYMENT_ENV == getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "test"):
+if getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "test") == "test":
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"))
     # The root-level folder when using localfs processing backend

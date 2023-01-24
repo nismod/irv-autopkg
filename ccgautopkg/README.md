@@ -88,11 +88,12 @@ Ensure the Celery Worker, Redis, PG and API service running are running somewher
 Ensure you also have `CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST` set in the environment, so both API and Celery worker can pickup the same package source tree
 
 ```bash
+export CCGAUTOPKG_DEPLOYMENT_ENV=test
 # Run API
-export CCGAUTOPKG_DEPLOYMENT_ENV=test && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Run Worker 
-export CCGAUTOPKG_DEPLOYMENT_ENV=test && celery --app dataproc.tasks worker --loglevel=debug --concurrency=1
+celery --app dataproc.tasks worker --loglevel=debug --concurrency=1
 
 # Run tests locally
 python -m unittest discover tests/dataproc
@@ -100,6 +101,8 @@ python -m unittest discover tests/api
 ```
 
 #### Docker
+
+Alter deployment env in .env file: `CCGAUTOPKG_DEPLOYMENT_ENV=test`
 
 ```bash
 docker-compose up -d db redis api dataproc
