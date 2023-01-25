@@ -11,7 +11,7 @@ from dataproc.processors.core.natural_earth_vector.version_1 import (
     Processor,
     Metadata,
 )
-from config import get_db_uri_sync, API_DB_NAME
+from config import get_db_uri_sync, API_POSTGRES_DB
 from tests.helpers import (
     load_country_geojson,
     assert_table_in_pg,
@@ -97,7 +97,7 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
     def test_fetch_source(self):
         """Test the fetching of source zip, unpacking and assertion"""
         tablename = self.proc._fetch_source()
-        assert_table_in_pg(get_db_uri_sync(API_DB_NAME), tablename)
+        assert_table_in_pg(get_db_uri_sync(API_POSTGRES_DB), tablename)
 
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""

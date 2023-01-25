@@ -11,7 +11,7 @@ import shutil
 import sqlalchemy as sa
 import rasterio
 
-from config import get_db_uri_sync, API_DB_NAME, INTEGRATION_TEST_ENDPOINT
+from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -20,7 +20,7 @@ sys.path.insert(0, parent_dir)
 
 test_data_dir = os.path.join(current_dir, "data")
 
-db_uri = get_db_uri_sync(API_DB_NAME)
+db_uri = get_db_uri_sync(API_POSTGRES_DB)
 # Init DB and Load via SA
 engine = sa.create_engine(db_uri, pool_pre_ping=True)
 
@@ -28,7 +28,7 @@ engine = sa.create_engine(db_uri, pool_pre_ping=True)
 def wipe_db():
     """Wipe all SQLA Tables in the DB"""
     print("Running wipe db...")
-    db_uri = get_db_uri_sync(API_DB_NAME)
+    db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     for tbl in reversed(db.Base.metadata.sorted_tables):
@@ -60,7 +60,7 @@ def load_natural_earth_roads_to_pg():
     Load the natrual earth shapefile of roads into Postgres
     Enables testing of vector clipping Processor
     """
-    pguri = str(get_db_uri_sync(API_DB_NAME)).replace("+psycopg2", "")
+    pguri = str(get_db_uri_sync(API_POSTGRES_DB)).replace("+psycopg2", "")
     fpath = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "data",
@@ -75,7 +75,7 @@ def load_natural_earth_roads_to_pg():
 def drop_natural_earth_roads_from_pg():
     """Drop loaded Natural Earth Roads data from DB"""
     print("Dropping NE Test Roads from DB...")
-    db_uri = get_db_uri_sync(API_DB_NAME)
+    db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     _ = engine.execute("DROP TABLE ne_10m_roads;")

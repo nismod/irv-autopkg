@@ -81,7 +81,7 @@ class TestBoundaries(unittest.TestCase):
         """
         Retrieve a single boundary explicitly by name
         """
-        expected_name = "s-sudan"
+        expected_name = "ssudan"
         route = build_route(BOUNDARY_ROUTE.format(name=expected_name))
         response = requests.get(route)
         self.assert_boundary_detail(response)

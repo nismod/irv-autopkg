@@ -28,7 +28,7 @@ from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
     get_db_uri_ogr,
     get_db_uri_sync,
-    API_DB_NAME,
+    API_POSTGRES_DB,
 )
 
 
@@ -71,6 +71,12 @@ class Processor(BaseProcessorABC):
     input_geometry_column = "wkb_geometry"
     output_geometry_operation = "clip"  # Clip or intersect
     output_geometry_column = "clipped_geometry"
+
+    pg_dbname_env="CCGAUTOPKG_POSTGRES_DB"
+    pg_user_env="CCGAUTOPKG_POSTGRES_USER"
+    pg_password_env="CCGAUTOPKG_POSTGRES_PASSWORD"
+    pg_host_env="CCGAUTOPKG_POSTGRES_HOST"
+    pg_port_env="CCGAUTOPKG_POSTGRES_PORT"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
@@ -126,7 +132,13 @@ class Processor(BaseProcessorABC):
         self.log.debug("Natural earth vector - cropping Roads to geopkg")
         gdal_crop_pg_table_to_geopkg(
             self.boundary,
-            str(get_db_uri_ogr("ccgautopkg")),
+            str(get_db_uri_ogr(
+                dbname=os.getenv(self.pg_dbname_env),
+                username_env=self.pg_user_env,
+                password_env=self.pg_password_env,
+                host_env=self.pg_host_env,
+                port_env=self.pg_port_env
+            )),
             pg_table_name,
             output_fpath,
             geometry_column=self.input_geometry_column,
@@ -269,7 +281,7 @@ class Processor(BaseProcessorABC):
     @staticmethod
     def drop_natural_earth_roads_from_pg():
         """Drop loaded Natural Earth Roads data from DB"""
-        db_uri = get_db_uri_sync(API_DB_NAME)
+        db_uri = get_db_uri_sync(API_POSTGRES_DB)
         # Init DB and Load via SA
         engine = sa.create_engine(db_uri, pool_pre_ping=True)
         _ = engine.execute("DROP TABLE IF EXISTS ne_10m_roads;")

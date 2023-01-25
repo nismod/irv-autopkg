@@ -11,7 +11,7 @@ from alembic import context
 # Import Config and Helpers
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from api import db
-from config import DBURI_API, get_db_uri_sync, API_DB_NAME
+from config import DBURI_API, get_db_uri_sync, API_POSTGRES_DB
 
 
 # this is the Alembic Config object, which provides
@@ -66,7 +66,7 @@ def run_migrations_online() -> None:
 
     """
     with create_engine(
-        get_db_uri_sync(API_DB_NAME), isolation_level="AUTOCOMMIT"
+        get_db_uri_sync(API_POSTGRES_DB), isolation_level="AUTOCOMMIT"
     ).connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

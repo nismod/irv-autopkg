@@ -33,6 +33,8 @@ docker-compose up dataproc
 
 Integration tests in `tests/dataproc/integration/processors` all run standalone (without Redis / Celery), but you'll need access to the source data for each processor (see above).
 
+__NOTE__: Test for geopkg (test_natural_earth_vector) loading include a load from shapefile to postgres - the API database is used for this test and configured user requires insert and delete rights on the api database for the test to succeed.
+
 ```bash
 # Run tests locally
 python -m unittest discover tests/dataproc
@@ -43,6 +45,21 @@ docker-compose run test-dataproc
 ## API
 
 API Covering boundaries, processors, packages and processing job submission against packages.
+
+The source of truth of package data for the API is the configured filesystem.
+
+The API uses boiundaries loaded into a configured postgres database (see below).
+
+### Boundaries
+
+Boundaries are sourced by the API from a local PostGIS table.
+
+To load the boundaries in the correct form you can use the helper script: `tests/data/load_boundaries.py <geojson filepath> <name column> <long_name column> <wip table true/false>`.
+
+The boundaries table schema is managed by Alembic can be found under `api/db/models/boundary.py`.
+
+__NOTE__: API Integration tests require a Db user who has RW access to this table.  
+__NOTE__: The configured API database will be wiped during running of the integration tests and loaded with test-boundaries.
 
 ### Running Locally:
 
@@ -127,17 +144,19 @@ __NOTE__: CHECK the script - remove extransous operations (in particular those r
 * When reaady run the following to upgrade the database:
 
 ```bash
+# Ensure the CCGAUTOPKG_POSTGRES_* env variables are set (see below)
+cd ccgautopkg/api
 alembic upgrade head
 ```
 
 ## Deployment Environment
 
 ```bash
-export CCGAUTOPKG_POSTGRES_USER= # Used for API Boundaries only
-export CCGAUTOPKG_POSTGRES_DB= # Used for API Boundaries only
-export CCGAUTOPKG_POSTGRES_HOST= # Used for API Boundaries only
-export CCGAUTOPKG_POSTGRES_PASSWORD= # Used for API Boundaries only
-export CCGAUTOPKG_POSTGRES_PORT= # Used for API Boundaries only
+export CCGAUTOPKG_POSTGRES_USER= # Used for API Boundaries in Prod (and test natural_earth_vector processor in Worker)
+export CCGAUTOPKG_POSTGRES_HOST= # Used for API Boundaries only (and test natural_earth_vector processor in Worker)
+export CCGAUTOPKG_POSTGRES_PASSWORD= # Used for API Boundaries only (and test natural_earth_vector processor in Worker)
+export CCGAUTOPKG_POSTGRES_PORT= # Used for API Boundaries only (and test natural_earth_vector processor in Worker)
+export CCGAUTOPKG_POSTGRES_DB= # Used for API Boundaries only (and test natural_earth_vector processor in Worker)
 export CCGAUTOPKG_CELERY_BROKER= # Used for Worker only
 export CCGAUTOPKG_CELERY_BACKEND= # Used in API and Worker
 export CCGAUTOPKG_STORAGE_BACKEND= # Storage backend to use for final packages (see additional backend-specific flags below for more info).  Used in API and Worker
@@ -152,6 +171,6 @@ export PACKAGES_HOST_URL= # URL to the hosting engine for package data, e.g. htt
 
 ```bash
 export CCGAUTOPKG_STORAGE_BACKEND=localfs
-export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT=
-export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST=
+export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT= # Base-folder for packages
+export CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST= # Base path for integration-test package data
 ```

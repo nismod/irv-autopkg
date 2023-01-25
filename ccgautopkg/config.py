@@ -8,36 +8,22 @@ import logging
 import sqlalchemy as sa
 from celery import Celery
 
-
-# DATAPROC VARS
-CELERY_APP = Celery(
-    "CCG-AutoPackage",
-    worker_prefetch_multiplier=1,
-    broker_url=getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost"),
-    result_backend=getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost"),
-)  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
-REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
-TASK_LOCK_TIMEOUT = int(
-    getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")
-)  # seconds before locked tasks timeout
-
-
-# API VARS
-MAINTENANCE_DB_NAME = getenv("CCGAUTOPKG_MAINTENANCE_DB", "postgres")
-API_DB_NAME = getenv("CCGAUTOPKG_POSTGRES_API_DB", "ccgautopkg")
-
-
-def get_db_uri(dbname: str) -> sa.engine.URL:
+def get_db_uri(
+    dbname: str,
+    username_env="CCGAUTOPKG_POSTGRES_USER",
+    password_env="CCGAUTOPKG_POSTGRES_PASSWORD",
+    host_env="CCGAUTOPKG_POSTGRES_HOST",
+    port_env="CCGAUTOPKG_POSTGRES_PORT",
+) -> sa.engine.URL:
     """Standard user DBURI"""
     return sa.engine.URL.create(
         drivername="postgresql+asyncpg",
-        username=getenv("CCGAUTOPKG_POSTGRES_USER"),
-        password=getenv("CCGAUTOPKG_POSTGRES_PASSWORD"),
-        host=getenv("CCGAUTOPKG_POSTGRES_HOST"),
-        port=getenv("CCGAUTOPKG_POSTGRES_PORT"),
+        username=getenv(username_env),
+        password=getenv(password_env),
+        host=getenv(host_env),
+        port=getenv(port_env),
         database=dbname,
     )
-
 
 def get_db_uri_ogr(
     dbname: str,
@@ -60,24 +46,48 @@ def get_db_uri_ogr(
     )
 
 
-def get_db_uri_sync(dbname: str) -> sa.engine.URL:
+def get_db_uri_sync(
+    dbname: str,
+    username_env="CCGAUTOPKG_POSTGRES_USER",
+    password_env="CCGAUTOPKG_POSTGRES_PASSWORD",
+    host_env="CCGAUTOPKG_POSTGRES_HOST",
+    port_env="CCGAUTOPKG_POSTGRES_PORT",
+    ) -> sa.engine.URL:
     """Standard user DBURI - non-async"""
     return sa.engine.URL.create(
         drivername="postgresql+psycopg2",
-        username=getenv("CCGAUTOPKG_POSTGRES_USER"),
-        password=getenv("CCGAUTOPKG_POSTGRES_PASSWORD"),
-        host=getenv("CCGAUTOPKG_POSTGRES_HOST"),
-        port=getenv("CCGAUTOPKG_POSTGRES_PORT"),
+        username=getenv(username_env),
+        password=getenv(password_env),
+        host=getenv(host_env),
+        port=getenv(port_env),
         database=dbname,
     )
 
+# DATAPROC VARS
+REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
+TASK_LOCK_TIMEOUT = int(
+    getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")
+)  # seconds before locked tasks timeout
 
-DBURI_API = get_db_uri(API_DB_NAME)  # For API Usage
+# Deployment Env
 DEPLOYMENT_ENV = getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "dev")
 LOG_LEVEL = logging.getLevelName(getenv("CCGAUTOPKG_LOG_LEVEL", "DEBUG"))
 INTEGRATION_TEST_ENDPOINT = getenv(
     "CCGAUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000"
 )
+
+# Celery Env
+CELERY_BROKER = getenv("CCGAUTOPKG_CELERY_BROKER", "redis://localhost")
+CELERY_BACKEND = getenv("CCGAUTOPKG_CELERY_BACKEND", "redis://localhost")
+REDIS_HOST = getenv("CCGAUTOPKG_REDIS_HOST", "localhost")
+TASK_LOCK_TIMEOUT = getenv("CCGAUTOPKG_TASK_LOCK_TIMEOUT", "600")
+
+# Api Env
+API_POSTGRES_USER = getenv("CCGAUTOPKG_POSTGRES_USER")
+API_POSTGRES_PASSWORD = getenv("CCGAUTOPKG_POSTGRES_PASSWORD")
+API_POSTGRES_HOST = getenv("CCGAUTOPKG_POSTGRES_HOST")
+API_POSTGRES_PORT = getenv("CCGAUTOPKG_POSTGRES_PORT")
+API_POSTGRES_DB = getenv("CCGAUTOPKG_POSTGRES_DB", "ccgautopkg")
 
 # Packages URL under-which all packages are served
 PACKAGES_HOST_URL = getenv("CCGAUTOPKG_PACKAGES_HOST_URL", "http://localhost/packages")
@@ -98,3 +108,12 @@ else:
 
 # Name matching Soundex Distance Default
 NAME_SEARCH_DISTANCE = int(getenv("CCGAUTOPKG_NAME_SEARCH_DISTANCE", "2"))
+
+# Initialised Startup Data
+DBURI_API = get_db_uri(API_POSTGRES_DB)
+CELERY_APP = Celery(
+    "CCG-AutoPackage",
+    worker_prefetch_multiplier=1,
+    broker_url=CELERY_BROKER,
+    result_backend=CELERY_BACKEND,
+)  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
