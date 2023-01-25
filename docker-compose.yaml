@@ -58,6 +58,7 @@ services:
 
   # These test-harness containers require API and Dataproc to be running
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
+  # To run tests change CCGAUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
