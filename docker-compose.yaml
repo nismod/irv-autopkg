@@ -29,6 +29,18 @@ services:
     volumes: 
       - ./data/redis:/data
 
+  flower:
+    image: mher/flower
+    command: celery --broker=redis://redis flower
+    volumes:
+      - ./data/flower:/data
+    working_dir: /data
+    ports:
+      - 5555:5555
+    environment:
+      CELERY_BROKER_URL: redis://redis
+      CELERY_RESULT_BACKEND: redis://redis
+
   dataproc:
     image: ccgautopkg:0.1-dev
     build: ./ccgautopkg
