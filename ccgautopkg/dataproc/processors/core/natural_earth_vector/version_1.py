@@ -257,7 +257,7 @@ class Processor(BaseProcessorABC):
         ), f"extracted SHP did not exist at expected path {shp_fpath}"
         # Load to PG
         self.log.debug("Natural earth vector - loading shapefile to PG")
-        ogr2ogr_load_shapefile_to_pg(shp_fpath, get_db_uri_ogr("ccgautopkg"))
+        ogr2ogr_load_shapefile_to_pg(shp_fpath, get_db_uri_ogr(API_POSTGRES_DB))
         self.provenance_log[f"{Metadata().name} - loaded NE Roads to PG"] = True
         return "ne_10m_roads"
 
