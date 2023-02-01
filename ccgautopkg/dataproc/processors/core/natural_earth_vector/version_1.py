@@ -15,6 +15,7 @@ from dataproc.backends.base import PathsHelper
 from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
+    processor_name_from_file,
     version_name_from_file,
     unpack_zip,
     download_file,
@@ -37,7 +38,7 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = "natural_earth_vector"  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth vector"  # Longer processor description
     )
@@ -248,9 +249,9 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - zip download path"] = local_zip_fpath
         # Unpack
         self.log.debug("Natural earth vector - unpacking zip")
-        local_extract_path = unpack_zip(local_zip_fpath)
+        unpack_zip(local_zip_fpath, self.source_folder)
         shp_fpath = os.path.join(
-            os.path.dirname(local_extract_path), "ne_10m_roads.shp"
+            self.source_folder, "ne_10m_roads.shp"
         )
         assert os.path.exists(
             shp_fpath

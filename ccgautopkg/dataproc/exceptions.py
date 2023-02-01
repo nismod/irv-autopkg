@@ -29,3 +29,6 @@ class PackageNotFoundException(DataProcException):
 class DatasetNotFoundException(DataProcException):
     """Dataset with within a package does not exist on the StorageBackend"""
 
+class SourceRasterProjectionException(DataProcException):
+    """Prohblem with source raster projection"""
+

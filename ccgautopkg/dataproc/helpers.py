@@ -12,9 +12,10 @@ from subprocess import check_output
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
-from dataproc.exceptions import FileCreationException
+from dataproc.exceptions import FileCreationException, SourceRasterProjectionException
 
 # DAGs and Processing
+
 
 def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""
@@ -31,12 +32,10 @@ def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
     if name in ["_module", "pkgutil"]:
         return False
     # Skip top level modules without metadata
-    if not hasattr(processor, "Metadata"):
+    if not hasattr(processor, "Metadata") and not hasattr(processor, "Processor"):
         return False
     if isinstance(processor, ModuleType):
-        # Ensure its versioned
-        if "version" in name:
-            return True
+        return True
     return False
 
 
@@ -46,6 +45,11 @@ def version_name_from_file(filename: str):
     """
     return os.path.basename(filename).replace(".py", "")
 
+def processor_name_from_file(filename: str):
+    """
+    Generate a processor from the name of the folder in-which the processor file resides
+    """
+    return os.path.basename(os.path.dirname(filename))
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
     """Build a full processor name from name and version"""
@@ -98,7 +102,9 @@ def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
 # METADATA
 
 
-def add_license_to_datapackage(dp_license: DataPackageLicense, datapackage: dict) -> dict:
+def add_license_to_datapackage(
+    dp_license: DataPackageLicense, datapackage: dict
+) -> dict:
     """
     Append a license to the datapackage licenses array
 
@@ -132,12 +138,13 @@ def add_dataset_to_datapackage(
             datapackage["resources"].append(dp_resource.asdict())
     return datapackage
 
+
 def datapackage_resource(
     metadata: BaseMetadataABC,
     uris: List[str],
     dataset_format: str,
     dataset_sizes_bytes: List[int],
-    dataset_hashes: List[str]
+    dataset_hashes: List[str],
 ) -> DataPackageResource:
     """
     Generate a datapackage resource for this processor
@@ -157,6 +164,7 @@ def datapackage_resource(
         dataset_hashes=dataset_hashes,
     ).asdict()
 
+
 def data_file_hash(fpath: str) -> str:
     """
     Generate a sha256 hash of a single datafile
@@ -169,6 +177,7 @@ def data_file_hash(fpath: str) -> str:
     )
     return _hash
 
+
 def data_file_size(fpath: str) -> int:
     """Filesize in bytes"""
     return os.path.getsize(fpath)
@@ -177,18 +186,18 @@ def data_file_size(fpath: str) -> int:
 # FILE OPERATIONS
 
 
-def unpack_zip(zip_fpath: str) -> str:
+def unpack_zip(zip_fpath: str, target_folder: str):
     """
     Unpack a Downloaded Zip
 
     ::param zip_fpath str Absolute Filepath of input
+    ::param target_folder str Zip content will be extracted to the given folder
 
     ::returns extracted folder path str
     """
-    extract_path = os.path.dirname(zip_fpath)
+    os.makedirs(target_folder, exist_ok=True)
     with zipfile.ZipFile(zip_fpath, "r") as zip_ref:
-        zip_ref.extractall(extract_path)
-    return os.path.join(extract_path, os.path.splitext(zip_fpath)[0])
+        zip_ref.extractall(target_folder)
 
 
 def create_test_file(fpath: str):
@@ -230,7 +239,7 @@ def download_file(source_url: str, destination_fpath: str) -> str:
 # RASTER OPERATIONS
 
 
-def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326"):
+def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=True):
     """
     Check a given file is a valid geotiff
 
@@ -242,27 +251,56 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326"):
         assert (
             src.meta["crs"] == check_crs
         ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
+        if check_compression is True:
+            assert src.compression is not None, "raster did not have any compression"
 
 
 def crop_raster(
-    raster_input_fpath: str, raster_output_fpath: str, boundary: Boundary
+    raster_input_fpath: str,
+    raster_output_fpath: str,
+    boundary: Boundary,
+    preserve_raster_crs=False,
 ) -> bool:
     """
-    Crop a raster file to the given boundary
+    Crop a raster file to the given boundary (EPSG:4326)
 
-    Generates a geotiff
+    Generates a geotiff.
+
+    __NOTE__ if the input raster CRS is not EPSG:4326 the boundary will be rep
 
     ::param raster_input_fpath str Absolute Filepath of input
     ::param raster_output_fpath str Absolute Filepath of output
+    ::kwarg preserve_raster_crs bool If True the source raster CRS will be preserved in the result
+        (input boundary will be reprojected to source CRS before clip)
     """
+
     import rasterio
     import rasterio.mask
     import shapely
+    from shapely.ops import transform
+    import pyproj
 
     # Create the path to output if it doesnt exist
     os.makedirs(os.path.dirname(raster_output_fpath), exist_ok=True)
     shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
     with rasterio.open(raster_input_fpath) as src:
+        # Project the source boundary () to source raster if requested output is to match source raster CRS
+        source_raster_epsg = ":".join(src.crs.to_authority())
+        if preserve_raster_crs is True:
+            source_boundary_crs = pyproj.CRS("EPSG:4326")
+            target_boundary_crs = pyproj.CRS(source_raster_epsg)
+
+            project = pyproj.Transformer.from_crs(
+                source_boundary_crs, target_boundary_crs, always_xy=True
+            ).transform
+            shape = transform(project, shape)
+        else:
+            # Abort if source raster is not matching 4326
+            if source_raster_epsg != "EPSG:4326":
+                raise SourceRasterProjectionException(
+                    f"Aborting unknown reproject - Source raster is {source_raster_epsg} and preserve_raster_crs is False"
+                )
+
         out_image, out_transform = rasterio.mask.mask(src, [shape], crop=True)
         out_meta = src.meta
 
@@ -275,10 +313,12 @@ def crop_raster(
         }
     )
 
-    with rasterio.open(raster_output_fpath, "w", **out_meta) as dest:
+    with rasterio.open(
+        raster_output_fpath, "w", **out_meta, compress="PACKBITS"
+    ) as dest:
         dest.write(out_image)
 
-    return os.path.exists(raster_output_fpath)
+        return os.path.exists(raster_output_fpath)
 
 
 # VECTOR OPERATIONS

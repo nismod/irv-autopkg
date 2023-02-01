@@ -13,6 +13,7 @@ from dataproc.backends.base import PathsHelper
 from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
+    processor_name_from_file,
     version_name_from_file,
     crop_raster,
     unpack_zip,
@@ -30,7 +31,7 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = "natural_earth_raster"  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth image"  # Longer processor description
     )
@@ -161,14 +162,15 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - zip download path"] = local_zip_fpath
         # Unpack
         self.log.debug("Natural earth raster - unpacking zip")
-        local_extract_path = unpack_zip(local_zip_fpath)
-        geotiff_fpath = os.path.join(local_extract_path, "NE2_50M_SR.tif")
+        unpack_zip(local_zip_fpath, self.source_folder)
+        # Zip gets unpacked to a nested directory for this source
+        geotiff_fpath = os.path.join(self.source_folder, "NE2_50M_SR", "NE2_50M_SR.tif")
         assert os.path.exists(
             geotiff_fpath
         ), f"extracted GTIFF did not exist at expected path {geotiff_fpath}"
         # Assert the Tiff
         self.log.debug("Natural earth raster - asserting geotiff")
-        assert_geotiff(geotiff_fpath, check_crs="EPSG:4326")
+        assert_geotiff(geotiff_fpath, check_crs="EPSG:4326", check_compression=False)
         self.provenance_log[
             f"{Metadata().name} - valid GeoTIFF fetched/extracted"
         ] = True

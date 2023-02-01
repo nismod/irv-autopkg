@@ -1,5 +1,5 @@
 """
-Unit tests for WRI Aq   ueduct
+Unit tests for WRI Aqueduct
 """
 import os
 import unittest

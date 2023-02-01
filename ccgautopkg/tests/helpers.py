@@ -10,6 +10,9 @@ import shutil
 
 import sqlalchemy as sa
 import rasterio
+import shapely
+from shapely.ops import transform
+import pyproj
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
@@ -197,9 +200,23 @@ def assert_raster_bounds_correct(
 
     ::param envelope dict Geojson Dict of boundary envelope (Polygon)
     """
-    x_coords = [i[0] for i in envelope["coordinates"][0]]
-    y_coords = [i[1] for i in envelope["coordinates"][0]]
     with rasterio.open(raster_fpath) as src:
+        # Reproject bounds as necessary based on the source raster
+        source_raster_epsg = ":".join(src.crs.to_authority())
+        if source_raster_epsg != "EPSG:4326":
+            shape = shapely.from_geojson(json.dumps(envelope))
+            source_boundary_crs = pyproj.CRS("EPSG:4326")
+            target_boundary_crs = pyproj.CRS(source_raster_epsg)
+
+            project = pyproj.Transformer.from_crs(
+                source_boundary_crs, target_boundary_crs, always_xy=True
+            ).transform
+            shape = transform(project, shape)
+            x_coords, y_coords = shape.exterior.coords.xy
+            tolerence = 1000.0
+        else:
+            x_coords = [i[0] for i in envelope["coordinates"][0]]
+            y_coords = [i[1] for i in envelope["coordinates"][0]]
         assert (
             abs(src.bounds.left - min(x_coords)) < tolerence
         ), f"bounds {src.bounds.left} did not match expected {min(x_coords)} within tolerence {tolerence}"

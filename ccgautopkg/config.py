@@ -95,7 +95,7 @@ PACKAGES_HOST_URL = getenv("CCGAUTOPKG_PACKAGES_HOST_URL", "http://localhost/pac
 # Storage backend to use
 STORAGE_BACKEND = getenv("CCGAUTOPKG_STORAGE_BACKEND", "localfs")
 # Dev / Prod switch for testing
-if getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "test") == "test":
+if getenv("CCGAUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv("CCGAUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"))
     # The root-level folder when using localfs processing backend

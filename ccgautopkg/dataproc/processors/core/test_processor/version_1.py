@@ -16,16 +16,22 @@ from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.helpers import version_name_from_file, create_test_file, data_file_hash, datapackage_resource
+from dataproc.helpers import (
+    version_name_from_file,
+    create_test_file,
+    data_file_hash,
+    datapackage_resource,
+    processor_name_from_file,
+)
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
 
-    name = (
-        "test_processor"  # this must follow snakecase formatting, without special chars
-    )
+    name = processor_name_from_file(
+        inspect.stack()[1].filename
+    )  # this must follow snakecase formatting, without special chars
     description = "A test processor for nightlights"  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
