@@ -18,7 +18,7 @@ services:
       - 80:80
     volumes:
       - ./data/packages:/www/data/packages # Prod
-      # - ./ccgautopkg/tests/data/packages:/www/data/packages # Testing
+      # - ./tests/data/packages:/www/data/packages # Testing
 
   redis:
     image: redis:6.2-alpine
@@ -42,8 +42,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ccgautopkg:0.1-dev
-    build: ./ccgautopkg
+    image: irvautopkg:0.1-dev
+    build: .
     volumes:
       - ./data/packages:/data/packages
       - ./data/tmp:/data/tmp
@@ -54,8 +54,8 @@ services:
     command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=4
 
   api:
-    image: ccgautopkg:0.1-dev
-    build: ./ccgautopkg
+    image: irvautopkg:0.1-dev
+    build: .
     volumes:
       - ./data/packages:/data/packages
       - ./data/tmp:/data/tmp
@@ -70,10 +70,10 @@ services:
 
   # These test-harness containers require API and Dataproc to be running
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
-  # To run tests change CCGAUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
+  # To run tests change AUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
-    image: ccgautopkg:0.1-dev
-    build: ./ccgautopkg
+    image: irvautopkg:0.1-dev
+    build: .
     volumes:
       - ./tests/data/packages:/usr/src/app/tests/data/packages
       - ./tests/data/tmp:/usr/src/app/tests/data/tmp
@@ -82,8 +82,8 @@ services:
     command: python3 -m unittest discover /usr/src/app/tests/api
 
   test-dataproc:
-    image: ccgautopkg:0.1-dev
-    build: ./ccgautopkg
+    image: irvautopkg:0.1-dev
+    build: .
     volumes:
       - ./tests/data/packages:/usr/src/app/tests/data/packages
       - ./tests/data/tmp:/usr/src/app/tests/data/tmp

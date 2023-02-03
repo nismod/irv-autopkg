@@ -118,12 +118,15 @@ def create_tree(
     top_level_path: str,
     packages: list = ["gambia", "zambia"],
     datasets: list = ["aqueduct", "biodiversity", "osm_roads"],
+    wipe_existing: bool = True
 ):
     """
     Create a fake tree so we can check reading packages
     """
     # Generate the datapackage.jsons
     for package in packages:
+        if wipe_existing is True:
+            shutil.rmtree(os.path.join(top_level_path, package), ignore_errors=True)
         os.makedirs(os.path.join(top_level_path, package), exist_ok=True)
         dp = gen_datapackage(package, datasets)
         with open(

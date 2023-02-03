@@ -20,7 +20,7 @@ from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
-from config import PACKAGES_HOST_URL
+from config import PACKAGES_HOST_URL, TEST_GRI_OSM
 
 
 class TestGRIOSMProcessor(unittest.TestCase):
@@ -39,9 +39,9 @@ class TestGRIOSMProcessor(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
-        shutil.rmtree(cls.test_processing_data_dir)
+        shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
-        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"), ignore_errors=True)
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
@@ -78,6 +78,8 @@ class TestGRIOSMProcessor(unittest.TestCase):
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
         # Remove the final package artifacts (but keep the test data artifacts if they exist)
+        if TEST_GRI_OSM is False:
+            self.skipTest(f"Skipping GRI OSM due to TEST_GRI_OSM == {TEST_GRI_OSM}")
         try:
             shutil.rmtree(
                 os.path.join(self.storage_backend.top_level_folder_path, "gambia")

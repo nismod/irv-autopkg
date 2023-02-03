@@ -73,11 +73,11 @@ class Processor(BaseProcessorABC):
     output_geometry_operation = "clip"  # Clip or intersect
     output_geometry_column = "clipped_geometry"
 
-    pg_dbname_env="CCGAUTOPKG_POSTGRES_DB"
-    pg_user_env="CCGAUTOPKG_POSTGRES_USER"
-    pg_password_env="CCGAUTOPKG_POSTGRES_PASSWORD"
-    pg_host_env="CCGAUTOPKG_POSTGRES_HOST"
-    pg_port_env="CCGAUTOPKG_POSTGRES_PORT"
+    pg_dbname_env="AUTOPKG_POSTGRES_DB"
+    pg_user_env="AUTOPKG_POSTGRES_USER"
+    pg_password_env="AUTOPKG_POSTGRES_PASSWORD"
+    pg_host_env="AUTOPKG_POSTGRES_HOST"
+    pg_port_env="AUTOPKG_POSTGRES_PORT"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         self.boundary = boundary
