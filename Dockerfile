@@ -18,5 +18,7 @@ RUN apk add --virtual .build-deps \
     pip3 install --no-cache --upgrade pip setuptools && \
     pip3 install -r requirements.txt
 
+ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/"
+
 # copy project
 COPY . .

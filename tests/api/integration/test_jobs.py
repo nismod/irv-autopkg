@@ -9,7 +9,6 @@ import unittest
 from uuid import uuid4
 from time import time, sleep
 import json
-import urllib.parse
 
 import requests
 

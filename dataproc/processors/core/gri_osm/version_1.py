@@ -57,11 +57,11 @@ class Processor(BaseProcessorABC):
     index_filename = "index.html"
     license_filename = "license.html"
 
-    pg_osm_host_env = "CCGAUTOPKG_OSM_PGHOST"
-    pg_osm_port_env = "CCGAUTOPKG_OSM_PORT"
-    pg_osm_user_env = "CCGAUTOPKG_OSM_PGUSER"
-    pg_osm_password_env = "CCGAUTOPKG_OSM_PGPASSWORD"
-    pg_osm_dbname_env = "CCGAUTOPKG_OSM_PGDATABASE"
+    pg_osm_host_env = "AUTOPKG_OSM_PGHOST"
+    pg_osm_port_env = "AUTOPKG_OSM_PORT"
+    pg_osm_user_env = "AUTOPKG_OSM_PGUSER"
+    pg_osm_password_env = "AUTOPKG_OSM_PGPASSWORD"
+    pg_osm_dbname_env = "AUTOPKG_OSM_PGDATABASE"
     input_pg_table = "features"
     input_geometry_column = "geom"
     output_geometry_operation = "clip" # Clip or intersect

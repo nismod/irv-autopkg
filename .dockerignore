@@ -1,0 +1,6 @@
+data/
+tests/data/packages
+tests/data/tmp
+tests/data/global
+tests/data/countries_all.geojson
+.git
