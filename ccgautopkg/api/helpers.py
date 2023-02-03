@@ -158,7 +158,7 @@ def get_celery_task_info(task_id: str) -> dict:
         Information about a specific task
          Example Output
          {
-        "celery@dusteds-MBP": {
+        "celery@host": {
             "bcc2178e-4c1a-42fc-9615-783cfd602a14": [
                 "active",
                 {
@@ -185,7 +185,7 @@ def get_celery_task_info(task_id: str) -> dict:
                     ],
                     "kwargs": {},
                     "type": "dataproc.tasks.processor_task",
-                    "hostname": "celery@dusteds-MBP",
+                    "hostname": "celery@host",
                     "time_start": 1673439269.0976949,
                     "acknowledged": True,
                     "delivery_info": {

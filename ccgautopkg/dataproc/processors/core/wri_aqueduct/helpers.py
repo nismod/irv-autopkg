@@ -463,7 +463,7 @@ if __name__ == "__main__":
     # Generate path info by downloading (will skip if files exist)
     metadata = processor.download_files(
         metadata,
-        "/home/dusted/code/oxford/infra-risk-vis/tileserver/raster/data/aqueduct",
+        "//code/oxford/infra-risk-vis/tileserver/raster/data/aqueduct",
     )
     processor.append_hazard_csv(metadata)
     LOG.info("Complete")
