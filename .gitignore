@@ -168,3 +168,4 @@ data/*
 tests/data/tmp/*
 tests/data/packages/*
 countries_all.geojson
+*.xml
