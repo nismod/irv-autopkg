@@ -31,9 +31,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
+        uses: docker/build-push-action@v2
         with:
           context: .
-          cache: enabled
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
