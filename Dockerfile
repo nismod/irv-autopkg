@@ -22,3 +22,6 @@ ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/"
 
 # copy project
 COPY . .
+
+# Run unit tests
+RUN python3 -m unittest discover /usr/src/app/tests/dataproc/unit
