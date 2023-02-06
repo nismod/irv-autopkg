@@ -41,7 +41,7 @@ class JRCPopFetcher:
             )
             unpack_zip(local_zip_fpath, target_folder)
             # We expect a single raster in the source zip file
-            unpacked_files = os.listdir(target_folder)
+            unpacked_files = [i for i in os.listdir(target_folder) if os.path.splitext(i)[1] == '.tif']
             if len([i for i in unpacked_files if os.path.splitext(i)[1] == '.tif']) != 1:
                 raise UnexpectedFilesException(f"Source zip contained more than a single tif: {unpacked_files}")
             source_tif_fpath = os.path.join(target_folder, unpacked_files[0])

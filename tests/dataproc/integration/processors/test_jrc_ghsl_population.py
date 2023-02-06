@@ -94,7 +94,6 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
         self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
         # Collect the URIs for the final Raster
         final_uri = prov_log[f"{Metadata().name} - result URI"]
-        print (final_uri)
         # # Assert the geotiffs are valid
         assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), check_crs="ESRI:54009")
         # # Assert the envelopes - NOTE: this will assert the Molleweide bounds
