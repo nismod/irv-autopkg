@@ -118,6 +118,7 @@ def load_boundaries(
 if __name__ == "__main__":
     if not len(sys.argv) == 5:
         print("Usage:", "load_boundaries.py <geojson file path> <name_column> <long_name_column> <wipe table true/false>")
+        sys.exit(1)
     fpath = sys.argv[1]
     name_column = sys.argv[2]
     long_name_column = sys.argv[3]
