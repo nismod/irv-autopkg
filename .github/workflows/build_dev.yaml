@@ -34,6 +34,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          cache: enabled
           cache-from: type=registry,ref=nismod/irv-autopkg:buildcache
           cache-to: type=registry,ref=nismod/irv-autopkg:buildcache,mode=max
           push: true
