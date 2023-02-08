@@ -42,11 +42,11 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.1.0-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.0-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
-      - ./data/tmp:/data/tmp
+      - ./data/processing:/data/processing
       - ./tests/data/packages:/usr/src/app/tests/data/packages
       - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     env_file:
@@ -54,11 +54,11 @@ services:
     command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=4
 
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.1.0-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.0-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
-      - ./data/tmp:/data/tmp
+      - ./data/processing:/data/processing
       - ./tests/data/packages:/usr/src/app/tests/data/packages
       - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     ports:

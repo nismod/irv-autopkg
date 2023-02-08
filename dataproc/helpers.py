@@ -9,10 +9,15 @@ import requests
 import zipfile
 import json
 from subprocess import check_output
+import shutil
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
-from dataproc.exceptions import FileCreationException, SourceRasterProjectionException
+from dataproc.exceptions import (
+    FileCreationException,
+    SourceRasterProjectionException,
+    UnexpectedFilesException,
+)
 
 # DAGs and Processing
 
@@ -45,11 +50,13 @@ def version_name_from_file(filename: str):
     """
     return os.path.basename(filename).replace(".py", "")
 
+
 def processor_name_from_file(filename: str):
     """
     Generate a processor from the name of the folder in-which the processor file resides
     """
     return os.path.basename(os.path.dirname(filename))
+
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
     """Build a full processor name from name and version"""
@@ -207,8 +214,7 @@ def create_test_file(fpath: str):
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "w") as fptr:
         fptr.write("test\n")
-
-
+    
 def download_file(source_url: str, destination_fpath: str) -> str:
     """
     Download a file from a source URL to a given destination
@@ -216,8 +222,7 @@ def download_file(source_url: str, destination_fpath: str) -> str:
     Folders to the path will be created as required
     """
     os.makedirs(os.path.dirname(destination_fpath), exist_ok=True)
-    # urllib.request.urlretrieve(source_url, path)
-    response = requests.get(
+    with requests.get(
         source_url,
         timeout=5,
         stream=True,
@@ -226,14 +231,70 @@ def download_file(source_url: str, destination_fpath: str) -> str:
             "Accept-Encoding": "gzip",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
         },
-    )
-    with open(destination_fpath, "wb") as handle:
-        for data in response.iter_content(chunk_size=8192):
-            handle.write(data)
+    ) as r:
+        with open(destination_fpath, 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
+
     if not os.path.exists(destination_fpath):
         raise FileCreationException()
     else:
         return destination_fpath
+
+
+def tiffs_in_folder(folder_path: str, basename: str = '') -> List[str]:
+    """
+    Return the filenames of all tiffs in a given folder
+
+    ::kwarg basename str If set this will filter tiff filenames by the given string
+    """
+    return [i for i in os.listdir(folder_path) if basename in os.path.splitext(i)[0] and os.path.splitext(i)[1] == ".tif"]
+
+
+def unpack_and_check_zip(
+    local_zip_fpath: str,
+    target_folder: str,
+    expected_crs: str,
+    num_expected_tifs: int = 1,
+    expected_hashes: List[str] = None,
+) -> List[str]:
+    """
+    Unpack a downloaded zip and do some checks to ensure it is correct
+
+    ::kwarg expected_hash str If present the hash of the file will be calculated and checked.
+        The ordering of hashes is not checked - just the presence of all matching hashes.
+
+    ::return tif_fpath List[str] Paths to the contained zip(s)
+    """
+    unpack_zip(local_zip_fpath, target_folder)
+    # Filter on basename in case we're un[packing to an existing folder with tiffs]
+    unpacked_files = tiffs_in_folder(
+        target_folder,
+        basename=os.path.splitext(os.path.basename(local_zip_fpath))[0]
+    )
+    if len(unpacked_files) != num_expected_tifs:
+        raise UnexpectedFilesException(
+            f"Source zip {local_zip_fpath} has unexpected number of tifs: {unpacked_files}"
+        )
+    output_tifs = []
+    extracted_file_hashes = []
+    for tif in unpacked_files:
+        source_tif_fpath = os.path.join(target_folder, tif)
+        # Ensure the tif is valid
+        assert_geotiff(
+            source_tif_fpath, check_crs=expected_crs, check_compression=False
+        )
+        # Collect hashes if requested
+        if expected_hashes is not None:
+            _hash = data_file_hash(source_tif_fpath)
+            extracted_file_hashes.append(_hash)
+        output_tifs.append(source_tif_fpath)
+    # Check hashes if required
+    if expected_hashes is not None:
+        if not sorted(extracted_file_hashes) == sorted(expected_hashes):
+            raise UnexpectedFilesException(
+                f"Downloaded file hashes {sorted(extracted_file_hashes)} did not match expected: {sorted(expected_hashes)}"
+            )
+    return output_tifs
 
 
 # RASTER OPERATIONS

@@ -1,23 +1,22 @@
 """
-Unit tests for Natural Earth Vector Processor
+Unit tests for JRC GHSL Built C
 """
 import os
 import unittest
 import shutil
 
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
+from dataproc.backends import LocalFSStorageBackend
 from dataproc import Boundary
-from dataproc.processors.core.natural_earth_vector.version_1 import (
+from dataproc.processors.core.jrc_ghsl_built_c.r2022_epoch2018_10m_mszfun import (
     Processor,
     Metadata,
 )
-from config import get_db_uri_sync, API_POSTGRES_DB
+from dataproc.helpers import assert_geotiff
 from tests.helpers import (
     load_country_geojson,
-    assert_table_in_pg,
-    drop_natural_earth_roads_from_pg,
+    assert_raster_bounds_correct,
     setup_test_data_paths,
-    assert_datapackage_resource,
+    assert_datapackage_resource
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -26,7 +25,7 @@ from tests.dataproc.integration.processors import (
 from config import PACKAGES_HOST_URL
 
 
-class TestNaturalEarthVectorProcessor(unittest.TestCase):
+class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
     """"""
 
     @classmethod
@@ -35,30 +34,24 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
             LOCAL_FS_PROCESSING_DATA_TOP_DIR, Metadata().name, Metadata().version
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
-        cls.test_data_dir = None
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
         cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
     @classmethod
     def tearDownClass(cls):
-        # Cleans processing data
-        try:
-            # Tmp and Source data
-            shutil.rmtree(cls.test_processing_data_dir)
-            # Package data
-            shutil.rmtree(
-                os.path.join(cls.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            print("Skipped removing test data tree for", cls.__name__)
-        try:
-            drop_natural_earth_roads_from_pg()
-        except:
-            pass
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
+        # Change the expected zip URLs so we just download the tile over gambia
+        self.proc.fetcher.msz_source_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_BUILT_C_GLOBE_R2022A/GHS_BUILT_C_MSZ_GLOBE_R2022A/GHS_BUILT_C_MSZ_E2018_GLOBE_R2022A_54009_10/V1-0/tiles/GHS_BUILT_C_MSZ_E2018_GLOBE_R2022A_54009_10_V1_0_R8_C17.zip"
+        self.proc.fetcher.fun_source_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_BUILT_C_GLOBE_R2022A/GHS_BUILT_C_FUN_GLOBE_R2022A/GHS_BUILT_C_FUN_E2018_GLOBE_R2022A_54009_10/V1-0/tiles/GHS_BUILT_C_FUN_E2018_GLOBE_R2022A_54009_10_V1_0_R8_C17.zip"
+        self.proc.fetcher.msz_expected_hash = '19906b4e60417bb142d044e68ab7fb3155a63a08'
+        self.proc.fetcher.fun_expected_hash = '0bb2743e9dd3b414e7307a9023a0b717ee4f4dff'
         # __NOTE__: Reset the paths helper to reflect the test environment for processing root
         setup_test_data_paths(self.proc, self.test_processing_data_dir)
         self.meta = Metadata()
@@ -89,33 +82,27 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         self.assertNotEqual(self.meta.version, "")
         self.assertNotEqual(self.meta.dataset_name, "")
 
-    def test_fetch_zip(self):
-        """Test the fetching of source zip, unpacking and assertion"""
-        zip_fpath = self.proc._fetch_zip()
-        self.assertTrue(os.path.exists(zip_fpath))
-
-    def test_fetch_source(self):
-        """Test the fetching of source zip, unpacking and assertion"""
-        tablename = self.proc._fetch_source()
-        assert_table_in_pg(get_db_uri_sync(API_POSTGRES_DB), tablename)
-
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
-        # Remove the final package artifacts (but keep the test data artifacts if they exist)
         try:
             shutil.rmtree(
                 os.path.join(self.storage_backend.top_level_folder_path, "gambia")
             )
         except FileNotFoundError:
             pass
+        # Limit the files to be downloaded  in the fetcher
+        self.proc.total_expected_files = 2
         prov_log = self.proc.generate()
-        # # Assert the log contains a succesful entries
-        self.assertTrue(prov_log[f"{Metadata().name} - crop completed"])
+        # Assert the log contains successful entries
         self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
-        # # Collect the URI for the final Raster
-        final_uri = prov_log[f"{Metadata().name} - result URI"]
-        # Assert the file exists
-        self.assertTrue(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
+        # Collect the URIs for the final Rasters
+        final_uris = prov_log[f"{Metadata().name} - result URIs"]
+        self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
+        for final_uri in final_uris.split(","):
+            # # Assert the geotiffs are valid
+            assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), check_crs="ESRI:54009")
+            # # Assert the envelopes
+            assert_raster_bounds_correct(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), self.boundary["envelope_geojson"])
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
-        assert_datapackage_resource(prov_log["datapackage"])
+        assert_datapackage_resource(prov_log['datapackage'])

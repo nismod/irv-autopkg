@@ -64,7 +64,7 @@ class Processor(BaseProcessorABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name)
+            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
         )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
@@ -195,7 +195,7 @@ class Processor(BaseProcessorABC):
             [i['hash'] for i in results],
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
     def generate_documentation(self):
         """Generate documentation for the processor

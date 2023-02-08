@@ -1,11 +1,12 @@
 """
-JRC Population Processor
+JRC Built-C Processor
 """
 
 import os
 import logging
 import inspect
 import shutil
+from typing import List
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -24,7 +25,7 @@ from dataproc.helpers import (
     datapackage_resource,
 )
 from dataproc.exceptions import FolderNotFoundException
-from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
+from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
@@ -33,29 +34,34 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
-    description = "A Processor for JRC GHSL Population - R2022 release, Epoch 2020, 1Km resolution"  # Longer processor description
+    name = processor_name_from_file(
+        inspect.stack()[1].filename
+    )  # this must follow snakecase formatting, without special chars
+    description = """
+        A Processor for JRC GHSL Built-Up Characteristics - 
+        R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
+    """  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
-    dataset_name = "r2022_epoch2020_1km"  # The dataset this processor targets
+    dataset_name = "r2022_epoch2018_10m_mszfun"  # The dataset this processor targets
     data_author = "Joint Research Centre"
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
-    data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=pop"
+    data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=builtC"
 
 
 class Processor(BaseProcessorABC):
-    """JRC GHSL Population - R2020 - Epoch 2020 - 1Km"""
+    """JRC GHSL Built C - R2022 - Epoch 2018 - 10m MSZ & Fun"""
 
-    total_expected_files = 1
+    total_expected_files = 2
     source_fnames = [
-        'GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.tif'
+        'GHS_BUILT_C_FUN_E2018_GLOBE_R2022A_54009_10_V1_0.tif',
+        'GHS_BUILT_C_MSZ_E2018_GLOBE_R2022A_54009_10_V1_0.tif'
     ]
-    zip_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2022A/GHS_POP_E2020_GLOBE_R2022A_54009_1000/V1-0/GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.zip"
     index_filename = "index.html"
     license_filename = "license.html"
 
@@ -74,6 +80,8 @@ class Processor(BaseProcessorABC):
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
+        # Init the Datafile fetcher
+        self.fetcher = JRCBuiltCFetcher()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Cleanup any resources as required"""
@@ -119,52 +127,81 @@ class Processor(BaseProcessorABC):
             # Cleanup anything in tmp processing
             self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
-        self.log.debug("%s - collecting source geotiffs into %s", Metadata().name, self.source_folder)
-        source_fpath = self._fetch_source()
-        output_fpath = os.path.join(
-            self.tmp_processing_folder, os.path.basename(source_fpath)
-        )
-        # Crop Source - preserve Molleweide
-        crop_success = crop_raster(
-            source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
-        )
         self.log.debug(
-            "%s %s - success: %s",
+            "%s - collecting source geotiffs into %s",
             Metadata().name,
-            os.path.basename(source_fpath),
-            crop_success,
+            self.source_folder,
         )
-        self.log.debug("%s - generating datapackage meta", Metadata().name)
+        source_fpaths = self._fetch_source()
+        # Process MSZ and FUN
+        self.log.debug("%s - cropping geotiffs", Metadata().name)
+        results_fpaths = []
+        for source_fpath in source_fpaths:
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, os.path.basename(source_fpath)
+            )
+            # Crop Source - preserve Molleweide
+            crop_success = crop_raster(
+                source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+            )
+            self.log.debug(
+                "%s %s - success: %s",
+                Metadata().name,
+                os.path.basename(source_fpath),
+                crop_success,
+            )
+            if crop_success:
+                results_fpaths.append(
+                    {
+                        "fpath": output_fpath,
+                        "hash": data_file_hash(output_fpath),
+                        "size": data_file_size(output_fpath),
+                    }
+                )
+        # Check results look sensible
+        assert (
+            len(results_fpaths) == self.total_expected_files
+        ), f"{Metadata().name} - number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
 
-        self.log.debug("%s - moving cropped data to backend", Metadata().name)
-        result_uri = self.storage_backend.put_processor_data(
-            output_fpath,
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-
+        # Move to Backend
+        result_uris = []
+        for result in results_fpaths:
+            result_uri = self.storage_backend.put_processor_data(
+                result["fpath"],
+                self.boundary["name"],
+                Metadata().name,
+                Metadata().version,
+            )
+            result_uris.append(result_uri)
         self.provenance_log[f"{Metadata().name} - move to storage success"] = (
-            result_uri is not None
+            len(result_uris) == self.total_expected_files
         )
-        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+        self.provenance_log[f"{Metadata().name} - result URIs"] = ",".join(result_uris)
+
+        self.log.debug("%s - generating documentation", Metadata().name)
 
         # Generate documentation on backend
         self.generate_documentation()
 
+        self.log.debug("%s - generating datapackage meta", Metadata().name)
+
         # Generate datapackage in log (using directory for URI)
-        output_hash = data_file_hash(output_fpath)
-        output_size = data_file_size(output_fpath)
-        self.generate_datapackage(result_uri, output_hash, output_size)
+        self.generate_datapackage(result_uris, results_fpaths)
 
         return self.provenance_log
 
-    def generate_datapackage(self, uri: str, _hash: str, _size: int):
+    def generate_datapackage(self, uris: str, results: List[dict]):
         """Generate the datapackage resource for this processor
         and append to processor log
         """
         # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(Metadata(), [uri], "GeoTIFF", [_size], [_hash])
+        datapkg = datapackage_resource(
+            Metadata(),
+            uris,
+            "GeoTIFF",
+            [i["size"] for i in results],
+            [i["hash"] for i in results],
+        )
         self.provenance_log["datapackage"] = datapkg
         self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
@@ -229,7 +266,7 @@ class Processor(BaseProcessorABC):
         # Generate the tmp output directory
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
-    def _fetch_source(self) -> str:
+    def _fetch_source(self) -> List[str]:
         """
         Fetch and unpack the required source data if required.
             Returns the path to existing files if they already exist
@@ -242,11 +279,12 @@ class Processor(BaseProcessorABC):
             self.log.debug(
                 "%s - all source files appear to exist and are valid", Metadata().name
             )
-            return os.path.join(self.source_folder, self.source_fnames[0])
+            return [
+                os.path.join(self.source_folder, source_fname) for source_fname in self.source_fnames
+            ]
         else:
-            fetcher = JRCPopFetcher()
-            source_geotif_fpath = fetcher.fetch_source(self.zip_url, self.source_folder)
-            return source_geotif_fpath
+            source_geotif_fpaths = self.fetcher.fetch_source(self.source_folder)
+            return source_geotif_fpaths
 
     def _all_source_exists(self, remove_invalid=True) -> bool:
         """

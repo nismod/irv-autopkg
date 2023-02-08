@@ -31,7 +31,7 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "jrc_ghsl_population"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, Metadata().name, Metadata().version
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")

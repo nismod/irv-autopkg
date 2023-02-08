@@ -31,7 +31,7 @@ class TestWRIAqueductProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "wri_aqueduct"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, Metadata().name, Metadata().version
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")

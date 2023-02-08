@@ -31,19 +31,19 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "natural_earth_raster"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, Metadata().name, Metadata().version
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
         cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
 
-    # @classmethod
-    # def tearDownClass(cls):
-    #     # Tmp and Source data
-    #     shutil.rmtree(cls.test_processing_data_dir)
-    #     # Package data
-    #     shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+    @classmethod
+    def tearDownClass(cls):
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)

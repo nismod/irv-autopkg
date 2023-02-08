@@ -62,7 +62,9 @@ class Processor(BaseProcessorABC):
         """"""
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name))
+        self.paths_helper = PathsHelper(
+            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
+        )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
         # Source folder will persist between processor runs
