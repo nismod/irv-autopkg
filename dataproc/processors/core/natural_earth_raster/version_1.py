@@ -187,11 +187,11 @@ class Processor(BaseProcessorABC):
             Metadata(),
             uris,
             "GEOPKG",
-            hashes,
             sizes,
+            hashes,
         )
-        self.provenance_log["datapackage"] = datapkg
-        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg)
+        self.provenance_log["datapackage"] = datapkg.asdict()
+        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg.asdict())
 
     def generate_documentation(self):
         """Generate documentation for the processor

@@ -165,8 +165,8 @@ class Processor(BaseProcessorABC):
         """
         # Generate the datapackage and add it to the output log
         datapkg = datapackage_resource(Metadata(), [uri], "GeoTIFF", [_size], [_hash])
-        self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
+        self.provenance_log["datapackage"] = datapkg.asdict()
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg.asdict())
 
     def generate_documentation(self):
         """Generate documentation for the processor
@@ -263,12 +263,13 @@ class Processor(BaseProcessorABC):
             except Exception as err:
                 # remove the file and flag we should need to re-fetch, then move on
                 self.log.warning(
-                    "%s source file appears to be invalid - removing %s due to %s",
+                    "%s source file appears to be invalid or missing - removing %s due to %s",
                     Metadata().name,
                     fpath,
                     err
                 )
                 if remove_invalid:
-                    os.remove(fpath)
+                    if os.path.exists(fpath):
+                        os.remove(fpath)
                 source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)

@@ -131,7 +131,7 @@ class Processor(BaseProcessorABC):
         results_fpaths = []
         for fileinfo in os.scandir(self.source_folder):
             if not os.path.splitext(fileinfo.name)[1] == ".tif":
-                self.log.debug(
+                self.log.warning(
                     "aqueduct skipped non-tif in source dir: %s", fileinfo.name
                 )
                 continue
@@ -140,7 +140,7 @@ class Processor(BaseProcessorABC):
             assert_geotiff(geotiff_fpath)
             crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
             self.log.debug(
-                "aqueduct crop %s - success: %s", fileinfo.name, crop_success
+                "%s crop %s - success: %s", Metadata().name, fileinfo.name, crop_success
             )
             if crop_success:
                 results_fpaths.append(
@@ -155,7 +155,7 @@ class Processor(BaseProcessorABC):
             len(results_fpaths) == self.total_expected_files
         ), f"number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
 
-        self.log.debug("WRI Aqueduct - moving cropped data to backend")
+        self.log.debug("%s - moving cropped data to backend", Metadata().name)
         result_uris = []
         for result in results_fpaths:
             result_uri = self.storage_backend.put_processor_data(
@@ -194,8 +194,8 @@ class Processor(BaseProcessorABC):
             [i['size'] for i in results],
             [i['hash'] for i in results],
         )
-        self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
+        self.provenance_log["datapackage"] = datapkg.asdict()
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg.asdict())
 
     def generate_documentation(self):
         """Generate documentation for the processor
@@ -252,7 +252,8 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "WRI Aqueduct - all source files appear to exist and are valid"
+                "%s - all source files appear to exist and are valid",
+                Metadata().name
             )
             return
         else:
@@ -260,7 +261,8 @@ class Processor(BaseProcessorABC):
             metadata = self.aqueduct_fetcher.file_metadata()
             if self.total_expected_files != len(metadata):
                 self.log.warning(
-                    "Aqueduct limiting total_expected_files to %s",
+                    "%s limiting total_expected_files to %s",
+                    Metadata().name,
                     self.total_expected_files,
                 )
                 metadata = metadata[: self.total_expected_files]
@@ -294,7 +296,7 @@ class Processor(BaseProcessorABC):
                     self.log.warning(
                         "Aqueduct source file appears to be invalid - removing"
                     )
-                    if remove_invalid:
+                    if os.path.exists(fpath):
                         os.remove(fpath)
                     source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)

@@ -107,7 +107,7 @@ class Processor(BaseProcessorABC):
                 [os.path.getsize(output_fpath)],
                 [data_file_hash(output_fpath)],
             )
-            self.provenance_log["datapackage"] = datapkg
+            self.provenance_log["datapackage"] = datapkg.asdict()
         return self.provenance_log
 
     def exists(self):

@@ -367,9 +367,6 @@ class LocalFSStorageBackend(StorageBackend):
         with open(datapackage_fpath, "r") as fptr:
             datapackage = json.load(fptr)
 
-        datapackage = helpers.add_license_to_datapackage(
-            dp_resource.dp_license, datapackage
-        )
         datapackage = helpers.add_dataset_to_datapackage(
             dp_resource,
             datapackage,

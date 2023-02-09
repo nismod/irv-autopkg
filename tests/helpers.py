@@ -95,7 +95,6 @@ def gen_datapackage(boundary_name: str, dataset_names: List[str]) -> dict:
     return {
         "name": boundary_name,
         "title": boundary_name,
-        "profile": "data-package",
         "licenses": [dp_license for _ in dataset_names],
         "resources": [
             {
@@ -298,12 +297,11 @@ def assert_datapackage_resource(dp_resource: dict):
     assert "name" in dp_resource.keys(), "datapackage missing name"
     assert isinstance(dp_resource["path"], list), "datapackage path not a list"
     assert isinstance(dp_resource["hashes"], list), "datapackage hashes not a list"
-    assert isinstance(dp_resource["bytes"], list), "datapackage bytes not a list"
+    assert isinstance(dp_resource["bytes"], int), "datapackage bytes not a int"
     assert (
         len(dp_resource["path"])
         == len(dp_resource["hashes"])
-        == len(dp_resource["bytes"])
-    ), f"datapackage path, hashes and bytes must be the same length {len(dp_resource['path'])}, {len(dp_resource['hashes'])}, {len(dp_resource['bytes'])}"
+    ), f"datapackage path and hashes must be the same length {len(dp_resource['path'])}, {len(dp_resource['hashes'])}"
     assert isinstance(dp_resource["license"], dict), "datapackage license must be dict"
     assert (
         "name" in dp_resource["license"].keys()

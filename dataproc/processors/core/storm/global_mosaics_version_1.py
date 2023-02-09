@@ -1,12 +1,12 @@
 """
-JRC Built-C Processor
+STORM (Global Mosaics Version 1) Processor
 """
 
 import os
 import logging
 import inspect
-import shutil
 from typing import List
+import shutil
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -23,9 +23,10 @@ from dataproc.helpers import (
     data_file_hash,
     data_file_size,
     datapackage_resource,
+    fetch_zenodo_doi,
+    tiffs_in_folder,
 )
-from dataproc.exceptions import FolderNotFoundException
-from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
+from dataproc.exceptions import FolderNotFoundException, ZenodoGetFailedException
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
@@ -37,40 +38,36 @@ class Metadata(BaseMetadataABC):
     name = processor_name_from_file(
         inspect.stack()[1].filename
     )  # this must follow snakecase formatting, without special chars
-    description = """
-        A Processor for JRC GHSL Built-Up Characteristics - 
-        R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
-    """  # Longer processor description
+    description = "A Processor for WRI Aqueduct"  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
-    dataset_name = "r2022_epoch2018_10m_mszfun"  # The dataset this processor targets
-    data_author = "Joint Research Centre"
+    dataset_name = "STORM Global Mosaics 10.5281/zenodo.7438145"  # The dataset this processor targets
+    data_author = "University of Oxford"
     data_license = DataPackageLicense(
-        name="CC-BY-4.0",
-        title="Creative Commons Attribution 4.0",
-        path="https://creativecommons.org/licenses/by/4.0/",
+        name="CC0",
+        title="CC0",
+        path="https://creativecommons.org/share-your-work/public-domain/cc0/",
     )
-    data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=builtC"
+    data_origin_url = "https://zenodo.org/record/7438145#.Y-S6cS-l30o"
 
 
 class Processor(BaseProcessorABC):
-    """JRC GHSL Built C - R2022 - Epoch 2018 - 10m MSZ & Fun"""
+    """A Processor for STORM Global Mosaics"""
 
-    total_expected_files = 2
-    source_fnames = [
-        'GHS_BUILT_C_FUN_E2018_GLOBE_R2022A_54009_10_V1_0.tif',
-        'GHS_BUILT_C_MSZ_E2018_GLOBE_R2022A_54009_10_V1_0.tif'
-    ]
-    index_filename = "index.html"
-    license_filename = "license.html"
+    zenodo_doi = "10.5281/zenodo.7438145"
+    total_expected_files = 140
+    index_filename = f"{Metadata().version}/index.html"
+    license_filename = f"{Metadata().version}/license.html"
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
         """"""
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
+            os.path.join(
+                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
+            )
         )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
@@ -80,8 +77,7 @@ class Processor(BaseProcessorABC):
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
-        # Init the Datafile fetcher
-        self.fetcher = JRCBuiltCFetcher()
+        # Custom init vars for this processor
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Cleanup any resources as required"""
@@ -124,28 +120,18 @@ class Processor(BaseProcessorABC):
                 )
             except FolderNotFoundException:
                 pass
-            # Cleanup anything in tmp processing
-            self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
-        self.log.debug(
-            "%s - collecting source geotiffs into %s",
-            Metadata().name,
-            self.source_folder,
-        )
         source_fpaths = self._fetch_source()
-        # Process MSZ and FUN
+
         self.log.debug("%s - cropping geotiffs", Metadata().name)
         results_fpaths = []
         for source_fpath in source_fpaths:
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
             )
-            # Crop Source - preserve Molleweide
-            crop_success = crop_raster(
-                source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
-            )
+            crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(
-                "%s %s - success: %s",
+                "%s crop %s - success: %s",
                 Metadata().name,
                 os.path.basename(source_fpath),
                 crop_success,
@@ -163,7 +149,7 @@ class Processor(BaseProcessorABC):
             len(results_fpaths) == self.total_expected_files
         ), f"{Metadata().name} - number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
 
-        # Move to Backend
+        self.log.debug("%s - moving cropped data to backend", Metadata().name)
         result_uris = []
         for result in results_fpaths:
             result_uri = self.storage_backend.put_processor_data(
@@ -178,12 +164,8 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - result URIs"] = ",".join(result_uris)
 
-        self.log.debug("%s - generating documentation", Metadata().name)
-
         # Generate documentation on backend
         self.generate_documentation()
-
-        self.log.debug("%s - generating datapackage meta", Metadata().name)
 
         # Generate datapackage in log (using directory for URI)
         self.generate_datapackage(result_uris, results_fpaths)
@@ -228,7 +210,7 @@ class Processor(BaseProcessorABC):
         self.provenance_log[
             f"{Metadata().name} - created license documentation"
         ] = license_create
-        self.log.debug("%s generated documentation on backend", Metadata().name)
+        self.log.debug("Aqueduct generated documentation on backend")
 
     def _generate_index_file(self) -> str:
         """
@@ -237,10 +219,7 @@ class Processor(BaseProcessorABC):
         ::returns dest_fpath str Destination filepath on the processing backend
         """
         template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            Metadata().version,
-            self.index_filename,
+            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
         )
         return template_fpath
 
@@ -253,25 +232,15 @@ class Processor(BaseProcessorABC):
         template_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
             self.license_filename,
         )
         return template_fpath
 
-    def _clean_tmp_processing(self):
-        """Remove the tmp processing folder and recreate"""
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
     def _fetch_source(self) -> List[str]:
         """
         Fetch and unpack the required source data if required.
-            Returns the path to existing files if they already exist
 
-        return fpath str The path to the fetch source file
+        ::returns source_fpaths List[str] Filepaths of all source data
         """
         # Build Source Path
         os.makedirs(self.source_folder, exist_ok=True)
@@ -279,12 +248,15 @@ class Processor(BaseProcessorABC):
             self.log.debug(
                 "%s - all source files appear to exist and are valid", Metadata().name
             )
-            return [
-                os.path.join(self.source_folder, source_fname) for source_fname in self.source_fnames
-            ]
+            return tiffs_in_folder(self.source_folder, full_paths=True)
         else:
-            source_geotif_fpaths = self.fetcher.fetch_source(self.source_folder)
-            return source_geotif_fpaths
+            source_fpaths = fetch_zenodo_doi(self.zenodo_doi, self.source_folder)
+            # Count the Tiffs
+            self.log.debug("%s - Download Complete", Metadata().name)
+            assert (
+                len(source_fpaths) == self.total_expected_files
+            ), f"after {Metadata().name} download - not all source files were present"
+            return source_fpaths
 
     def _all_source_exists(self, remove_invalid=True) -> bool:
         """
@@ -293,21 +265,20 @@ class Processor(BaseProcessorABC):
         """
         source_valid = True
         count_tiffs = 0
-        for source_fname in self.source_fnames:
-            fpath = os.path.join(self.source_folder, source_fname)
-            try:
-                assert_geotiff(fpath, check_compression=False, check_crs="ESRI:54009")
-                count_tiffs += 1
-            except Exception as err:
-                # remove the file and flag we should need to re-fetch, then move on
-                self.log.warning(
-                    "%s source file appears to be invalid - removing %s due to %s",
-                    Metadata().name,
-                    fpath,
-                    err
-                )
-                if remove_invalid:
-                    if os.path.exists(fpath):
-                        os.remove(fpath)
-                source_valid = False
+        for fileinfo in os.scandir(self.source_folder):
+            if os.path.splitext(fileinfo.name)[1] == ".tif":
+                fpath = os.path.join(self.source_folder, fileinfo.name)
+                try:
+                    assert_geotiff(fpath, check_compression=False)
+                    count_tiffs += 1
+                except Exception:
+                    # remove the file and flag we should need to re-fetch, then move on
+                    self.log.warning(
+                        "%s source file appears to be invalid - removing",
+                        Metadata().name,
+                    )
+                    if remove_invalid:
+                        if os.path.exists(fpath):
+                            os.remove(fpath)
+                    source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)

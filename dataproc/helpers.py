@@ -8,7 +8,7 @@ import os
 import requests
 import zipfile
 import json
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError, check_call
 import shutil
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
@@ -17,6 +17,7 @@ from dataproc.exceptions import (
     FileCreationException,
     SourceRasterProjectionException,
     UnexpectedFilesException,
+    ZenodoGetFailedException,
 )
 
 # DAGs and Processing
@@ -133,7 +134,7 @@ def add_dataset_to_datapackage(
     """
     Append a resource (dataset) to the datapackage resources array
 
-    ::returns datapackage dict Update with given license if applicable
+    ::returns datapackage dict Updated with given dataset if applicable
     """
     # Generate the resource object
     if not "resources" in datapackage.keys():
@@ -143,6 +144,10 @@ def add_dataset_to_datapackage(
             [dp_resource.asdict()["name"], dp_resource.asdict()["version"]]
         ) in ["-".join([i["name"], i["version"]]) for i in datapackage["resources"]]:
             datapackage["resources"].append(dp_resource.asdict())
+    # Update the license
+    datapackage = add_license_to_datapackage(
+        dp_resource.dp_license, datapackage
+    )
     return datapackage
 
 
@@ -165,11 +170,11 @@ def datapackage_resource(
         path=uris,
         description=metadata.description,
         dataset_format=dataset_format,
-        dataset_size_bytes=dataset_sizes_bytes,
-        sources=[metadata.data_origin_url],
+        dataset_size_bytes=sum(dataset_sizes_bytes),
+        sources=[{"title":metadata.dataset_name, "path":metadata.data_origin_url}],
         dp_license=metadata.data_license,
         dataset_hashes=dataset_hashes,
-    ).asdict()
+    )
 
 
 def data_file_hash(fpath: str) -> str:
@@ -214,7 +219,8 @@ def create_test_file(fpath: str):
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "w") as fptr:
         fptr.write("test\n")
-    
+
+
 def download_file(source_url: str, destination_fpath: str) -> str:
     """
     Download a file from a source URL to a given destination
@@ -232,7 +238,7 @@ def download_file(source_url: str, destination_fpath: str) -> str:
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
         },
     ) as r:
-        with open(destination_fpath, 'wb') as f:
+        with open(destination_fpath, "wb") as f:
             shutil.copyfileobj(r.raw, f)
 
     if not os.path.exists(destination_fpath):
@@ -241,13 +247,21 @@ def download_file(source_url: str, destination_fpath: str) -> str:
         return destination_fpath
 
 
-def tiffs_in_folder(folder_path: str, basename: str = '') -> List[str]:
+def tiffs_in_folder(folder_path: str, basename: str = "", full_paths: bool=False) -> List[str]:
     """
     Return the filenames of all tiffs in a given folder
 
     ::kwarg basename str If set this will filter tiff filenames by the given string
+    ::kwargs full_paths bool Return full file paths instead of just filenames
     """
-    return [i for i in os.listdir(folder_path) if basename in os.path.splitext(i)[0] and os.path.splitext(i)[1] == ".tif"]
+    files = [
+        i
+        for i in os.listdir(folder_path)
+        if basename in os.path.splitext(i)[0] and os.path.splitext(i)[1] == ".tif"
+    ]
+    if full_paths:
+        return [os.path.join(folder_path, _file) for _file in files]
+    return files
 
 
 def unpack_and_check_zip(
@@ -268,8 +282,7 @@ def unpack_and_check_zip(
     unpack_zip(local_zip_fpath, target_folder)
     # Filter on basename in case we're un[packing to an existing folder with tiffs]
     unpacked_files = tiffs_in_folder(
-        target_folder,
-        basename=os.path.splitext(os.path.basename(local_zip_fpath))[0]
+        target_folder, basename=os.path.splitext(os.path.basename(local_zip_fpath))[0]
     )
     if len(unpacked_files) != num_expected_tifs:
         raise UnexpectedFilesException(
@@ -295,6 +308,34 @@ def unpack_and_check_zip(
                 f"Downloaded file hashes {sorted(extracted_file_hashes)} did not match expected: {sorted(expected_hashes)}"
             )
     return output_tifs
+
+
+def fetch_zenodo_doi(
+    doi: str,
+    target_folder: str,
+    return_only_tifs: bool=True
+) -> List[str]:
+    """
+    Fetch source files associated with a given DOI.
+
+    Data will be downloaded and unpacked into target_folder.
+
+    MD5 Sums optionally checked after download
+
+    ::kwarg return_only_tifs bool Remove non-tif files from the return file-list
+
+    ::returns output_file_paths List[str] List of all resulting files
+    """
+    cmd = ["zenodo_get", "-d", doi, "-o", target_folder]
+    try:
+        check_call(cmd)
+    except CalledProcessError:
+        raise ZenodoGetFailedException(
+            f"zenodo_get cmd {cmd} failed with non-zero exit code"
+        )
+    if return_only_tifs:
+        return [os.path.join(target_folder, _file) for _file in tiffs_in_folder(target_folder)]
+    return [os.path.join(target_folder, _file.name) for _file in os.scandir(target_folder)]
 
 
 # RASTER OPERATIONS

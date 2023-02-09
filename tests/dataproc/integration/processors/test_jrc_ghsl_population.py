@@ -41,14 +41,15 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
-        shutil.rmtree(cls.test_processing_data_dir)
+        shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
-        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"), ignore_errors=True)
 
     def setUp(self):
         self.proc = Processor(self.boundary, self.storage_backend)
         # Change the expected zip URL so we just download the tile over gambia
         self.proc.zip_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2022A/GHS_POP_E2020_GLOBE_R2022A_54009_1000/V1-0/tiles/GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0_R8_C17.zip"
+        self.proc.source_fnames = ['GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0_R8_C17.zip']
         # __NOTE__: Reset the paths helper to reflect the test environment for processing root
         setup_test_data_paths(self.proc, self.test_processing_data_dir)
         self.meta = Metadata()

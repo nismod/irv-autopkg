@@ -169,7 +169,6 @@ class BoundaryProcessor:
             datapackage = {
                 "name": self.boundary["name"],
                 "title": self.boundary["name"],
-                "profile": f"{self.boundary['name']}-data-package",
                 "licenses": [],
                 "resources": [],
             }
