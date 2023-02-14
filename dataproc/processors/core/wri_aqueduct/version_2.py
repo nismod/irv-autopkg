@@ -22,7 +22,9 @@ from dataproc.helpers import (
     assert_geotiff,
     data_file_hash,
     data_file_size,
-    datapackage_resource,
+    generate_license_file,
+    generate_datapackage,
+    generate_index_file,
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 from dataproc.exceptions import FolderNotFoundException
@@ -64,7 +66,9 @@ class Processor(BaseProcessorABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
+            os.path.join(
+                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
+            )
         )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
@@ -175,74 +179,47 @@ class Processor(BaseProcessorABC):
         self.generate_documentation()
 
         # Generate datapackage in log (using directory for URI)
-        self.generate_datapackage(
+        datapkg = generate_datapackage(
+            Metadata(),
             result_uris,
-            results_fpaths
+            "GeoTIFF",
+            [i["size"] for i in results_fpaths],
+            [i["hash"] for i in results_fpaths],
         )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
         return self.provenance_log
-
-    def generate_datapackage(self, uris: str, results: List[dict]):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(
-            Metadata(),
-            uris,
-            "GeoTIFF",
-            [i['size'] for i in results],
-            [i['hash'] for i in results],
-        )
-        self.provenance_log["datapackage"] = datapkg.asdict()
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg.asdict())
 
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath, self.boundary["name"],
-            Metadata().name,
+        # Generate Documentation
+        index_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
             Metadata().version,
+            self.index_filename,
+        )
+        index_create = generate_index_file(
+            self.storage_backend, index_fpath, self.boundary["name"], Metadata()
         )
         self.provenance_log[
             f"{Metadata().name} - created index documentation"
         ] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath, self.boundary["name"],
-            Metadata().name,
+        license_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
             Metadata().version,
+            self.license_filename,
+        )
+        license_create = generate_license_file(
+            self.storage_backend, license_fpath, self.boundary["name"], Metadata()
         )
         self.provenance_log[
             f"{Metadata().name} - created license documentation"
         ] = license_create
-        self.log.debug("Aqueduct generated documentation on backend")
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
-        )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.license_filename,
-        )
-        return template_fpath
+        self.log.debug("%s generated documentation on backend", Metadata().name)
 
     def _fetch_source(self):
         """
@@ -252,8 +229,7 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid",
-                Metadata().name
+                "%s - all source files appear to exist and are valid", Metadata().name
             )
             return
         else:

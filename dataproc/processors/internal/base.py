@@ -42,27 +42,3 @@ class BaseProcessorABC(ABC):
 
     def exists(self):
         """Whether all files for a given processor exist on the FS on not"""
-
-    def generate_datapackage(self):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-
-    def generate_documentation(self):
-        """Generate documentation for the processor
-        on the result backend"""
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-

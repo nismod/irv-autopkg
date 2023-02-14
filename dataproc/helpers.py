@@ -12,6 +12,7 @@ from subprocess import check_output, CalledProcessError, check_call
 import shutil
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
+from dataproc.backends import StorageBackend
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
 from dataproc.exceptions import (
     FileCreationException,
@@ -193,6 +194,67 @@ def data_file_hash(fpath: str) -> str:
 def data_file_size(fpath: str) -> int:
     """Filesize in bytes"""
     return os.path.getsize(fpath)
+
+
+def generate_index_file(
+    storage_backend: StorageBackend,
+    index_fpath: str,
+    boundary_name: str,
+    metadata: BaseMetadataABC,
+) -> bool:
+    """
+    Generate the index documentation file and 
+        push to supplied storage backend
+
+    ::returns result bool
+    """
+    return storage_backend.put_processor_metadata(
+        index_fpath,
+        boundary_name,
+        metadata.name,
+        metadata.version,
+    )
+
+
+def generate_license_file(
+    storage_backend: StorageBackend,
+    license_fpath: str,
+    boundary_name: str,
+    metadata: BaseMetadataABC,
+) -> bool:
+    """
+    Generate the License documentation file and 
+        push to supplied storage backend
+
+    ::returns result bool
+    """
+    return storage_backend.put_processor_metadata(
+        license_fpath,
+        boundary_name,
+        metadata.name,
+        metadata.version,
+    )
+
+
+def generate_datapackage(
+    metadata: BaseMetadataABC,
+    uris: str,
+    data_format: str,
+    sizes: List[int],
+    hashes: List[str],
+) -> dict:
+    """
+    Generate the datapackage resource
+    """
+    # Generate the datapackage and add it to the output log
+    datapkg = datapackage_resource(
+        metadata,
+        uris,
+        data_format,
+        sizes,
+        hashes,
+    )
+    return datapkg.asdict()
 
 
 # FILE OPERATIONS

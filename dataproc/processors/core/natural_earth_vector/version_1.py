@@ -21,7 +21,9 @@ from dataproc.helpers import (
     download_file,
     ogr2ogr_load_shapefile_to_pg,
     gdal_crop_pg_table_to_geopkg,
-    datapackage_resource,
+    generate_license_file,
+    generate_datapackage,
+    generate_index_file,
     data_file_hash,
     data_file_size
 )
@@ -148,7 +150,7 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - crop completed"] = True
         # Move cropped data to backend
-        self.log.debug("Natural earth vector - moving cropped data to backend")
+        self.log.debug("%s - moving cropped data to backend", Metadata().name)
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary["name"],
@@ -158,80 +160,47 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
+        # Generate Docs
+        self.generate_documentation()
+        
         # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
-        self.generate_datapackage(
-            [result_uri], hashes, sizes
+        datapkg = generate_datapackage(
+            Metadata(), [result_uri], "GEOPKG", sizes, hashes
         )
-
-        # Generate Docs
-        self.generate_documentation()
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
         # Cleanup as required
         return self.provenance_log
 
-    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(
-            Metadata(),
-            uris,
-            "GEOPKG",
-            sizes,
-            hashes,
-        )
-        self.provenance_log["datapackage"] = datapkg.asdict()
-        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg.asdict())
-
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath, self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+        # Generate Documentation
+        index_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.index_filename
         )
-        self.provenance_log[
-            f"{Metadata().name} - created index documentation"
-        ] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath, self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+        index_create = generate_index_file(
+            self.storage_backend,
+            index_fpath, 
+            self.boundary["name"],
+            Metadata()
         )
-        self.provenance_log[
-            f"{Metadata().name} - created license documentation"
-        ] = license_create
-        self.log.debug("Natural Earth Vector generated documentation on backend")
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
+        license_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.license_filename
         )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.license_filename,
+        license_create = generate_license_file(
+            self.storage_backend,
+            license_fpath, 
+            self.boundary["name"],
+            Metadata()
         )
-        return template_fpath
+        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
+        self.log.debug("%s generated documentation on backend", Metadata().name)
+
 
     def _fetch_source(self) -> str:
         """

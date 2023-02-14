@@ -21,7 +21,9 @@ from dataproc.helpers import (
     assert_geotiff,
     data_file_hash,
     data_file_size,
-    datapackage_resource,
+    generate_datapackage,
+    generate_index_file,
+    generate_license_file
 )
 from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
@@ -155,71 +157,39 @@ class Processor(BaseProcessorABC):
         # Generate datapackage in log (using directory for URI)
         output_hash = data_file_hash(output_fpath)
         output_size = data_file_size(output_fpath)
-        self.generate_datapackage(result_uri, output_hash, output_size)
+        datapkg = generate_datapackage(
+            Metadata(), [result_uri], "GeoTIFF", [output_size], [output_hash]
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
         return self.provenance_log
-
-    def generate_datapackage(self, uri: str, _hash: str, _size: int):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(Metadata(), [uri], "GeoTIFF", [_size], [_hash])
-        self.provenance_log["datapackage"] = datapkg.asdict()
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg.asdict())
 
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath,
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+        # Generate Documentation
+        index_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.index_filename
         )
-        self.provenance_log[
-            f"{Metadata().name} - created index documentation"
-        ] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath,
+        index_create = generate_index_file(
+            self.storage_backend,
+            index_fpath, 
             self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+            Metadata()
         )
-        self.provenance_log[
-            f"{Metadata().name} - created license documentation"
-        ] = license_create
+        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
+        license_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.license_filename
+        )
+        license_create = generate_license_file(
+            self.storage_backend,
+            license_fpath, 
+            self.boundary["name"],
+            Metadata()
+        )
+        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
         self.log.debug("%s generated documentation on backend", Metadata().name)
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            Metadata().version,
-            self.index_filename,
-        )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            Metadata().version,
-            self.license_filename,
-        )
-        return template_fpath
 
     def _clean_tmp_processing(self):
         """Remove the tmp processing folder and recreate"""

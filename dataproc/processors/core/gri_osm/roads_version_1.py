@@ -6,7 +6,6 @@ import os
 import logging
 import inspect
 import shutil
-from typing import List
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
@@ -15,9 +14,12 @@ from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
     gdal_crop_pg_table_to_geopkg,
-    datapackage_resource,
     data_file_hash,
-    data_file_size
+    data_file_size,
+    processor_name_from_file,
+    generate_index_file,
+    generate_license_file,
+    generate_datapackage
 )
 from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
@@ -30,15 +32,15 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = "gri_osm"  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
     description = (
-        "Extraction from GRI OSM Tables, including Damages"  # Longer processor description
+        "Extraction from GRI OSM Table for Roads, including Damages"  # Longer processor description
     )
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = (
-        "gri_osm"  # The dataset this processor targets
+        "gri_osm_road"  # The dataset this processor targets
     )
     data_author = "GRI/OSM"
     data_license = DataPackageLicense(
@@ -147,68 +149,41 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
-        # Generate Documentation
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath, 
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath, self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
+        self.generate_documentation()
         
         # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
-        self.generate_datapackage(
-            [result_uri], hashes, sizes
+        datapkg = generate_datapackage(
+            Metadata(), [result_uri], "GEOPKG", sizes, hashes
         )
-
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
         # Cleanup as required
         return self.provenance_log
 
-    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(
-            Metadata(),
-            uris,
-            "GEOPKG",
-            sizes,
-            hashes,
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
+        # Generate Documentation
+        index_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.index_filename
         )
-        self.provenance_log["datapackage"] = datapkg.asdict()
-        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg.asdict())
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
+        index_create = generate_index_file(
+            self.storage_backend,
+            index_fpath, 
+            self.boundary["name"],
+            Metadata()
         )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.license_filename,
+        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
+        license_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.license_filename
         )
-        return template_fpath
+        license_create = generate_license_file(
+            self.storage_backend,
+            license_fpath, 
+            self.boundary["name"],
+            Metadata()
+        )
+        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
+        self.log.debug("%s generated documentation on backend", Metadata().name)

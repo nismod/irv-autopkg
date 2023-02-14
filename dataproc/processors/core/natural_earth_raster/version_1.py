@@ -19,9 +19,11 @@ from dataproc.helpers import (
     unpack_zip,
     assert_geotiff,
     download_file,
-    datapackage_resource,
+    generate_datapackage,
+    generate_index_file,
+    generate_license_file,
     data_file_hash,
-    data_file_size
+    data_file_size,
 )
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
@@ -31,7 +33,9 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(
+        inspect.stack()[1].filename
+    )  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth image"  # Longer processor description
     )
@@ -63,7 +67,9 @@ class Processor(BaseProcessorABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
+            os.path.join(
+                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
+            )
         )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
@@ -73,7 +79,6 @@ class Processor(BaseProcessorABC):
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Cleanup any resources as required"""
@@ -128,17 +133,49 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
-       # Generate Datapackage
+        # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
-        self.generate_datapackage(
-            [result_uri], hashes, sizes
+        datapkg = generate_datapackage(
+            Metadata(), [result_uri], "GeoTIFF", sizes, hashes
         )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
         # Generate Docs
         self.generate_documentation()
 
         return self.provenance_log
+
+    def generate_documentation(self):
+        """Generate documentation for the processor
+        on the result backend"""
+        # Generate Documentation
+        index_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            Metadata().version,
+            self.index_filename,
+        )
+        index_create = generate_index_file(
+            self.storage_backend, index_fpath, self.boundary["name"], Metadata()
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created index documentation"
+        ] = index_create
+        license_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            Metadata().version,
+            self.license_filename,
+        )
+        license_create = generate_license_file(
+            self.storage_backend, license_fpath, self.boundary["name"], Metadata()
+        )
+        self.provenance_log[
+            f"{Metadata().name} - created license documentation"
+        ] = license_create
+        self.log.debug("%s generated documentation on backend", Metadata().name)
 
     def _fetch_source(self) -> str:
         """
@@ -177,68 +214,6 @@ class Processor(BaseProcessorABC):
             f"{Metadata().name} - valid GeoTIFF fetched/extracted"
         ] = True
         return geotiff_fpath
-
-    def generate_datapackage(self, uris: str, hashes: List[str], sizes: List[int]):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(
-            Metadata(),
-            uris,
-            "GEOPKG",
-            sizes,
-            hashes,
-        )
-        self.provenance_log["datapackage"] = datapkg.asdict()
-        self.log.debug("Aqueduct generated datapackage in log: %s", datapkg.asdict())
-
-    def generate_documentation(self):
-        """Generate documentation for the processor
-        on the result backend"""
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath, self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[
-            f"{Metadata().name} - created index documentation"
-        ] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath, self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[
-            f"{Metadata().name} - created license documentation"
-        ] = license_create
-        self.log.debug("Natural Earth Raster generated documentation on backend")
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.index_filename
-        )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.license_filename,
-        )
-        return template_fpath
 
     def _fetch_zip(self) -> str:
         """
