@@ -146,9 +146,7 @@ def add_dataset_to_datapackage(
         ) in ["-".join([i["name"], i["version"]]) for i in datapackage["resources"]]:
             datapackage["resources"].append(dp_resource.asdict())
     # Update the license
-    datapackage = add_license_to_datapackage(
-        dp_resource.dp_license, datapackage
-    )
+    datapackage = add_license_to_datapackage(dp_resource.dp_license, datapackage)
     return datapackage
 
 
@@ -172,7 +170,7 @@ def datapackage_resource(
         description=metadata.description,
         dataset_format=dataset_format,
         dataset_size_bytes=sum(dataset_sizes_bytes),
-        sources=[{"title":metadata.dataset_name, "path":metadata.data_origin_url}],
+        sources=[{"title": metadata.dataset_name, "path": metadata.data_origin_url}],
         dp_license=metadata.data_license,
         dataset_hashes=dataset_hashes,
     )
@@ -203,7 +201,7 @@ def generate_index_file(
     metadata: BaseMetadataABC,
 ) -> bool:
     """
-    Generate the index documentation file and 
+    Generate the index documentation file and
         push to supplied storage backend
 
     ::returns result bool
@@ -223,7 +221,7 @@ def generate_license_file(
     metadata: BaseMetadataABC,
 ) -> bool:
     """
-    Generate the License documentation file and 
+    Generate the License documentation file and
         push to supplied storage backend
 
     ::returns result bool
@@ -309,7 +307,9 @@ def download_file(source_url: str, destination_fpath: str) -> str:
         return destination_fpath
 
 
-def tiffs_in_folder(folder_path: str, basename: str = "", full_paths: bool=False) -> List[str]:
+def tiffs_in_folder(
+    folder_path: str, basename: str = "", full_paths: bool = False
+) -> List[str]:
     """
     Return the filenames of all tiffs in a given folder
 
@@ -373,9 +373,7 @@ def unpack_and_check_zip(
 
 
 def fetch_zenodo_doi(
-    doi: str,
-    target_folder: str,
-    return_only_tifs: bool=True
+    doi: str, target_folder: str, return_only_tifs: bool = True
 ) -> List[str]:
     """
     Fetch source files associated with a given DOI.
@@ -396,8 +394,13 @@ def fetch_zenodo_doi(
             f"zenodo_get cmd {cmd} failed with non-zero exit code"
         )
     if return_only_tifs:
-        return [os.path.join(target_folder, _file) for _file in tiffs_in_folder(target_folder)]
-    return [os.path.join(target_folder, _file.name) for _file in os.scandir(target_folder)]
+        return [
+            os.path.join(target_folder, _file)
+            for _file in tiffs_in_folder(target_folder)
+        ]
+    return [
+        os.path.join(target_folder, _file.name) for _file in os.scandir(target_folder)
+    ]
 
 
 # RASTER OPERATIONS
@@ -412,9 +415,10 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=T
     import rasterio
 
     with rasterio.open(fpath) as src:
-        assert (
-            src.meta["crs"] == check_crs
-        ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
+        if check_crs is not None:
+            assert (
+                src.meta["crs"] == check_crs
+            ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
         if check_compression is True:
             assert src.compression is not None, "raster did not have any compression"
 
@@ -486,6 +490,25 @@ def crop_raster(
 
 
 # VECTOR OPERATIONS
+
+
+def assert_vector_file(fpath: str, expected_shape: tuple = None, expected_crs: str = None):
+    """
+    Check a given file is a valid vector file and can beparsed with geopandas.
+
+    Optionally assert the data shape and CRS authority string
+
+    ::param fpath str Absolute filepath
+    """
+    import geopandas as gp
+
+    gdf = gp.read_file(fpath)
+    assert isinstance(gdf, gp.geodataframe.GeoDataFrame)
+    if expected_shape is not None:
+        assert gdf.shape == expected_shape
+    if expected_crs is not None:
+        crs = ':'.join(gdf.crs.to_authority())
+        assert crs == expected_crs
 
 
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
@@ -562,3 +585,25 @@ def gdal_crop_pg_table_to_geopkg(
         layerName=gpkg_layer_name(pg_table, boundary),
     )
     gdal.VectorTranslate(output_fpath, ds, options=vector_options)
+
+
+def gp_crop_file_to_geopkg(
+    input_fpath: str,
+    boundary: Boundary,
+    output_fpath: str,
+    mask_type: str = "boundary",
+) -> bool:
+    """
+    Geopandas - crop file by given boundary mask
+
+    ::kwarg mask_type str One of 'boundary' or 'envelope'
+        Crop the input file by the boundary, or the envolope of the boundary.
+    """
+    import geopandas as gp
+
+    gdf_clipped = gp.read_file(
+        input_fpath,
+        mask=boundary["geojson"] if mask_type == "boundary" else boundary["envelope"],
+    )
+    gdf_clipped.to_file(output_fpath)
+    return os.path.exists(output_fpath)
