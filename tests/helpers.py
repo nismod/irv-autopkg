@@ -30,13 +30,11 @@ engine = sa.create_engine(db_uri, pool_pre_ping=True)
 
 def wipe_db():
     """Wipe all SQLA Tables in the DB"""
-    print("Running wipe db...")
     db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     for tbl in reversed(db.Base.metadata.sorted_tables):
         engine.execute(tbl.delete())
-    print("Wipe db has run")
 
 
 def build_route(postfix_url: str):
@@ -184,14 +182,7 @@ def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
     Cleanup the test tree
     """
     for package in packages:
-        try:
-            shutil.rmtree(os.path.join(top_level_path, package))
-        except FileNotFoundError:
-            print(
-                "warning - failed to remove package at:",
-                os.path.join(top_level_path, package),
-                "file not found",
-            )
+        shutil.rmtree(os.path.join(top_level_path, package), ignore_errors=True)
 
 
 def assert_raster_bounds_correct(
@@ -234,13 +225,11 @@ def assert_raster_bounds_correct(
 
 
 def assert_package(
-    top_level_fpath: str, boundary_name: str, dataset_name_versions: List[str]
+    top_level_fpath: str, boundary_name: str
 ):
     """Assert integrity of a package and datasets contained within
         This does not assert the integrity of actualy data files (raster/vector);
         just the folder structure
-
-    ::param dataset_name_versions str name.version
     """
     required_top_level_docs = [
         "index.html",
@@ -262,7 +251,7 @@ def assert_package(
             chk_path = os.path.join(
                 top_level_fpath, boundary_name, "datasets", dataset, version
             )
-            assert os.path.exists(chk_path), f"missing files in pacakge: {chk_path}"
+            assert os.path.exists(chk_path), f"missing files in package: {chk_path}"
     # Ensure the top-level index and other docs exist
     for doc in required_top_level_docs:
         assert os.path.exists(

@@ -15,6 +15,7 @@ class BoundaryProcessor:
     index_filename = "index.html"
     version_filename = "version.html"
     license_filename = "license.html"
+    version_filename = "version.html"
     datapackage_filename = "datapackage.json"
 
     def __init__(self, boundary: dict, storage_backend: dict) -> None:
@@ -31,6 +32,10 @@ class BoundaryProcessor:
         self.paths_helper = PathsHelper(LOCALFS_PROCESSING_BACKEND_ROOT)
         self.log = logging.getLogger(__name__)
         self.provenance_log = {}
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path(
+            "boundary_processor", self.boundary["name"], "tmp"
+        )
+        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def generate(self) -> dict:
         """Generate files for a given processor"""
@@ -144,17 +149,12 @@ class BoundaryProcessor:
 
         ::returns dest_fpath str Destination filepath on the processing backend
         """
-        # Create the file locally
-        dest_fpath = self.paths_helper.build_absolute_path("version.html")
-        with open(dest_fpath, "w") as fptr:
-            # Insert some content
-            fptr.writelines(
-                [
-                    f"<!doctype html><html><b>Version for {self.boundary['name']} Boundary is 1</b></html>"
-                ]
-            )
-        # Return the path
-        return dest_fpath
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.version_filename,
+        )
+        return template_fpath
 
     def _generate_datapackage_file(self) -> str:
         """
@@ -162,16 +162,18 @@ class BoundaryProcessor:
 
         ::returns dest_fpath str Destination filepath on the processing backend
         """
-        # Create the file locally
-        dest_fpath = self.paths_helper.build_absolute_path("datapackage.json")
+        template_fpath = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.datapackage_filename,
+        )
+        dest_fpath = os.path.join(self.tmp_processing_folder, "datapackage.json")
+        with open(template_fpath, "r") as fptr:
+            datapkg = json.load(fptr)
+        # Insert some content
+        datapkg["name"] = self.boundary["name"]
+        datapkg["title"] = self.boundary["name"]
         with open(dest_fpath, "w") as fptr:
-            # Insert some content
-            datapackage = {
-                "name": self.boundary["name"],
-                "title": self.boundary["name"],
-                "licenses": [],
-                "resources": [],
-            }
-            json.dump(datapackage, fptr)
-        # Return the path
-        return dest_fpath
+            json.dump(datapkg, fptr)
+            # Return the path
+            return dest_fpath

@@ -129,7 +129,6 @@ class TestProcessingJobs(unittest.TestCase):
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
         )
         remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
@@ -227,7 +226,6 @@ class TestProcessingJobs(unittest.TestCase):
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
         )
         remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
@@ -321,6 +319,5 @@ class TestProcessingJobs(unittest.TestCase):
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC["processors"],
         )
         remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
