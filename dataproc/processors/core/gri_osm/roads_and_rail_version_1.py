@@ -34,13 +34,13 @@ class Metadata(BaseMetadataABC):
 
     name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
     description = (
-        "Extraction from GRI OSM Table for Roads, including Damages"  # Longer processor description
+        "Extraction from GRI OSM Table for Roads and Rail, including Damages"  # Longer processor description
     )
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = (
-        "gri_osm_road"  # The dataset this processor targets
+        "gri_osm_road_and_rail"  # The dataset this processor targets
     )
     data_author = "GRI/OSM"
     data_license = DataPackageLicense(

@@ -7,7 +7,7 @@ import shutil
 
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc import Boundary
-from dataproc.processors.core.gri_osm.roads_version_1 import (
+from dataproc.processors.core.gri_osm.roads_and_rail_version_1 import (
     Processor,
     Metadata,
 )
