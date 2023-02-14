@@ -1,37 +1,32 @@
 """
-Natural Earth Vector (Roads)
+Vector Processor for WRI Global Powerplants
 """
 
 import os
 import logging
 import inspect
 import shutil
-from typing import List
-
-import sqlalchemy as sa
 
 from dataproc.backends import StorageBackend
 from dataproc.backends.base import PathsHelper
 from dataproc import Boundary, DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    processor_name_from_file,
     version_name_from_file,
-    unpack_zip,
     download_file,
-    ogr2ogr_load_shapefile_to_pg,
-    gdal_crop_pg_table_to_geopkg,
+    data_file_hash,
+    data_file_size,
+    processor_name_from_file,
+    generate_index_file,
     generate_license_file,
     generate_datapackage,
-    generate_index_file,
-    data_file_hash,
-    data_file_size
+    unpack_zip,
+    csv_to_gpkg,
+    gp_crop_file_to_geopkg,
+    assert_vector_file
 )
 from config import (
-    LOCALFS_PROCESSING_BACKEND_ROOT,
-    get_db_uri_ogr,
-    get_db_uri_sync,
-    API_POSTGRES_DB,
+    LOCALFS_PROCESSING_BACKEND_ROOT
 )
 
 
@@ -40,48 +35,39 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(inspect.stack()[1].filename)
     description = (
-        "A Test Processor for Natural Earth vector"  # Longer processor description
+        "World Resources Institute - Global Powerplants"
     )
     version = version_name_from_file(
         inspect.stack()[1].filename
-    )  # Version of the Processor
-    dataset_name = (
-        "natural_earth_vector_roads"  # The dataset this processor targets
     )
-    data_author = "Natural Earth Data"
-    data_license = ""
+    dataset_name = (
+        "wri_powerplants"
+    )
+    data_author = "World Resources Institute"
     data_license = DataPackageLicense(
-        name="Natural Earth",
-        title="Natural Earth",
-        path="https://www.naturalearthdata.com/about/terms-of-use/",
+        name="CC-BY-4.0",
+        title="Creative Commons Attribution 4.0",
+        path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = (
-        "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/roads/"
+        "https://datasets.wri.org/dataset/globalpowerplantdatabase"
     )
 
-
 class Processor(BaseProcessorABC):
-    """A Processor for Natural Earth Vector"""
+    """A Processor for GRI OSM Database"""
 
     index_filename = "index.html"
     license_filename = "license.html"
-    source_zip_filename = "ne_10m_roads.zip"
-    source_zip_url = os.path.join(
-        "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_roads.zip"
-    )
-    input_geometry_column = "wkb_geometry"
-    output_geometry_operation = "clip"  # Clip or intersect
-    output_geometry_column = "clipped_geometry"
-
-    pg_dbname_env="AUTOPKG_POSTGRES_DB"
-    pg_user_env="AUTOPKG_POSTGRES_USER"
-    pg_password_env="AUTOPKG_POSTGRES_PASSWORD"
-    pg_host_env="AUTOPKG_POSTGRES_HOST"
-    pg_port_env="AUTOPKG_POSTGRES_PORT"
+    total_expected_files = 1
+    source_zip_url = "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+    expected_zip_hash = '083f11452efc1ed0e8fb1494f0ce49e5c37718e2'
+    source_file = "global_power_plant_database.gpkg"
+    expected_source_gpkg_shape = (34936, 37)
 
     def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
+        """"""
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
@@ -117,40 +103,34 @@ class Processor(BaseProcessorABC):
             Metadata().version,
             f"{self.boundary['name']}.gpkg",
         )
-
+    
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
             self.provenance_log[Metadata().name] = "exists"
             return self.provenance_log
-        # Check if the source exists and fetch it if not
-        pg_table_name = self._fetch_source()
-        # Crop to given boundary
+        # Setup output path in the processing backend
         output_folder = self.paths_helper.build_absolute_path(
             self.boundary["name"], Metadata().name, Metadata().version, "outputs"
         )
         os.makedirs(output_folder, exist_ok=True)
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
-        self.log.debug("Natural earth vector - cropping Roads to geopkg")
-        gdal_crop_pg_table_to_geopkg(
+        # Fetch source as required
+        source_gpkg_fpath = self._fetch_source()
+
+        # Crop to given boundary
+        self.log.debug("%s - cropping to geopkg", Metadata().name)
+        crop_result = gp_crop_file_to_geopkg(
+            source_gpkg_fpath,
             self.boundary,
-            str(get_db_uri_ogr(
-                dbname=os.getenv(self.pg_dbname_env),
-                username_env=self.pg_user_env,
-                password_env=self.pg_password_env,
-                host_env=self.pg_host_env,
-                port_env=self.pg_port_env
-            )),
-            pg_table_name,
             output_fpath,
-            geometry_column=self.input_geometry_column,
-            extract_type=self.output_geometry_operation,
-            clipped_geometry_column_name=self.output_geometry_column,
+            mask_type='boundary'
         )
-        self.provenance_log[f"{Metadata().name} - crop completed"] = True
+        
+        self.provenance_log[f"{Metadata().name} - crop completed"] = crop_result
         # Move cropped data to backend
-        self.log.debug("%s - moving cropped data to backend", Metadata().name)
+        self.log.debug("%s - moving cropped data to backend", {Metadata().name})
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary["name"],
@@ -160,7 +140,6 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - move to storage success"] = True
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
-        # Generate Docs
         self.generate_documentation()
         
         # Generate Datapackage
@@ -171,10 +150,9 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log["datapackage"] = datapkg
         self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
-
         # Cleanup as required
         return self.provenance_log
-
+    
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
@@ -200,36 +178,41 @@ class Processor(BaseProcessorABC):
         )
         self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
         self.log.debug("%s generated documentation on backend", Metadata().name)
-
+    
 
     def _fetch_source(self) -> str:
         """
-        Fetch and unpack the required source data if required.
-            Returns the path to existing files if they already exist
+        Fetch, unpack and convert the source CSV to a geopkg for later processing
 
-        return fpath str The path to the fetch source file
+        return fpath str The path to the fetched source file
         """
-        # Drop the source from Db as we are testing
-        self.drop_natural_earth_roads_from_pg()
+        # Build Source Path
+        os.makedirs(self.source_folder, exist_ok=True)
+        if self._all_source_exists():
+            self.log.debug(
+                "%s - all source files appear to exist and are valid", Metadata().name
+            )
+            return os.path.join(self.source_folder, self.source_file)
         # Fetch the source zip
-        self.log.debug("Natural earth vector - fetching zip")
+        self.log.debug("%s - fetching zip", Metadata().name)
         local_zip_fpath = self._fetch_zip()
-        self.log.debug("Natural earth vector - fetched zip to %s", local_zip_fpath)
+        self.log.debug("%s - fetched zip to %s", Metadata().name, local_zip_fpath)
         self.provenance_log[f"{Metadata().name} - zip download path"] = local_zip_fpath
         # Unpack
-        self.log.debug("Natural earth vector - unpacking zip")
-        unpack_zip(local_zip_fpath, self.source_folder)
-        shp_fpath = os.path.join(
-            self.source_folder, "ne_10m_roads.shp"
+        self.log.debug("%s - unpacking zip", Metadata().name)
+        unpack_zip(local_zip_fpath, self.tmp_processing_folder)
+        # Convert CSV to GPKG
+        csv_fpath = os.path.join(
+            self.tmp_processing_folder, "global_power_plant_database.csv"
         )
-        assert os.path.exists(
-            shp_fpath
-        ), f"extracted SHP did not exist at expected path {shp_fpath}"
-        # Load to PG
-        self.log.debug("Natural earth vector - loading shapefile to PG")
-        ogr2ogr_load_shapefile_to_pg(shp_fpath, get_db_uri_ogr(API_POSTGRES_DB))
-        self.provenance_log[f"{Metadata().name} - loaded NE Roads to PG"] = True
-        return "ne_10m_roads"
+        gpkg_fpath = os.path.join(
+            self.source_folder, self.source_file
+        )
+        # Load to geopkg 
+        self.log.debug("%s - converting source CSV to GPKG", Metadata().name)
+        converted = csv_to_gpkg(csv_fpath, gpkg_fpath, "EPSG:4326", latitude_col='latitude', longitude_col='longitude')
+        self.log.info("%s - CSV conversion to source GPKG success: %s", Metadata().name, converted)
+        return gpkg_fpath
 
     def _fetch_zip(self) -> str:
         """
@@ -239,19 +222,35 @@ class Processor(BaseProcessorABC):
         """
         # Pull the zip file to the configured processing backend
         zip_fpath = self.paths_helper.build_absolute_path(
-            "natural_earth_vector", "ne_10m_roads.zip"
+            "wri_powerplants", os.path.basename(self.source_zip_url)
         )
         if not os.path.exists(zip_fpath):
             zip_fpath = download_file(
                 self.source_zip_url,
                 zip_fpath,
             )
+        assert data_file_hash(zip_fpath) == self.expected_zip_hash, f"{Metadata().name} downloaded zip file hash did not match expected"
         return zip_fpath
-
-    @staticmethod
-    def drop_natural_earth_roads_from_pg():
-        """Drop loaded Natural Earth Roads data from DB"""
-        db_uri = get_db_uri_sync(API_POSTGRES_DB)
-        # Init DB and Load via SA
-        engine = sa.create_engine(db_uri, pool_pre_ping=True)
-        _ = engine.execute("DROP TABLE IF EXISTS ne_10m_roads;")
+    
+    def _all_source_exists(self, remove_invalid=True) -> bool:
+        """
+        Check if all source files exist and are valid
+            If not source will be removed
+        """
+        source_valid = True
+        fpath = os.path.join(self.source_folder, self.source_file)
+        try:
+            assert_vector_file(fpath, expected_shape=self.expected_source_gpkg_shape, expected_crs="EPSG:4326")
+        except Exception as err:
+            # remove the file and flag we should need to re-fetch, then move on
+            self.log.warning(
+                "%s source file %s appears to be invalid - removing due to %s",
+                Metadata().name,
+                fpath,
+                err
+            )
+            if remove_invalid:
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+            source_valid = False
+        return source_valid

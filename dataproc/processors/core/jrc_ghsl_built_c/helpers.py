@@ -8,7 +8,7 @@ from typing import List
 
 from dataproc.helpers import (
     download_file,
-    unpack_and_check_zip,
+    unpack_and_check_zip_tifs,
 )
 
 
@@ -51,7 +51,7 @@ class JRCBuiltCFetcher:
                 self.msz_source_url,
                 download_zip_fpath,
             )
-            msz_tiffs = unpack_and_check_zip(
+            msz_tiffs = unpack_and_check_zip_tifs(
                 local_zip_fpath,
                 target_folder,
                 expected_crs,
@@ -66,7 +66,7 @@ class JRCBuiltCFetcher:
                 self.fun_source_url,
                 download_zip_fpath,
             )
-            fun_tiffs = unpack_and_check_zip(
+            fun_tiffs = unpack_and_check_zip_tifs(
                 local_zip_fpath,
                 target_folder,
                 expected_crs,

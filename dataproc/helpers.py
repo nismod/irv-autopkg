@@ -326,7 +326,7 @@ def tiffs_in_folder(
     return files
 
 
-def unpack_and_check_zip(
+def unpack_and_check_zip_tifs(
     local_zip_fpath: str,
     target_folder: str,
     expected_crs: str,
@@ -492,7 +492,9 @@ def crop_raster(
 # VECTOR OPERATIONS
 
 
-def assert_vector_file(fpath: str, expected_shape: tuple = None, expected_crs: str = None):
+def assert_vector_file(
+    fpath: str, expected_shape: tuple = None, expected_crs: str = None
+):
     """
     Check a given file is a valid vector file and can beparsed with geopandas.
 
@@ -505,10 +507,10 @@ def assert_vector_file(fpath: str, expected_shape: tuple = None, expected_crs: s
     gdf = gp.read_file(fpath)
     assert isinstance(gdf, gp.geodataframe.GeoDataFrame)
     if expected_shape is not None:
-        assert gdf.shape == expected_shape
+        assert gdf.shape == expected_shape, f"shape did not match expected: {gdf.shape}, {expected_shape}"
     if expected_crs is not None:
-        crs = ':'.join(gdf.crs.to_authority())
-        assert crs == expected_crs
+        crs = ":".join(gdf.crs.to_authority())
+        assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
 
 
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
@@ -607,3 +609,26 @@ def gp_crop_file_to_geopkg(
     )
     gdf_clipped.to_file(output_fpath)
     return os.path.exists(output_fpath)
+
+
+def csv_to_gpkg(
+    input_csv_fpath: str,
+    output_gpkg_fpath: str,
+    crs: str = "EPSG:4326",
+    latitude_col: str = "latitude",
+    longitude_col: str = "longitude",
+) -> bool:
+    """
+    Convert a given CSV to geopackage
+    """
+    import geopandas as gp
+
+    df = gp.read_file(input_csv_fpath)
+    if not latitude_col in df.columns or not longitude_col in df.columns:
+        raise Exception(
+            f"latitude and longitude columns required in CSV columns, got: {df.columns}"
+        )
+    df.geometry = gp.points_from_xy(df[longitude_col], df[latitude_col])
+    df.crs = crs
+    df.to_file(output_gpkg_fpath)
+    return os.path.exists(output_gpkg_fpath)

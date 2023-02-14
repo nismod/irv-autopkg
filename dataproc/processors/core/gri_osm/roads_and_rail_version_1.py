@@ -1,5 +1,5 @@
 """
-Vector Processor for OSM (inc. damages)
+Vector Processor for OSM Roads and Rail (inc. damages)
 """
 
 import os
