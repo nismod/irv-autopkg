@@ -26,7 +26,7 @@ from dataproc.helpers import (
     fetch_zenodo_doi,
     tiffs_in_folder,
 )
-from dataproc.exceptions import FolderNotFoundException, ZenodoGetFailedException
+from dataproc.exceptions import FolderNotFoundException
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 

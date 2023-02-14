@@ -103,8 +103,8 @@ def gen_datapackage(boundary_name: str, dataset_names: List[str]) -> dict:
                 "path": ["data.gpkg"],
                 "description": "desc",
                 "format": "GEOPKG",
-                "bytes": ["d7bbfe3d26e2142ee24458df087ed154194fe5de"],
-                "hashes": [22786048],
+                "hashes": ["d7bbfe3d26e2142ee24458df087ed154194fe5de"],
+                "bytes": 22786048,
                 "license": dp_license,
                 "sources": ["a url"],
             }
@@ -297,7 +297,7 @@ def assert_datapackage_resource(dp_resource: dict):
     assert "name" in dp_resource.keys(), "datapackage missing name"
     assert isinstance(dp_resource["path"], list), "datapackage path not a list"
     assert isinstance(dp_resource["hashes"], list), "datapackage hashes not a list"
-    assert isinstance(dp_resource["bytes"], int), "datapackage bytes not a int"
+    assert isinstance(dp_resource["bytes"], int), f"datapackage bytes {dp_resource['bytes']} not a int was {type(dp_resource['bytes'])}"
     assert (
         len(dp_resource["path"])
         == len(dp_resource["hashes"])
