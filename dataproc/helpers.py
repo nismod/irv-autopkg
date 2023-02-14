@@ -622,13 +622,36 @@ def csv_to_gpkg(
     Convert a given CSV to geopackage
     """
     import geopandas as gp
-
-    df = gp.read_file(input_csv_fpath)
+    import pandas as pd
+    df = pd.read_csv(
+        input_csv_fpath,
+        dtype={
+            "country" : str,
+            "country_long" : str,
+            "name" : str,
+            "gppd_idnr" : str,
+            "primary_fuel" : str,
+            "other_fuel1" : str,
+            "other_fuel2" : str,
+            "other_fuel3" : str,
+            "owner" : str,
+            "source" : str,
+            "url" : str,
+            "geolocation_source" : str,
+            "wepp_id" : str,
+            "generation_data_source" : str,
+            "estimated_generation_note_2013" : str,
+            "estimated_generation_note_2014" : str,
+            "estimated_generation_note_2015" : str,
+            "estimated_generation_note_2016" : str,
+            "estimated_generation_note_2017" : str,
+        }
+    )
     if not latitude_col in df.columns or not longitude_col in df.columns:
         raise Exception(
             f"latitude and longitude columns required in CSV columns, got: {df.columns}"
         )
-    df.geometry = gp.points_from_xy(df[longitude_col], df[latitude_col])
+    df = df.set_geometry(gp.points_from_xy(df[longitude_col], df[latitude_col]))
     df.crs = crs
     df.to_file(output_gpkg_fpath)
     return os.path.exists(output_gpkg_fpath)

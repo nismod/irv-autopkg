@@ -74,8 +74,7 @@ services:
   test-api:
     image: ghcr.io/nismod/irv-autopkg:0.2.0-dev
     volumes:
-      - ./tests/data/packages:/usr/src/app/tests/data/packages
-      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
+      - ./tests/data:/usr/src/app/tests/data
     env_file:
       - envs/.api_and_dataproc.env
     command: python3 -m unittest discover /usr/src/app/tests/api
@@ -83,8 +82,7 @@ services:
   test-dataproc:
     image: ghcr.io/nismod/irv-autopkg:0.2.0-dev
     volumes:
-      - ./tests/data/packages:/usr/src/app/tests/data/packages
-      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
+      - ./tests/data:/usr/src/app/tests/data
     env_file:
       - envs/.api_and_dataproc.env
     command: python -m unittest discover /usr/src/app/tests/dataproc

@@ -167,5 +167,6 @@ envs/*
 data/*
 tests/data/tmp/*
 tests/data/packages/*
+tests/data/processing/*
 countries_all.geojson
 *.xml

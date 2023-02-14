@@ -75,12 +75,10 @@ def load_natural_earth_roads_to_pg():
 
 def drop_natural_earth_roads_from_pg():
     """Drop loaded Natural Earth Roads data from DB"""
-    print("Dropping NE Test Roads from DB...")
     db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     _ = engine.execute("DROP TABLE ne_10m_roads;")
-    print("Dropped NE Test Roads")
 
 
 def gen_datapackage(boundary_name: str, dataset_names: List[str]) -> dict:

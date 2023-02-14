@@ -92,7 +92,6 @@ class TestWRIAqueductProcessor(unittest.TestCase):
         self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
         # Collect the URIs for the final Raster
         final_uris = prov_log[f"{Metadata().name} - result URIs"]
-        print (final_uris)
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
         for final_uri in final_uris.split(","):
             # # Assert the geotiffs are valid

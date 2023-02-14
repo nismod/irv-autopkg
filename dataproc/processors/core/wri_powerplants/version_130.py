@@ -23,11 +23,9 @@ from dataproc.helpers import (
     unpack_zip,
     csv_to_gpkg,
     gp_crop_file_to_geopkg,
-    assert_vector_file
+    assert_vector_file,
 )
-from config import (
-    LOCALFS_PROCESSING_BACKEND_ROOT
-)
+from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
 class Metadata(BaseMetadataABC):
@@ -36,24 +34,17 @@ class Metadata(BaseMetadataABC):
     """
 
     name = processor_name_from_file(inspect.stack()[1].filename)
-    description = (
-        "World Resources Institute - Global Powerplants"
-    )
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )
-    dataset_name = (
-        "wri_powerplants"
-    )
+    description = "World Resources Institute - Global Powerplants"
+    version = version_name_from_file(inspect.stack()[1].filename)
+    dataset_name = "wri_powerplants"
     data_author = "World Resources Institute"
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
-    data_origin_url = (
-        "https://datasets.wri.org/dataset/globalpowerplantdatabase"
-    )
+    data_origin_url = "https://datasets.wri.org/dataset/globalpowerplantdatabase"
+
 
 class Processor(BaseProcessorABC):
     """A Processor for GRI OSM Database"""
@@ -62,7 +53,7 @@ class Processor(BaseProcessorABC):
     license_filename = "license.html"
     total_expected_files = 1
     source_zip_url = "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
-    expected_zip_hash = '083f11452efc1ed0e8fb1494f0ce49e5c37718e2'
+    expected_zip_hash = "083f11452efc1ed0e8fb1494f0ce49e5c37718e2"
     source_file = "global_power_plant_database.gpkg"
     expected_source_gpkg_shape = (34936, 37)
 
@@ -71,7 +62,9 @@ class Processor(BaseProcessorABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version)
+            os.path.join(
+                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
+            )
         )
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
@@ -103,7 +96,7 @@ class Processor(BaseProcessorABC):
             Metadata().version,
             f"{self.boundary['name']}.gpkg",
         )
-    
+
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
@@ -122,12 +115,9 @@ class Processor(BaseProcessorABC):
         # Crop to given boundary
         self.log.debug("%s - cropping to geopkg", Metadata().name)
         crop_result = gp_crop_file_to_geopkg(
-            source_gpkg_fpath,
-            self.boundary,
-            output_fpath,
-            mask_type='boundary'
+            source_gpkg_fpath, self.boundary, output_fpath, mask_type="boundary"
         )
-        
+
         self.provenance_log[f"{Metadata().name} - crop completed"] = crop_result
         # Move cropped data to backend
         self.log.debug("%s - moving cropped data to backend", {Metadata().name})
@@ -141,7 +131,7 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
 
         self.generate_documentation()
-        
+
         # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
@@ -152,33 +142,36 @@ class Processor(BaseProcessorABC):
         self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
         # Cleanup as required
         return self.provenance_log
-    
+
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
         # Generate Documentation
         index_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.index_filename
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            Metadata().version,
+            self.index_filename,
         )
         index_create = generate_index_file(
-            self.storage_backend,
-            index_fpath, 
-            self.boundary["name"],
-            Metadata()
+            self.storage_backend, index_fpath, self.boundary["name"], Metadata()
         )
-        self.provenance_log[f"{Metadata().name} - created index documentation"] = index_create
+        self.provenance_log[
+            f"{Metadata().name} - created index documentation"
+        ] = index_create
         license_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", Metadata().version, self.license_filename
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            Metadata().version,
+            self.license_filename,
         )
         license_create = generate_license_file(
-            self.storage_backend,
-            license_fpath, 
-            self.boundary["name"],
-            Metadata()
+            self.storage_backend, license_fpath, self.boundary["name"], Metadata()
         )
-        self.provenance_log[f"{Metadata().name} - created license documentation"] = license_create
+        self.provenance_log[
+            f"{Metadata().name} - created license documentation"
+        ] = license_create
         self.log.debug("%s generated documentation on backend", Metadata().name)
-    
 
     def _fetch_source(self) -> str:
         """
@@ -205,13 +198,20 @@ class Processor(BaseProcessorABC):
         csv_fpath = os.path.join(
             self.tmp_processing_folder, "global_power_plant_database.csv"
         )
-        gpkg_fpath = os.path.join(
-            self.source_folder, self.source_file
-        )
-        # Load to geopkg 
+        gpkg_fpath = os.path.join(self.source_folder, self.source_file)
+        # Load to geopkg
         self.log.debug("%s - converting source CSV to GPKG", Metadata().name)
-        converted = csv_to_gpkg(csv_fpath, gpkg_fpath, "EPSG:4326", latitude_col='latitude', longitude_col='longitude')
-        self.log.info("%s - CSV conversion to source GPKG success: %s", Metadata().name, converted)
+        converted = csv_to_gpkg(
+            csv_fpath,
+            gpkg_fpath,
+            "EPSG:4326",
+            latitude_col="latitude",
+            longitude_col="longitude",
+        )
+        self.log.info(
+            "%s - CSV conversion to source GPKG success: %s", Metadata().name, converted
+        )
+
         return gpkg_fpath
 
     def _fetch_zip(self) -> str:
@@ -221,17 +221,18 @@ class Processor(BaseProcessorABC):
         ::returns filepath str Result local filepath
         """
         # Pull the zip file to the configured processing backend
-        zip_fpath = self.paths_helper.build_absolute_path(
-            "wri_powerplants", os.path.basename(self.source_zip_url)
+        zip_fpath = os.path.join(
+            self.tmp_processing_folder, os.path.basename(self.source_zip_url)
         )
-        if not os.path.exists(zip_fpath):
-            zip_fpath = download_file(
-                self.source_zip_url,
-                zip_fpath,
-            )
-        assert data_file_hash(zip_fpath) == self.expected_zip_hash, f"{Metadata().name} downloaded zip file hash did not match expected"
+        zip_fpath = download_file(
+            self.source_zip_url,
+            zip_fpath,
+        )
+        assert (
+            data_file_hash(zip_fpath) == self.expected_zip_hash
+        ), f"{Metadata().name} downloaded zip file hash did not match expected"
         return zip_fpath
-    
+
     def _all_source_exists(self, remove_invalid=True) -> bool:
         """
         Check if all source files exist and are valid
@@ -240,14 +241,18 @@ class Processor(BaseProcessorABC):
         source_valid = True
         fpath = os.path.join(self.source_folder, self.source_file)
         try:
-            assert_vector_file(fpath, expected_shape=self.expected_source_gpkg_shape, expected_crs="EPSG:4326")
+            assert_vector_file(
+                fpath,
+                expected_shape=self.expected_source_gpkg_shape,
+                expected_crs="EPSG:4326",
+            )
         except Exception as err:
             # remove the file and flag we should need to re-fetch, then move on
             self.log.warning(
-                "%s source file %s appears to be invalid - removing due to %s",
+                "%s source file %s appears to be invalid - due to %s",
                 Metadata().name,
                 fpath,
-                err
+                err,
             )
             if remove_invalid:
                 if os.path.exists(fpath):

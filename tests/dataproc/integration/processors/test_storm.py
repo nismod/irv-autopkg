@@ -88,7 +88,6 @@ class TestStormV1Processor(unittest.TestCase):
         except FileNotFoundError:
             pass
         # Fetch a single file into the source folder then limit expected files
-        print ("Downloading STORM test-file from", TEST_TIF_URL, '...')
         _ = download_file(
             TEST_TIF_URL,
             os.path.join(self.proc.source_folder, os.path.basename(TEST_TIF_URL)),

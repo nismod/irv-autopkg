@@ -279,13 +279,13 @@ class HazardAqueduct:
             try:
                 # Skip if pattern matches skip cases
                 if any(checkstr in fname for checkstr in self.skip_fname_patterns):
-                    print(f"Skipping {fname} due to substring in skip-list")
+                    LOG.info("Skipping %s due to substring in skip-list", fname)
                     continue
                 # Generate the meta from filename
                 file_meta = self.parse_fname(fname)
                 file_meta["meta"]["key"] = os.path.splitext(fname)[0]
             except Exception as err:
-                print("failed to parse file:", fname, err)
+                LOG.error("failed to parse file: %s, %s", fname, err)
             output.append(file_meta)
         return output
 
@@ -339,13 +339,12 @@ class HazardAqueduct:
                 )
                 file_meta["filesize"] = filesize
                 file_meta["path"] = target_fpath
-                print(
-                    "Downloaded {} of {}, filesize (mb): {}".format(
+                LOG.info(
+                    "Downloaded %s of %s, filesize (mb): %s",
                         idx + 1, len(files_meta), file_meta["filesize"] / 1000000
                     )
-                )
             except Exception as err:
-                print("failed to download", file_meta["filename"], err)
+                LOG.error("failed to download %s, %s", file_meta["filename"], err)
         return files_meta
 
     def hazard_csv_exists(self) -> bool:
