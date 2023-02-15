@@ -3,7 +3,9 @@ Processor Task Wrappers
 """
 from typing import Any, List
 from contextlib import contextmanager
+import logging
 
+from celery import signals
 from celery.utils.log import get_task_logger
 from redis import Redis
 
@@ -49,6 +51,16 @@ def task_signature(boundary_name: str, processor: str):
     """
     return f"{boundary_name}.{processor}"
 
+
+@signals.after_setup_task_logger.connect
+def quieter_fiona_logging(logger, *args, **kwargs):
+    """
+    Fiona package is really verbose at DEBUG - 
+        e.g. it logs every line of a processed CSV,
+        so we turn it down here
+    """
+    logging.getLogger("fiona").propagate = False
+    
 
 # SETUP TASK
 @CELERY_APP.task()
@@ -97,6 +109,9 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
     ::param sink Any Sink for result of previous processor in the group
     """
     logger = get_task_logger(__name__)
+    
+    # logging.getLogger("fiona").propagate = False
+    
     task_sig = task_signature(boundary["name"], processor_name_version)
     try:
         with redis_lock(task_sig) as acquired:

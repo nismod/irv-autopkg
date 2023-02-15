@@ -261,7 +261,7 @@ class Processor(BaseProcessorABC):
                 except Exception as err:
                     # remove the file and flag we should need to re-fetch, then move on
                     self.log.warning(
-                        "%s source file %s appears to be invalid - removing due to %s",
+                        "%s source file %s appears to be invalid due to %s",
                         Metadata().name,
                         fpath,
                         err
@@ -276,7 +276,7 @@ class Processor(BaseProcessorABC):
                 except Exception as err:
                     # remove the file and flag we should need to re-fetch, then move on
                     self.log.warning(
-                        "%s source file %s appears to be invalid - removing due to %s",
+                        "%s source file %s appears to be invalid due to %s",
                         Metadata().name,
                         fpath,
                         err

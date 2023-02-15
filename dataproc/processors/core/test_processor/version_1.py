@@ -21,7 +21,7 @@ from dataproc.helpers import (
     create_test_file,
     data_file_hash,
     datapackage_resource,
-    processor_name_from_file,
+    processor_name_from_file
 )
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
