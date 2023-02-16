@@ -13,7 +13,7 @@ from config import (
     LOCALFS_STORAGE_BACKEND_ROOT,
     PACKAGES_HOST_URL,
 )
-from dataproc.helpers import processor_name, dataset_name_from_processor
+from dataproc.helpers import processor_name
 from dataproc.exceptions import (
     PackageNotFoundException,
     DatasetNotFoundException,
@@ -23,7 +23,6 @@ from dataproc.backends.storage import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
 from api.helpers import (
     handle_exception,
-    currently_active_or_reserved_processors,
     processor_meta,
     build_package_url,
     build_dataset_version_url,
@@ -76,36 +75,11 @@ async def get_packages():
 @router.get(PACKAGE_ROUTE, response_model=Package)
 async def get_package(boundary_name: str):
     """
-    Retrieve information a specific package (which has been created from a given boundary)
-
-    Datasets are either executing (being generated),  completed (exist on the FS), or do not exist.
+    Retrieve information about a specific package (which has been created from a given boundary)
     """
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
         output_processors = []
-
-        # Check for executing or queued tasks (processor.versions)
-        internal_processors = currently_active_or_reserved_processors(boundary_name)
-        logger.debug("found executing processors: %s", internal_processors)
-        executing_versions = {}
-        for processor_name_version in internal_processors:
-            dataset = dataset_name_from_processor(processor_name_version)
-            meta = processor_meta(processor_name_version, executing=True)
-            # Set the URI
-            meta.uri = build_dataset_version_url(
-                PACKAGES_HOST_URL,
-                boundary_name,
-                dataset,
-                meta.processor.version,
-            )
-            if dataset not in executing_versions.keys():
-                executing_versions[dataset] = [meta]
-            else:
-                executing_versions[dataset].append(meta)
-        # Collate into Datasets for output schema
-        for dataset, versions in executing_versions.items():
-            output_processors.append(SchemaProcessor(name=dataset, versions=versions))
-
         # Check for existing datasets
         existing_datasets = storage_backend.package_datasets(boundary_name)
         # One to one mapping between dataset.version name and the processor version name that creates it
@@ -147,7 +121,6 @@ async def get_package(boundary_name: str):
                     version,
                     dataset,
                 )
-
         # If there are no executing processors, nor existing datasets then return a 404 for this package
         if not output_processors:
             raise PackageHasNoDatasetsException(boundary_name)
@@ -167,13 +140,13 @@ async def get_package(boundary_name: str):
             uri=build_package_url(PACKAGES_HOST_URL, boundary_name),
             boundary=boundary,
             processors=output_processors,
-            datapackage=datapackage if datapackage else {}
+            datapackage=datapackage if datapackage else {},
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
     except CannotGetCeleryTasksInfoException as err:
         handle_exception(logger, err)
-        raise HTTPException(status_code=500, detail=f"")
+        raise HTTPException(status_code=500)
     except PackageNotFoundException as err:
         handle_exception(logger, err)
         raise HTTPException(

@@ -15,12 +15,12 @@ from dataproc.helpers import assert_geotiff
 from tests.helpers import (
     load_country_geojson,
     assert_raster_bounds_correct,
-    setup_test_data_paths,
-    assert_datapackage_resource
+    assert_datapackage_resource,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+    DummyTaskExecutor,
 )
 from config import PACKAGES_HOST_URL
 
@@ -43,16 +43,26 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
         # Tmp and Source data
         shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
-        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"), ignore_errors=True)
+        shutil.rmtree(
+            os.path.join(cls.storage_backend.top_level_folder_path, "gambia"),
+            ignore_errors=True,
+        )
 
     def setUp(self):
-        self.proc = Processor(self.boundary, self.storage_backend)
+        self.task_executor = DummyTaskExecutor()
+        self.meta = Metadata()
+        self.proc = Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        )
         # Change the expected zip URL so we just download the tile over gambia
         self.proc.zip_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2022A/GHS_POP_E2020_GLOBE_R2022A_54009_1000/V1-0/tiles/GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0_R8_C17.zip"
-        self.proc.source_fnames = ['GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0_R8_C17.zip']
-        # __NOTE__: Reset the paths helper to reflect the test environment for processing root
-        setup_test_data_paths(self.proc, self.test_processing_data_dir)
-        self.meta = Metadata()
+        self.proc.source_fnames = [
+            "GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0_R8_C17.zip"
+        ]
 
     def test_processor_init(self):
         """"""
@@ -60,13 +70,24 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
 
     def test_context_manager(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             self.assertIsInstance(proc, Processor)
 
     def test_context_manager_cleanup_on_error(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
-            setup_test_data_paths(self.proc, self.test_processing_data_dir)
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             test_fpath = os.path.join(proc.tmp_processing_folder, "testfile")
             # Add a file into the tmp processing backend
             with open(test_fpath, "w") as fptr:
@@ -92,13 +113,21 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
         self.proc.total_expected_files = 1
         prov_log = self.proc.generate()
         # Assert the log contains successful entries
-        self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # Collect the URIs for the final Raster
-        final_uri = prov_log[f"{Metadata().name} - result URI"]
+        final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         # # Assert the geotiffs are valid
-        assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), check_crs="ESRI:54009")
+        assert_geotiff(
+            final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+            check_crs="ESRI:54009",
+        )
         # # Assert the envelopes - NOTE: this will assert the Molleweide bounds
-        assert_raster_bounds_correct(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), self.boundary["envelope_geojson"])
+        assert_raster_bounds_correct(
+            final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+            self.boundary["envelope_geojson"],
+        )
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
-        assert_datapackage_resource(prov_log['datapackage'])
+        assert_datapackage_resource(prov_log["datapackage"])

@@ -7,15 +7,17 @@ import inspect
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from celery.result import GroupResult, AsyncResult, ResultBase
 
-from config import LOG_LEVEL, CELERY_APP
+from config import LOG_LEVEL, CELERY_APP, TASK_EXPIRY_SECS
 from dataproc import Boundary as DataProcBoundary
 from dataproc.helpers import get_processor_by_name
 from api import schemas
 from api.helpers import (
     handle_exception,
     create_dag,
-    random_task_uuid
+    random_task_uuid,
+    extract_group_state_info,
 )
 from api.routes import JOB_STATUS_ROUTE, JOBS_BASE_ROUTE
 from api.exceptions import (
@@ -23,7 +25,7 @@ from api.exceptions import (
     ProcessorNotFoundException,
     JobNotFoundException,
     ProcessorAlreadyExecutingException,
-    CannotGetCeleryTasksInfoException
+    CannotGetCeleryTasksInfoException,
 )
 from api.db import DBController
 
@@ -36,26 +38,51 @@ logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
 
-@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobStatus)
+def extract_job_id(node):
+    """
+    Iterate through the DAG to retrieve the GroupResult and make sure its saved
+
+    Return the second result ID - which is always the processor task,
+        whether group result or async result
+    """
+    proc_id = None
+    dag_node = node
+    while node.parent:
+        if isinstance(node, GroupResult):
+            node.save()
+            proc_id = node.id
+        node = node.parent
+    if not proc_id:
+        # Processors always the second in DAG
+        proc_id = dag_node.parent.id
+    return proc_id
+
+
+@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus)
 def get_status(job_id: str):
     """Get status of a DAG associated with a given package"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        job_status = CELERY_APP.backend.get_status(job_id)
-        # Note - non existant tasks that are assumed as pending (i.e. a random UUID)
-        job_result = CELERY_APP.backend.get_result(job_id)
-        logger.debug("Job Status: %s, Job Result: %s", job_status, job_result)
-        if not job_status:
-            raise JobNotFoundException(f"{job_id}")
-        result = schemas.JobStatus(
-            job_id=job_id,
-            job_status=str(job_status),
-            job_result=job_result
-            if isinstance(job_result, dict)
-            else {"result": str(job_result)},
+        # Single processor tasks are AsyncResult instead of GroupResult
+        # Collect the current status of the Group result within the DAG (the processor tasks)
+        group_result = CELERY_APP.GroupResult.restore(
+            job_id, backend=CELERY_APP.backend
         )
-        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
-        return result
+        if not group_result:
+            # Attempt to get it as a single result
+            result = AsyncResult(job_id, CELERY_APP.backend)
+            if not result:
+                raise JobNotFoundException(f"{job_id}")
+            group_result = GroupResult(job_id, [result], ResultBase())
+        # Remove Boundary processor from each jobs info
+        logger.debug(
+            "Group Status: %s",
+            [[result.state, result.info] for result in group_result.results],
+        )
+        # Create response object
+        response = extract_group_state_info(group_result)
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], response)
+        return response
     except JobNotFoundException as err:
         handle_exception(logger, err)
         raise HTTPException(status_code=404, detail=f"Job not found: {str(err)}")
@@ -83,8 +110,13 @@ async def submit_processing_job(job: schemas.Job, status_code=status.HTTP_202_AC
                 )
         dag = create_dag(boundary_dataproc, job.processors)
         # Run DAG
-        res = dag.apply_async(task_id=random_task_uuid())
-        result = schemas.SubmittedJob(job_id=res.id)
+        dag_node = dag.apply_async(
+            task_id=random_task_uuid(), retry=False, expires=TASK_EXPIRY_SECS
+        )
+        # Extract the GroupResult task ID if multiple Processors have been requested,
+        # otherwise its an AsyncResult
+        processor_group_id = extract_job_id(dag_node)
+        result = schemas.SubmittedJob(job_id=processor_group_id)
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         encoded_result = jsonable_encoder(result)
         return JSONResponse(status_code=status_code, content=encoded_result)

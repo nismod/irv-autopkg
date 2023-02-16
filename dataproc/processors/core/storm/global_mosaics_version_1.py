@@ -3,18 +3,14 @@ STORM (Global Mosaics Version 1) Processor
 """
 
 import os
-import logging
 import inspect
 from typing import List
-import shutil
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.backends import StorageBackend
-from dataproc.backends.base import PathsHelper
-from dataproc import Boundary, DataPackageLicense
+from dataproc import DataPackageLicense
 from dataproc.helpers import (
     processor_name_from_file,
     version_name_from_file,
@@ -29,7 +25,6 @@ from dataproc.helpers import (
     tiffs_in_folder,
 )
 from dataproc.exceptions import FolderNotFoundException
-from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
 class Metadata(BaseMetadataABC):
@@ -62,45 +57,13 @@ class Processor(BaseProcessorABC):
     index_filename = "index.html"
     license_filename = "license.html"
 
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
-        """"""
-        self.boundary = boundary
-        self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(
-            os.path.join(
-                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
-            )
-        )
-        self.provenance_log = {}
-        self.log = logging.getLogger(__name__)
-        # Source folder will persist between processor runs
-        self.source_folder = self.paths_helper.build_absolute_path("source_data")
-        os.makedirs(self.source_folder, exist_ok=True)
-        # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
-        # Custom init vars for this processor
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Cleanup any resources as required"""
-        self.log.debug(
-            "cleaning processing data on exit, exc: %s, %s, %s",
-            exc_type,
-            exc_val,
-            exc_tb,
-        )
-        try:
-            shutil.rmtree(self.tmp_processing_folder)
-        except FileNotFoundError:
-            pass
-
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
         try:
             count_on_backend = self.storage_backend.count_boundary_data_files(
                 self.boundary["name"],
-                Metadata().name,
-                Metadata().version,
+                self.metadata.name,
+                self.metadata.version,
                 datafile_ext=".tif",
             )
         except FolderNotFoundException:
@@ -110,31 +73,35 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[Metadata().name] = "exists"
+            self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
                 self.storage_backend.remove_boundary_data_files(
                     self.boundary["name"],
-                    Metadata().name,
-                    Metadata().version,
+                    self.metadata.name,
+                    self.metadata.version,
                 )
             except FolderNotFoundException:
                 pass
         # Check if the source TIFF exists and fetch it if not
+        self.update_progress(10, "fetching source")
         source_fpaths = self._fetch_source()
 
-        self.log.debug("%s - cropping geotiffs", Metadata().name)
+        self.log.debug("%s - cropping geotiffs", self.metadata.name)
         results_fpaths = []
-        for source_fpath in source_fpaths:
+        for idx, source_fpath in enumerate(source_fpaths):
+            self.update_progress(
+                10 + int(idx * (80 / len(source_fpaths))), "cropping source"
+            )
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
             )
             crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(
                 "%s crop %s - success: %s",
-                Metadata().name,
+                self.metadata.name,
                 os.path.basename(source_fpath),
                 crop_success,
             )
@@ -149,36 +116,38 @@ class Processor(BaseProcessorABC):
         # Check results look sensible
         assert (
             len(results_fpaths) == self.total_expected_files
-        ), f"{Metadata().name} - number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
+        ), f"{self.metadata.name} - number of successfully cropped files {len(results_fpaths)} do not match expected {self.total_expected_files}"
 
-        self.log.debug("%s - moving cropped data to backend", Metadata().name)
+        self.update_progress(85, "moving result")
+        self.log.debug("%s - moving cropped data to backend", self.metadata.name)
         result_uris = []
         for result in results_fpaths:
             result_uri = self.storage_backend.put_processor_data(
                 result["fpath"],
                 self.boundary["name"],
-                Metadata().name,
-                Metadata().version,
+                self.metadata.name,
+                self.metadata.version,
             )
             result_uris.append(result_uri)
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = (
+        self.provenance_log[f"{self.metadata.name} - move to storage success"] = (
             len(result_uris) == self.total_expected_files
         )
-        self.provenance_log[f"{Metadata().name} - result URIs"] = ",".join(result_uris)
+        self.provenance_log[f"{self.metadata.name} - result URIs"] = ",".join(result_uris)
 
         # Generate documentation on backend
+        self.update_progress(90, "generate documentation & datapackage")
         self.generate_documentation()
 
         # Generate datapackage in log (using directory for URI)
         datapkg = generate_datapackage(
-            Metadata(),
+            self.metadata,
             result_uris,
             "GeoTiFF",
             [i["size"] for i in results_fpaths],
             [i["hash"] for i in results_fpaths],
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
+        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
 
         return self.provenance_log
 
@@ -189,28 +158,28 @@ class Processor(BaseProcessorABC):
         index_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.index_filename,
         )
         index_create = generate_index_file(
-            self.storage_backend, index_fpath, self.boundary["name"], Metadata()
+            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
         )
         self.provenance_log[
-            f"{Metadata().name} - created index documentation"
+            f"{self.metadata.name} - created index documentation"
         ] = index_create
         license_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.license_filename,
         )
         license_create = generate_license_file(
-            self.storage_backend, license_fpath, self.boundary["name"], Metadata()
+            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
         )
         self.provenance_log[
-            f"{Metadata().name} - created license documentation"
+            f"{self.metadata.name} - created license documentation"
         ] = license_create
-        self.log.debug("%s generated documentation on backend", Metadata().name)
+        self.log.debug("%s generated documentation on backend", self.metadata.name)
 
     def _fetch_source(self) -> List[str]:
         """
@@ -222,16 +191,16 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", Metadata().name
+                "%s - all source files appear to exist and are valid", self.metadata.name
             )
             return tiffs_in_folder(self.source_folder, full_paths=True)
         else:
             source_fpaths = fetch_zenodo_doi(self.zenodo_doi, self.source_folder)
             # Count the Tiffs
-            self.log.debug("%s - Download Complete", Metadata().name)
+            self.log.debug("%s - Download Complete", self.metadata.name)
             assert (
                 len(source_fpaths) == self.total_expected_files
-            ), f"after {Metadata().name} download - not all source files were present"
+            ), f"after {self.metadata.name} download - not all source files were present"
             return source_fpaths
 
     def _all_source_exists(self, remove_invalid=True) -> bool:
@@ -251,7 +220,7 @@ class Processor(BaseProcessorABC):
                     # remove the file and flag we should need to re-fetch, then move on
                     self.log.warning(
                         "%s source file appears to be invalid - removing",
-                        Metadata().name,
+                        self.metadata.name,
                     )
                     if remove_invalid:
                         if os.path.exists(fpath):

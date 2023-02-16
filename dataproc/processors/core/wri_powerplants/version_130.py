@@ -3,13 +3,9 @@ Vector Processor for WRI Global Powerplants
 """
 
 import os
-import logging
 import inspect
-import shutil
 
-from dataproc.backends import StorageBackend
-from dataproc.backends.base import PathsHelper
-from dataproc import Boundary, DataPackageLicense
+from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
@@ -25,7 +21,6 @@ from dataproc.helpers import (
     gp_crop_file_to_geopkg,
     assert_vector_file,
 )
-from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
 class Metadata(BaseMetadataABC):
@@ -57,89 +52,62 @@ class Processor(BaseProcessorABC):
     source_file = "global_power_plant_database.gpkg"
     expected_source_gpkg_shape = (34936, 37)
 
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
-        """"""
-        self.boundary = boundary
-        self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(
-            os.path.join(
-                LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name, Metadata().version
-            )
-        )
-        self.provenance_log = {}
-        self.log = logging.getLogger(__name__)
-        # Source folder will persist between processor runs
-        self.source_folder = self.paths_helper.build_absolute_path("source_data")
-        os.makedirs(self.source_folder, exist_ok=True)
-        # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Cleanup any resources as required"""
-        self.log.debug(
-            "cleaning processing data on exit, exc: %s, %s, %s",
-            exc_type,
-            exc_val,
-            exc_tb,
-        )
-        try:
-            shutil.rmtree(self.tmp_processing_folder)
-        except FileNotFoundError:
-            pass
-
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
         return self.storage_backend.processor_file_exists(
             self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+            self.metadata.name,
+            self.metadata.version,
             f"{self.boundary['name']}.gpkg",
         )
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[Metadata().name] = "exists"
+            self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         # Setup output path in the processing backend
         output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], Metadata().name, Metadata().version, "outputs"
+            self.boundary["name"], self.metadata.name, self.metadata.version, "outputs"
         )
         os.makedirs(output_folder, exist_ok=True)
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
         # Fetch source as required
+        self.update_progress(10, "fetching source")
         source_gpkg_fpath = self._fetch_source()
 
         # Crop to given boundary
-        self.log.debug("%s - cropping to geopkg", Metadata().name)
+        self.update_progress(50, "cropping source")
+        self.log.debug("%s - cropping to geopkg", self.metadata.name)
         crop_result = gp_crop_file_to_geopkg(
             source_gpkg_fpath, self.boundary, output_fpath, mask_type="boundary"
         )
 
-        self.provenance_log[f"{Metadata().name} - crop completed"] = crop_result
+        self.provenance_log[f"{self.metadata.name} - crop completed"] = crop_result
         # Move cropped data to backend
-        self.log.debug("%s - moving cropped data to backend", {Metadata().name})
+        self.update_progress(50, "moving result")
+        self.log.debug("%s - moving cropped data to backend", {self.metadata.name})
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+            self.metadata.name,
+            self.metadata.version,
         )
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = True
-        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+        self.provenance_log[f"{self.metadata.name} - move to storage success"] = True
+        self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
 
+        self.update_progress(80, "generate documentation & datapackage")
         self.generate_documentation()
 
         # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
         datapkg = generate_datapackage(
-            Metadata(), [result_uri], "GEOPKG", sizes, hashes
+            self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
+        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
         # Cleanup as required
         return self.provenance_log
 
@@ -150,28 +118,28 @@ class Processor(BaseProcessorABC):
         index_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.index_filename,
         )
         index_create = generate_index_file(
-            self.storage_backend, index_fpath, self.boundary["name"], Metadata()
+            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
         )
         self.provenance_log[
-            f"{Metadata().name} - created index documentation"
+            f"{self.metadata.name} - created index documentation"
         ] = index_create
         license_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.license_filename,
         )
         license_create = generate_license_file(
-            self.storage_backend, license_fpath, self.boundary["name"], Metadata()
+            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
         )
         self.provenance_log[
-            f"{Metadata().name} - created license documentation"
+            f"{self.metadata.name} - created license documentation"
         ] = license_create
-        self.log.debug("%s generated documentation on backend", Metadata().name)
+        self.log.debug("%s generated documentation on backend", self.metadata.name)
 
     def _fetch_source(self) -> str:
         """
@@ -183,16 +151,16 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", Metadata().name
+                "%s - all source files appear to exist and are valid", self.metadata.name
             )
             return os.path.join(self.source_folder, self.source_file)
         # Fetch the source zip
-        self.log.debug("%s - fetching zip", Metadata().name)
+        self.log.debug("%s - fetching zip", self.metadata.name)
         local_zip_fpath = self._fetch_zip()
-        self.log.debug("%s - fetched zip to %s", Metadata().name, local_zip_fpath)
-        self.provenance_log[f"{Metadata().name} - zip download path"] = local_zip_fpath
+        self.log.debug("%s - fetched zip to %s", self.metadata.name, local_zip_fpath)
+        self.provenance_log[f"{self.metadata.name} - zip download path"] = local_zip_fpath
         # Unpack
-        self.log.debug("%s - unpacking zip", Metadata().name)
+        self.log.debug("%s - unpacking zip", self.metadata.name)
         unpack_zip(local_zip_fpath, self.tmp_processing_folder)
         # Convert CSV to GPKG
         csv_fpath = os.path.join(
@@ -200,7 +168,7 @@ class Processor(BaseProcessorABC):
         )
         gpkg_fpath = os.path.join(self.source_folder, self.source_file)
         # Load to geopkg
-        self.log.debug("%s - converting source CSV to GPKG", Metadata().name)
+        self.log.debug("%s - converting source CSV to GPKG", self.metadata.name)
         converted = csv_to_gpkg(
             csv_fpath,
             gpkg_fpath,
@@ -209,7 +177,7 @@ class Processor(BaseProcessorABC):
             longitude_col="longitude",
         )
         self.log.info(
-            "%s - CSV conversion to source GPKG success: %s", Metadata().name, converted
+            "%s - CSV conversion to source GPKG success: %s", self.metadata.name, converted
         )
 
         return gpkg_fpath
@@ -230,7 +198,7 @@ class Processor(BaseProcessorABC):
         )
         assert (
             data_file_hash(zip_fpath) == self.expected_zip_hash
-        ), f"{Metadata().name} downloaded zip file hash did not match expected"
+        ), f"{self.metadata.name} downloaded zip file hash did not match expected"
         return zip_fpath
 
     def _all_source_exists(self, remove_invalid=True) -> bool:
@@ -250,7 +218,7 @@ class Processor(BaseProcessorABC):
             # remove the file and flag we should need to re-fetch, then move on
             self.log.warning(
                 "%s source file %s appears to be invalid - due to %s",
-                Metadata().name,
+                self.metadata.name,
                 fpath,
                 err,
             )

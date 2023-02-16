@@ -9,7 +9,6 @@ from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from tests.helpers import (
     load_country_geojson,
     assert_raster_bounds_correct,
-    setup_test_data_paths,
     assert_datapackage_resource,
 )
 from dataproc import Boundary
@@ -21,6 +20,7 @@ from dataproc.helpers import assert_geotiff
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+    DummyTaskExecutor,
 )
 from config import PACKAGES_HOST_URL
 
@@ -46,10 +46,15 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
         shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
 
     def setUp(self):
-        self.proc = Processor(self.boundary, self.storage_backend)
-        # __NOTE__: Reset the paths helper to reflect the test environment for processing root
-        setup_test_data_paths(self.proc, self.test_processing_data_dir)
+        self.task_executor = DummyTaskExecutor()
         self.meta = Metadata()
+        self.proc = Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        )
 
     def test_processor_init(self):
         """"""
@@ -57,13 +62,24 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
 
     def test_context_manager(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             self.assertIsInstance(proc, Processor)
 
     def test_context_manager_cleanup_on_error(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
-            setup_test_data_paths(self.proc, self.test_processing_data_dir)
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             test_fpath = os.path.join(proc.tmp_processing_folder, "testfile")
             # Add a file into the tmp processing backend
             with open(test_fpath, "w") as fptr:
@@ -92,10 +108,10 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
             pass
         prov_log = self.proc.generate()
         # Assert the log contains a succesful entries
-        self.assertTrue(prov_log[f"{Metadata().name} - crop success"])
-        self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
+        self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop success"])
+        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
         # Collect the URI for the final Raster
-        final_uri = prov_log[f"{Metadata().name} - result URI"]
+        final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         # Assert the geotiff is valid
         assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
         # Assert the envelope
