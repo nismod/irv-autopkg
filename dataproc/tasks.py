@@ -10,6 +10,7 @@ from celery.utils.log import get_task_logger
 from redis import Redis
 
 from config import (
+    LOG_LEVEL,
     CELERY_APP,
     TASK_LOCK_TIMEOUT,
     STORAGE_BACKEND,
@@ -59,6 +60,11 @@ def quieter_fiona_logging(logger, *args, **kwargs):
         so we turn it down here
     """
     logging.getLogger("fiona").propagate = False
+
+@signals.after_setup_logger.connect
+def config_logging(logger, *args, **kwargs):
+    """"""
+    logger.setLevel(LOG_LEVEL)
 
 
 # SETUP TASK
