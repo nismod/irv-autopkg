@@ -8,6 +8,7 @@ import logging
 import sqlalchemy as sa
 from celery import Celery
 
+
 def get_db_uri(
     dbname: str,
     username_env="AUTOPKG_POSTGRES_USER",
@@ -24,6 +25,7 @@ def get_db_uri(
         port=getenv(port_env),
         database=dbname,
     )
+
 
 def get_db_uri_ogr(
     dbname: str,
@@ -52,7 +54,7 @@ def get_db_uri_sync(
     password_env="AUTOPKG_POSTGRES_PASSWORD",
     host_env="AUTOPKG_POSTGRES_HOST",
     port_env="AUTOPKG_POSTGRES_PORT",
-    ) -> sa.engine.URL:
+) -> sa.engine.URL:
     """Standard user DBURI - non-async"""
     return sa.engine.URL.create(
         drivername="postgresql+psycopg2",
@@ -62,6 +64,7 @@ def get_db_uri_sync(
         port=getenv(port_env),
         database=dbname,
     )
+
 
 # DATAPROC VARS
 REDIS_HOST = getenv("AUTOPKG_REDIS_HOST", "localhost")
@@ -79,6 +82,7 @@ INTEGRATION_TEST_ENDPOINT = getenv(
 # Celery Env
 CELERY_BROKER = getenv("AUTOPKG_CELERY_BROKER", "redis://localhost")
 CELERY_BACKEND = getenv("AUTOPKG_CELERY_BACKEND", "redis://localhost")
+CELERY_CONCURRENCY = int(getenv("AUTOPKG_CELERY_CONCURRENCY", "2"))
 REDIS_HOST = getenv("AUTOPKG_REDIS_HOST", "localhost")
 TASK_LOCK_TIMEOUT = getenv("AUTOPKG_TASK_LOCK_TIMEOUT", "600")
 
@@ -98,9 +102,15 @@ STORAGE_BACKEND = getenv("AUTOPKG_STORAGE_BACKEND", "localfs")
 if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
     # TEST
     # The root-level folder when using localfs storage backend
-    LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"))
+    LOCALFS_STORAGE_BACKEND_ROOT = getenv(
+        "AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST",
+        path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"),
+    )
     # The root-level folder when using localfs processing backend
-    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "processing"))
+    LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
+        "AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST",
+        path.join(path.dirname(path.abspath(__file__)), "tests", "data", "processing"),
+    )
     # Integration tests which require access to the GRIOSM Postgres instance will be run if this is set-True (1)
     TEST_GRI_OSM = bool(int(getenv("TEST_GRI_OSM", "0")))
 else:
@@ -117,10 +127,11 @@ NAME_SEARCH_DISTANCE = int(getenv("AUTOPKG_NAME_SEARCH_DISTANCE", "2"))
 DBURI_API = get_db_uri(API_POSTGRES_DB)
 CELERY_APP = Celery(
     "AutoPackage",
-    worker_prefetch_multiplier=1,
+    worker_prefetch_multiplier=1,  # Do not change - long running tasks require this. See: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
+    worker_concurrency=CELERY_CONCURRENCY,
     broker_url=CELERY_BROKER,
-    result_backend=CELERY_BACKEND
-)  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
+    result_backend=CELERY_BACKEND,
+)
 
 # Seconds before submitted tasks expire
-TASK_EXPIRY_SECS = int(getenv("TASK_EXPIRY_SECS", "3600"))
+TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
