@@ -74,7 +74,7 @@ class Processor(BaseProcessorABC):
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
         # Fetch source as required
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         source_gpkg_fpath = self._fetch_source()
 
         # Crop to given boundary

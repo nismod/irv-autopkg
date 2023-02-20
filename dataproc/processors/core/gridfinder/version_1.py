@@ -85,7 +85,7 @@ class Processor(BaseProcessorABC):
             except FolderNotFoundException:
                 pass
         # Check if the source TIFF exists and fetch it if not
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         source_fpaths = self._fetch_source()
 
         self.log.debug("%s - cropping source", self.metadata.name)

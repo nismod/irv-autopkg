@@ -93,7 +93,7 @@ class Processor(BaseProcessorABC):
             except FolderNotFoundException:
                 pass
         # Check if the source TIFF exists and fetch it if not
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         self._fetch_source()
 
         # Remove partial previous tmp results if they exist

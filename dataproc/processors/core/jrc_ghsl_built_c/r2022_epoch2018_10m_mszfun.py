@@ -115,7 +115,7 @@ class Processor(BaseProcessorABC):
             self.metadata.name,
             self.source_folder,
         )
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         source_fpaths = self._fetch_source()
         # Process MSZ and FUN
         self.log.debug("%s - cropping geotiffs", self.metadata.name)
