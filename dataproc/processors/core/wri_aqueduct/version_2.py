@@ -248,7 +248,8 @@ class Processor(BaseProcessorABC):
                     self.log.warning(
                         "Aqueduct source file appears to be invalid - removing"
                     )
-                    if os.path.exists(fpath):
-                        os.remove(fpath)
+                    if remove_invalid is True:
+                        if os.path.exists(fpath):
+                            os.remove(fpath)
                     source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)
