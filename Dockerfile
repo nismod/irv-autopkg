@@ -23,5 +23,9 @@ ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/"
 # copy project
 COPY . .
 
+# Setup the Executing User
+RUN addgroup autopkg && adduser -SHD autopkg -G autopkg && \
+    chown -R autopkg:autopkg /usr/src/app
+
 # Run unit tests
 RUN python3 -m unittest discover /usr/src/app/tests/dataproc/unit
