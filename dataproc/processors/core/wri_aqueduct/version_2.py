@@ -93,7 +93,7 @@ class Processor(BaseProcessorABC):
             except FolderNotFoundException:
                 pass
         # Check if the source TIFF exists and fetch it if not
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         self._fetch_source()
 
         # Remove partial previous tmp results if they exist
@@ -248,7 +248,8 @@ class Processor(BaseProcessorABC):
                     self.log.warning(
                         "Aqueduct source file appears to be invalid - removing"
                     )
-                    if os.path.exists(fpath):
-                        os.remove(fpath)
+                    if remove_invalid is True:
+                        if os.path.exists(fpath):
+                            os.remove(fpath)
                     source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)

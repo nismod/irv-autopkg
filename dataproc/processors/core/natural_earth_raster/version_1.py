@@ -71,7 +71,7 @@ class Processor(BaseProcessorABC):
             self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         # Check if the source TIFF exists and fetch it if not
-        self.update_progress(10,"fetching source")
+        self.update_progress(10,"fetching and verifying source")
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
         self.update_progress(50,"cropping source")

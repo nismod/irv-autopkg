@@ -90,7 +90,7 @@ class Processor(BaseProcessorABC):
             self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         # Check if the source exists and fetch it if not
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         pg_table_name = self._fetch_source()
         # Crop to given boundary
         output_folder = self.paths_helper.build_absolute_path(

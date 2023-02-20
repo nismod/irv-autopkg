@@ -93,7 +93,7 @@ class Processor(BaseProcessorABC):
             self.metadata.name,
             self.source_folder,
         )
-        self.update_progress(10, "fetching source")
+        self.update_progress(10, "fetching and verifying source")
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
             self.tmp_processing_folder, os.path.basename(source_fpath)

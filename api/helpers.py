@@ -3,10 +3,7 @@ API Helpers
 """
 
 import traceback
-import json
-import base64
-from typing import Any, List, Tuple, Union
-import urllib.parse
+from typing import Any, List
 
 from celery import group
 from celery.result import GroupResult
@@ -281,14 +278,11 @@ def currently_active_or_reserved_processors(boundary_name: str) -> List[str]:
 
 def build_package_url(packages_host_url: str, boundary_name: str) -> str:
     """Build the url to top-level package directory for a given boundary"""
-    return urllib.parse.urljoin(packages_host_url, f"{boundary_name}/")
+    return f"{packages_host_url}/{boundary_name}/"
 
 
 def build_dataset_version_url(
     packages_host_url: str, boundary_name: str, dataset_name: str, dataset_version: str
 ) -> str:
     """Build the url a dataset version directory for a given boundary"""
-    return urllib.parse.urljoin(
-        packages_host_url,
-        f"{boundary_name}/datasets/{dataset_name}/{dataset_version}/",
-    )
+    return f"{packages_host_url}/{boundary_name}/datasets/{dataset_name}/{dataset_version}/"
