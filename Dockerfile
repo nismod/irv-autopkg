@@ -24,7 +24,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/"
 COPY . .
 
 # Setup the Executing User
-RUN addgroup autopkg && adduser -SHD autopkg -G autopkg && \
+RUN addgroup -g 1002 autopkg && adduser -SHD autopkg -u 1002 -G autopkg && \
     chown -R autopkg:autopkg /usr/src/app
 
 # Run unit tests

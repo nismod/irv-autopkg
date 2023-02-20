@@ -42,7 +42,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.2
+    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
     user: autopkg
     build: .
     volumes:
@@ -55,7 +55,7 @@ services:
     command: celery --app dataproc.tasks worker
 
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.2
+    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
