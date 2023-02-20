@@ -51,7 +51,7 @@ services:
       - ./tests/data/tmp:/usr/src/app/tests/data/tmp
     env_file:
       - envs/.api_and_dataproc.env
-    command: celery --app dataproc.tasks worker --loglevel=debug --concurrency=4
+    command: celery --app dataproc.tasks worker
 
   api:
     image: ghcr.io/nismod/irv-autopkg:0.2.0-dev
