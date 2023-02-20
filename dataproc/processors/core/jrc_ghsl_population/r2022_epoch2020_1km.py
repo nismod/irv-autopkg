@@ -3,7 +3,6 @@ JRC Population Processor
 """
 
 import os
-import logging
 import inspect
 import shutil
 
@@ -11,9 +10,7 @@ from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.backends import StorageBackend
-from dataproc.backends.base import PathsHelper
-from dataproc import Boundary, DataPackageLicense
+from dataproc import DataPackageLicense
 from dataproc.helpers import (
     processor_name_from_file,
     version_name_from_file,
@@ -21,11 +18,12 @@ from dataproc.helpers import (
     assert_geotiff,
     data_file_hash,
     data_file_size,
-    datapackage_resource,
+    generate_datapackage,
+    generate_index_file,
+    generate_license_file,
 )
 from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
-from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
 class Metadata(BaseMetadataABC):
@@ -33,7 +31,9 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(
+        inspect.stack()[1].filename
+    )  # this must follow snakecase formatting, without special chars
     description = "A Processor for JRC GHSL Population - R2022 release, Epoch 2020, 1Km resolution"  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
@@ -52,46 +52,18 @@ class Processor(BaseProcessorABC):
     """JRC GHSL Population - R2020 - Epoch 2020 - 1Km"""
 
     total_expected_files = 1
+    source_fnames = ["GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.tif"]
     zip_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2022A/GHS_POP_E2020_GLOBE_R2022A_54009_1000/V1-0/GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.zip"
     index_filename = "index.html"
     license_filename = "license.html"
-
-    def __init__(self, boundary: Boundary, storage_backend: StorageBackend) -> None:
-        """"""
-        self.boundary = boundary
-        self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(
-            os.path.join(LOCALFS_PROCESSING_BACKEND_ROOT, Metadata().name)
-        )
-        self.provenance_log = {}
-        self.log = logging.getLogger(__name__)
-        # Source folder will persist between processor runs
-        self.source_folder = self.paths_helper.build_absolute_path("source_data")
-        os.makedirs(self.source_folder, exist_ok=True)
-        # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Cleanup any resources as required"""
-        self.log.debug(
-            "cleaning processing data on exit, exc: %s, %s, %s",
-            exc_type,
-            exc_val,
-            exc_tb,
-        )
-        try:
-            shutil.rmtree(self.tmp_processing_folder)
-        except FileNotFoundError:
-            pass
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
         try:
             count_on_backend = self.storage_backend.count_boundary_data_files(
                 self.boundary["name"],
-                Metadata().name,
-                Metadata().version,
+                self.metadata.name,
+                self.metadata.version,
                 datafile_ext=".tif",
             )
         except FolderNotFoundException:
@@ -101,122 +73,102 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[Metadata().name] = "exists"
+            self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
                 self.storage_backend.remove_boundary_data_files(
                     self.boundary["name"],
-                    Metadata().name,
-                    Metadata().version,
+                    self.metadata.name,
+                    self.metadata.version,
                 )
             except FolderNotFoundException:
                 pass
             # Cleanup anything in tmp processing
             self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
-        self.log.debug("%s - collecting source geotiffs into %s", Metadata().name, self.source_folder)
+        self.log.debug(
+            "%s - collecting source geotiffs into %s",
+            self.metadata.name,
+            self.source_folder,
+        )
+        self.update_progress(10, "fetching source")
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
             self.tmp_processing_folder, os.path.basename(source_fpath)
         )
         # Crop Source - preserve Molleweide
+        self.update_progress(50, "cropping source")
+        self.log.debug("%s - cropping source", self.metadata.name)
         crop_success = crop_raster(
             source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
         )
         self.log.debug(
             "%s %s - success: %s",
-            Metadata().name,
+            self.metadata.name,
             os.path.basename(source_fpath),
             crop_success,
         )
-        self.log.debug("%s - generating datapackage meta", Metadata().name)
-
-        self.log.debug("%s - moving cropped data to backend", Metadata().name)
+        self.update_progress(70, "moving result")
+        self.log.debug("%s - moving cropped data to backend", self.metadata.name)
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
             self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
+            self.metadata.name,
+            self.metadata.version,
         )
-
-        self.provenance_log[f"{Metadata().name} - move to storage success"] = (
+        self.provenance_log[f"{self.metadata.name} - move to storage success"] = (
             result_uri is not None
         )
-        self.provenance_log[f"{Metadata().name} - result URI"] = result_uri
+        self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
 
+        self.update_progress(80, "generate documentation & datapackage")
         # Generate documentation on backend
+        self.log.debug("%s - generating documentation", self.metadata.name)
         self.generate_documentation()
 
         # Generate datapackage in log (using directory for URI)
+        self.log.debug("%s - generating datapackage meta", self.metadata.name)
         output_hash = data_file_hash(output_fpath)
         output_size = data_file_size(output_fpath)
-        self.generate_datapackage(result_uri, output_hash, output_size)
+        datapkg = generate_datapackage(
+            self.metadata, [result_uri], "GeoTIFF", [output_size], [output_hash]
+        )
+        self.provenance_log["datapackage"] = datapkg
+        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
 
         return self.provenance_log
-
-    def generate_datapackage(self, uri: str, _hash: str, _size: int):
-        """Generate the datapackage resource for this processor
-        and append to processor log
-        """
-        # Generate the datapackage and add it to the output log
-        datapkg = datapackage_resource(Metadata(), [uri], "GeoTIFF", [_size], [_hash])
-        self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", Metadata().name, datapkg)
 
     def generate_documentation(self):
         """Generate documentation for the processor
         on the result backend"""
-        index_fpath = self._generate_index_file()
-        index_create = self.storage_backend.put_processor_metadata(
-            index_fpath,
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[
-            f"{Metadata().name} - created index documentation"
-        ] = index_create
-        license_fpath = self._generate_license_file()
-        license_create = self.storage_backend.put_processor_metadata(
-            license_fpath,
-            self.boundary["name"],
-            Metadata().name,
-            Metadata().version,
-        )
-        self.provenance_log[
-            f"{Metadata().name} - created license documentation"
-        ] = license_create
-        self.log.debug("%s generated documentation on backend", Metadata().name)
-
-    def _generate_index_file(self) -> str:
-        """
-        Generate the index documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
+        # Generate Documentation
+        index_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.index_filename,
         )
-        return template_fpath
-
-    def _generate_license_file(self) -> str:
-        """
-        Generate the License documentation file
-
-        ::returns dest_fpath str Destination filepath on the processing backend
-        """
-        template_fpath = os.path.join(
+        index_create = generate_index_file(
+            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
+        )
+        self.provenance_log[
+            f"{self.metadata.name} - created index documentation"
+        ] = index_create
+        license_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",
-            Metadata().version,
+            self.metadata.version,
             self.license_filename,
         )
-        return template_fpath
+        license_create = generate_license_file(
+            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
+        )
+        self.provenance_log[
+            f"{self.metadata.name} - created license documentation"
+        ] = license_create
+        self.log.debug("%s generated documentation on backend", self.metadata.name)
 
     def _clean_tmp_processing(self):
         """Remove the tmp processing folder and recreate"""
@@ -237,9 +189,9 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", Metadata().name
+                "%s - all source files appear to exist and are valid", self.metadata.name
             )
-            return
+            return os.path.join(self.source_folder, self.source_fnames[0])
         else:
             fetcher = JRCPopFetcher()
             source_geotif_fpath = fetcher.fetch_source(self.zip_url, self.source_folder)
@@ -252,20 +204,21 @@ class Processor(BaseProcessorABC):
         """
         source_valid = True
         count_tiffs = 0
-        for fileinfo in os.scandir(self.source_folder):
-            if os.path.splitext(fileinfo.name)[1] == ".tif":
-                fpath = os.path.join(self.source_folder, fileinfo.name)
-                try:
-                    assert_geotiff(fpath, check_compression=False)
-                    count_tiffs += 1
-                except Exception:
-                    # remove the file and flag we should need to re-fetch, then move on
-                    self.log.warning(
-                        "%s source file appears to be invalid - removing %s",
-                        Metadata().name,
-                        fpath,
-                    )
-                    if remove_invalid:
+        for source_fname in self.source_fnames:
+            fpath = os.path.join(self.source_folder, source_fname)
+            try:
+                assert_geotiff(fpath, check_compression=False, check_crs="ESRI:54009")
+                count_tiffs += 1
+            except Exception as err:
+                # remove the file and flag we should need to re-fetch, then move on
+                self.log.warning(
+                    "%s source file appears to be invalid or missing - removing %s due to %s",
+                    self.metadata.name,
+                    fpath,
+                    err,
+                )
+                if remove_invalid:
+                    if os.path.exists(fpath):
                         os.remove(fpath)
-                    source_valid = False
+                source_valid = False
         return source_valid and (count_tiffs == self.total_expected_files)

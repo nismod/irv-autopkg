@@ -73,7 +73,24 @@ class SubmittedJob(BaseModel):
     """A successfully submitted Job"""
     job_id: str
 
+class JobProgress(BaseModel):
+    """
+    Specifics about the progress of an individual Processors Job
+    """
+    percent_complete: Optional[int]=0
+    current_task: Optional[str]
+
 class JobStatus(SubmittedJob):
     """Status of a Submitted Job"""
+    processor_name: str
     job_status: str
+    job_progress: Optional[JobProgress]
     job_result: Optional[dict]
+
+class JobGroupStatus(BaseModel):
+    """
+    Status of the Processor Group in a submited DAG
+    """
+    job_group_status: str
+    job_group_percent_complete: Optional[int]=0
+    job_group_processors: List[JobStatus]

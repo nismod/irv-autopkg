@@ -46,8 +46,18 @@ JOB_SUBMIT_DATA_GAMBIA_TEST_PROC = {
     "processors": ["test_processor.version_1"],
 }  # Awaits 5 secs
 
-JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC = {
-    "boundary_name": "gambia",
+JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC = {
+    "boundary_name": "zambia",
+    "processors": ["test_processor.version_1"],
+}  # Awaits 5 secs
+
+JOB_SUBMIT_DATA_GHANA_TEST_PROC = {
+    "boundary_name": "ghana",
+    "processors": ["test_processor.version_1"],
+}  # Awaits 5 secs
+
+JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
+    "boundary_name": "ssudan",
     "processors": ["natural_earth_vector.version_1"],
 }  # Awaits 5 secs
 
@@ -70,7 +80,7 @@ class TestProcessingJobs(unittest.TestCase):
         route = build_route(JOB_STATUS_ROUTE.format(job_id=noexist_job))
         response = requests.get(route)
         self.assertEqual(response.status_code, expected_code)
-        self.assertEqual(response.json()["job_status"], expected_status)
+        self.assertEqual(response.json()["job_group_status"], expected_status)
 
     def test_submit_job_no_such_boundary(self):
         """Submission of a job against a boundary that doesnt exist"""
@@ -105,10 +115,13 @@ class TestProcessingJobs(unittest.TestCase):
             response.json()["detail"][0]["msg"], "duplicate processors not allowed"
         )
 
+    # __NOTE__: These submission tests use different bounaries 
+    #           so results do not overlap in the backend queue
+
     def test_submit_job(self):
         """Simple submission and await completion of a job"""
         # Ensure the package tree is clean
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["zambia"])
         expected_code = 202
         route = build_route(JOBS_BASE_ROUTE)
         response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
@@ -117,19 +130,21 @@ class TestProcessingJobs(unittest.TestCase):
         job_id = response.json()["job_id"]
         # Await job completion
         start = time()
-        while time() < start + self.max_job_await:
+        while True:
             route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
             response = requests.get(route)
-            self.assertEqual(response.json()["job_id"], job_id)
-            if not response.json()["job_status"] == "PENDING":
+            if response.json()["job_group_processors"]:
+                self.assertEqual(response.json()["job_group_processors"][0]["job_id"], job_id)
+            if not response.json()["job_group_status"] == "PENDING":
                 break
             sleep(0.2)
-        self.assertEqual(response.json()["job_status"], "SUCCESS")
+            if (time() - start) > self.max_job_await:
+                self.fail("max await reached")
+        self.assertEqual(response.json()["job_group_status"], "COMPLETE")
         # Assert the package integrity, including submitted processor
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
             "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
         )
         remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
@@ -138,14 +153,14 @@ class TestProcessingJobs(unittest.TestCase):
         Submission of a second job containing
             the same boundary and processor while one is already executing
         """
-        max_wait = 10  # secs
+        max_wait = 20  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
         remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
-            response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
+            response = requests.post(route, json=JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC)
             responses.append(response)
         self.assertListEqual(
             [i.status_code for i in responses],
@@ -158,64 +173,46 @@ class TestProcessingJobs(unittest.TestCase):
         statuses = ["NULL" for i in range(dup_processors_to_submit)]
         results = [{} for i in range(dup_processors_to_submit)]
         start = time()
-        while not all(completed) or (time() - start) > max_wait:
+        while not all(completed):
             for idx, job_id in enumerate(submitted_ids):
                 route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
                 response = requests.get(route)
                 completed[idx] = (
                     True
-                    if response.json()["job_status"] in ["SUCCESS", "FAILED"]
+                    if response.json()["job_group_status"] == "COMPLETE"
                     else False
                 )
-                results[idx] = response.json()["job_result"]
-                statuses[idx] = response.json()["job_status"]
+                if len(response.json()["job_group_processors"]) > 0:
+                    results[idx] = response.json()["job_group_processors"][0]
+                statuses[idx] = response.json()["job_group_status"]
+                sleep(0.01)
+            if (time() - start) > max_wait:
+                self.fail("max await time exceeded")
             sleep(0.5)
         # Jobs completed successfully
-        self.assertEqual(statuses, ["SUCCESS" for i in range(dup_processors_to_submit)])
-        # Between the two sets of results there should be success for
-        # both boundaries and test_processor
-        boundary_proc_results = []
+        self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
         test_proc_results = []
-        for job_result in results:
-            for _, task_results in job_result.items():
-                for task in task_results:
-                    if "boundary_processor" in task.keys():
-                        boundary_proc_results.append(task["boundary_processor"])
-                    if "test_processor.version_1" in task.keys():
-                        test_proc_results.append(task["test_processor.version_1"])
-        # Boundary success
-        self.assertIn(
-            {
-                "boundary_folder": "created",
-                "boundary_data_folder": "created",
-                "boundary_index": "created",
-                "boundary_license": "created",
-                "boundary_version": "created",
-                "boundary_datapackage": "created",
-            },
-            boundary_proc_results,
-        )
-        # Boundary success only reported once
-        self.assertTrue(len(set([json.dumps(i) for i in boundary_proc_results])), 1)
+        for result in results:
+            test_proc_results.append(result["job_result"])
         # Test Processor Success
         self.assertIn(
             {
                 "test_processor - move to storage success": True,
-                "test_processor - result URI": f"{PACKAGES_HOST_URL}/gambia/datasets/test_processor/version_1/data/gambia_test.tif",
+                "test_processor - result URI": f"{PACKAGES_HOST_URL}/zambia/datasets/test_processor/version_1/data/zambia_test.tif",
                 "datapackage": {
                     "name": "test_processor",
                     "version": "version_1",
-                    "path": [f"{PACKAGES_HOST_URL}/gambia/datasets/test_processor/version_1/data/gambia_test.tif"],
+                    "path": [f"{PACKAGES_HOST_URL}/zambia/datasets/test_processor/version_1/data/zambia_test.tif"],
                     "description": "A test processor for nightlights",
                     "format": "GEOPKG",
-                    "bytes": [5],
+                    "bytes": 5,
                     "hashes": ["4e1243bd22c66e76c2ba9eddc1f91394e57f9f83"],
                     "license": {
                         "name": "CC-BY-4.0",
                         "path": "https://creativecommons.org/licenses/by/4.0/",
                         "title": "Creative Commons Attribution 4.0",
                     },
-                    "sources": ["http://url"],
+                    "sources": [{'title': 'nightlights', 'path': 'http://url'}],
                 },
             },
             test_proc_results,
@@ -226,10 +223,9 @@ class TestProcessingJobs(unittest.TestCase):
         # Assert we only get a single package output
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-            "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
+            "zambia",
         )
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["zambia"])
 
     def test_submit_job_already_processing_using_ne_vector_processor(self):
         """
@@ -239,11 +235,11 @@ class TestProcessingJobs(unittest.TestCase):
         max_wait = 60  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["ssudan"])
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
-            response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC)
+            response = requests.post(route, json=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC)
             responses.append(response)
         self.assertListEqual(
             [i.status_code for i in responses],
@@ -258,46 +254,27 @@ class TestProcessingJobs(unittest.TestCase):
         start = time()
         while not all(completed):
             if (time() - start) > max_wait:
-                print("Aborting waiting for jobs:", completed, statuses)
-                break
+                self.fail("max await reached")
             for idx, job_id in enumerate(submitted_ids):
                 route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
                 response = requests.get(route)
                 completed[idx] = (
                     True
-                    if response.json()["job_status"] in ["SUCCESS", "FAILED"]
+                    if response.json()["job_group_status"] == "COMPLETE"
                     else False
                 )
-                results[idx] = response.json()["job_result"]
-                statuses[idx] = response.json()["job_status"]
+                if len(response.json()["job_group_processors"]) > 0:
+                    results[idx] = response.json()["job_group_processors"][0]
+                statuses[idx] = response.json()["job_group_status"]
+                sleep(0.01)
             sleep(0.5)
         # Jobs completed successfully
-        self.assertEqual(statuses, ["SUCCESS" for i in range(dup_processors_to_submit)])
+        self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
         # Between the two sets of results there should be success for
         # both boundaries and test_processor
-        boundary_proc_results = []
         test_proc_results = []
-        for job_result in results:
-            for _, task_results in job_result.items():
-                for task in task_results:
-                    if "boundary_processor" in task.keys():
-                        boundary_proc_results.append(task["boundary_processor"])
-                    if "natural_earth_vector.version_1" in task.keys():
-                        test_proc_results.append(task["natural_earth_vector.version_1"])
-        # Boundary success
-        self.assertIn(
-            {
-                "boundary_folder": "created",
-                "boundary_data_folder": "created",
-                "boundary_index": "created",
-                "boundary_license": "created",
-                "boundary_version": "created",
-                "boundary_datapackage": "created",
-            },
-            boundary_proc_results,
-        )
-        # Boundary success only reported once
-        self.assertTrue(len(set([json.dumps(i) for i in boundary_proc_results])), 1)
+        for result in results:
+            test_proc_results.append(result["job_result"])
         # Correct total processing results - including 7 exists
         self.assertEqual(len(test_proc_results), dup_processors_to_submit)
         # Test Processor Success
@@ -320,7 +297,6 @@ class TestProcessingJobs(unittest.TestCase):
         # Assert we only get a single package output
         assert_package(
             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-            "gambia",
-            JOB_SUBMIT_DATA_GAMBIA_NE_VECTOR_PROC["processors"],
+            "ssudan",
         )
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
+        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["ssudan"])

@@ -76,7 +76,6 @@ def load_boundaries(
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     if wipe_table is True:
-        print ('Wiping Boundaries table...')
         for tbl in reversed(db.Base.metadata.sorted_tables):
             engine.execute(tbl.delete())
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -8,11 +8,18 @@ import os
 import requests
 import zipfile
 import json
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError, check_call
+import shutil
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
+from dataproc.backends import StorageBackend
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
-from dataproc.exceptions import FileCreationException, SourceRasterProjectionException
+from dataproc.exceptions import (
+    FileCreationException,
+    SourceRasterProjectionException,
+    UnexpectedFilesException,
+    ZenodoGetFailedException,
+)
 
 # DAGs and Processing
 
@@ -45,11 +52,13 @@ def version_name_from_file(filename: str):
     """
     return os.path.basename(filename).replace(".py", "")
 
+
 def processor_name_from_file(filename: str):
     """
     Generate a processor from the name of the folder in-which the processor file resides
     """
     return os.path.basename(os.path.dirname(filename))
+
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
     """Build a full processor name from name and version"""
@@ -126,7 +135,7 @@ def add_dataset_to_datapackage(
     """
     Append a resource (dataset) to the datapackage resources array
 
-    ::returns datapackage dict Update with given license if applicable
+    ::returns datapackage dict Updated with given dataset if applicable
     """
     # Generate the resource object
     if not "resources" in datapackage.keys():
@@ -136,6 +145,8 @@ def add_dataset_to_datapackage(
             [dp_resource.asdict()["name"], dp_resource.asdict()["version"]]
         ) in ["-".join([i["name"], i["version"]]) for i in datapackage["resources"]]:
             datapackage["resources"].append(dp_resource.asdict())
+    # Update the license
+    datapackage = add_license_to_datapackage(dp_resource.dp_license, datapackage)
     return datapackage
 
 
@@ -158,11 +169,11 @@ def datapackage_resource(
         path=uris,
         description=metadata.description,
         dataset_format=dataset_format,
-        dataset_size_bytes=dataset_sizes_bytes,
-        sources=[metadata.data_origin_url],
+        dataset_size_bytes=sum(dataset_sizes_bytes),
+        sources=[{"title": metadata.dataset_name, "path": metadata.data_origin_url}],
         dp_license=metadata.data_license,
         dataset_hashes=dataset_hashes,
-    ).asdict()
+    )
 
 
 def data_file_hash(fpath: str) -> str:
@@ -181,6 +192,67 @@ def data_file_hash(fpath: str) -> str:
 def data_file_size(fpath: str) -> int:
     """Filesize in bytes"""
     return os.path.getsize(fpath)
+
+
+def generate_index_file(
+    storage_backend: StorageBackend,
+    index_fpath: str,
+    boundary_name: str,
+    metadata: BaseMetadataABC,
+) -> bool:
+    """
+    Generate the index documentation file and
+        push to supplied storage backend
+
+    ::returns result bool
+    """
+    return storage_backend.put_processor_metadata(
+        index_fpath,
+        boundary_name,
+        metadata.name,
+        metadata.version,
+    )
+
+
+def generate_license_file(
+    storage_backend: StorageBackend,
+    license_fpath: str,
+    boundary_name: str,
+    metadata: BaseMetadataABC,
+) -> bool:
+    """
+    Generate the License documentation file and
+        push to supplied storage backend
+
+    ::returns result bool
+    """
+    return storage_backend.put_processor_metadata(
+        license_fpath,
+        boundary_name,
+        metadata.name,
+        metadata.version,
+    )
+
+
+def generate_datapackage(
+    metadata: BaseMetadataABC,
+    uris: str,
+    data_format: str,
+    sizes: List[int],
+    hashes: List[str],
+) -> dict:
+    """
+    Generate the datapackage resource
+    """
+    # Generate the datapackage and add it to the output log
+    datapkg = datapackage_resource(
+        metadata,
+        uris,
+        data_format,
+        sizes,
+        hashes,
+    )
+    return datapkg.asdict()
 
 
 # FILE OPERATIONS
@@ -216,8 +288,7 @@ def download_file(source_url: str, destination_fpath: str) -> str:
     Folders to the path will be created as required
     """
     os.makedirs(os.path.dirname(destination_fpath), exist_ok=True)
-    # urllib.request.urlretrieve(source_url, path)
-    response = requests.get(
+    with requests.get(
         source_url,
         timeout=5,
         stream=True,
@@ -226,14 +297,110 @@ def download_file(source_url: str, destination_fpath: str) -> str:
             "Accept-Encoding": "gzip",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
         },
-    )
-    with open(destination_fpath, "wb") as handle:
-        for data in response.iter_content(chunk_size=8192):
-            handle.write(data)
+    ) as r:
+        with open(destination_fpath, "wb") as f:
+            shutil.copyfileobj(r.raw, f)
+
     if not os.path.exists(destination_fpath):
         raise FileCreationException()
     else:
         return destination_fpath
+
+
+def tiffs_in_folder(
+    folder_path: str, basename: str = "", full_paths: bool = False
+) -> List[str]:
+    """
+    Return the filenames of all tiffs in a given folder
+
+    ::kwarg basename str If set this will filter tiff filenames by the given string
+    ::kwargs full_paths bool Return full file paths instead of just filenames
+    """
+    files = [
+        i
+        for i in os.listdir(folder_path)
+        if basename in os.path.splitext(i)[0] and os.path.splitext(i)[1] == ".tif"
+    ]
+    if full_paths:
+        return [os.path.join(folder_path, _file) for _file in files]
+    return files
+
+
+def unpack_and_check_zip_tifs(
+    local_zip_fpath: str,
+    target_folder: str,
+    expected_crs: str,
+    num_expected_tifs: int = 1,
+    expected_hashes: List[str] = None,
+) -> List[str]:
+    """
+    Unpack a downloaded zip and do some checks to ensure it is correct
+
+    ::kwarg expected_hash str If present the hash of the file will be calculated and checked.
+        The ordering of hashes is not checked - just the presence of all matching hashes.
+
+    ::return tif_fpath List[str] Paths to the contained zip(s)
+    """
+    unpack_zip(local_zip_fpath, target_folder)
+    # Filter on basename in case we're un[packing to an existing folder with tiffs]
+    unpacked_files = tiffs_in_folder(
+        target_folder, basename=os.path.splitext(os.path.basename(local_zip_fpath))[0]
+    )
+    if len(unpacked_files) != num_expected_tifs:
+        raise UnexpectedFilesException(
+            f"Source zip {local_zip_fpath} has unexpected number of tifs: {unpacked_files}"
+        )
+    output_tifs = []
+    extracted_file_hashes = []
+    for tif in unpacked_files:
+        source_tif_fpath = os.path.join(target_folder, tif)
+        # Ensure the tif is valid
+        assert_geotiff(
+            source_tif_fpath, check_crs=expected_crs, check_compression=False
+        )
+        # Collect hashes if requested
+        if expected_hashes is not None:
+            _hash = data_file_hash(source_tif_fpath)
+            extracted_file_hashes.append(_hash)
+        output_tifs.append(source_tif_fpath)
+    # Check hashes if required
+    if expected_hashes is not None:
+        if not sorted(extracted_file_hashes) == sorted(expected_hashes):
+            raise UnexpectedFilesException(
+                f"Downloaded file hashes {sorted(extracted_file_hashes)} did not match expected: {sorted(expected_hashes)}"
+            )
+    return output_tifs
+
+
+def fetch_zenodo_doi(
+    doi: str, target_folder: str, return_only_tifs: bool = True
+) -> List[str]:
+    """
+    Fetch source files associated with a given DOI.
+
+    Data will be downloaded and unpacked into target_folder.
+
+    MD5 Sums optionally checked after download
+
+    ::kwarg return_only_tifs bool Remove non-tif files from the return file-list
+
+    ::returns output_file_paths List[str] List of all resulting files
+    """
+    cmd = ["zenodo_get", "-d", doi, "-o", target_folder]
+    try:
+        check_call(cmd)
+    except CalledProcessError:
+        raise ZenodoGetFailedException(
+            f"zenodo_get cmd {cmd} failed with non-zero exit code"
+        )
+    if return_only_tifs:
+        return [
+            os.path.join(target_folder, _file)
+            for _file in tiffs_in_folder(target_folder)
+        ]
+    return [
+        os.path.join(target_folder, _file.name) for _file in os.scandir(target_folder)
+    ]
 
 
 # RASTER OPERATIONS
@@ -248,9 +415,10 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=T
     import rasterio
 
     with rasterio.open(fpath) as src:
-        assert (
-            src.meta["crs"] == check_crs
-        ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
+        if check_crs is not None:
+            assert (
+                src.meta["crs"] == check_crs
+            ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
         if check_compression is True:
             assert src.compression is not None, "raster did not have any compression"
 
@@ -324,6 +492,27 @@ def crop_raster(
 # VECTOR OPERATIONS
 
 
+def assert_vector_file(
+    fpath: str, expected_shape: tuple = None, expected_crs: str = None
+):
+    """
+    Check a given file is a valid vector file and can beparsed with geopandas.
+
+    Optionally assert the data shape and CRS authority string
+
+    ::param fpath str Absolute filepath
+    """
+    import geopandas as gp
+
+    gdf = gp.read_file(fpath)
+    assert isinstance(gdf, gp.geodataframe.GeoDataFrame)
+    if expected_shape is not None:
+        assert gdf.shape == expected_shape, f"shape did not match expected: {gdf.shape}, {expected_shape}"
+    if expected_crs is not None:
+        crs = ":".join(gdf.crs.to_authority())
+        assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
+
+
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
     """
     Load a shapefile into Postgres - uses system OGR command
@@ -368,7 +557,6 @@ def gdal_crop_pg_table_to_geopkg(
         Defaults to "both"
     """
     from osgeo import gdal
-
     if debug:
         gdal.UseExceptions()
         gdal.SetConfigOption("CPL_DEBUG", "ON")
@@ -398,3 +586,71 @@ def gdal_crop_pg_table_to_geopkg(
         layerName=gpkg_layer_name(pg_table, boundary),
     )
     gdal.VectorTranslate(output_fpath, ds, options=vector_options)
+
+
+def gp_crop_file_to_geopkg(
+    input_fpath: str,
+    boundary: Boundary,
+    output_fpath: str,
+    mask_type: str = "boundary",
+) -> bool:
+    """
+    Geopandas - crop file by given boundary mask
+
+    ::kwarg mask_type str One of 'boundary' or 'envelope'
+        Crop the input file by the boundary, or the envolope of the boundary.
+    """
+    import geopandas as gp
+    gdf_clipped = gp.read_file(
+        input_fpath,
+        mask=boundary["geojson"] if mask_type == "boundary" else boundary["envelope"],
+    )
+    gdf_clipped.to_file(output_fpath)
+    return os.path.exists(output_fpath)
+
+
+def csv_to_gpkg(
+    input_csv_fpath: str,
+    output_gpkg_fpath: str,
+    crs: str = "EPSG:4326",
+    latitude_col: str = "latitude",
+    longitude_col: str = "longitude",
+) -> bool:
+    """
+    Convert a given CSV to geopackage
+    """
+    import geopandas as gp
+    import pandas as pd
+
+    df = pd.read_csv(
+        input_csv_fpath,
+        dtype={
+            "country" : str,
+            "country_long" : str,
+            "name" : str,
+            "gppd_idnr" : str,
+            "primary_fuel" : str,
+            "other_fuel1" : str,
+            "other_fuel2" : str,
+            "other_fuel3" : str,
+            "owner" : str,
+            "source" : str,
+            "url" : str,
+            "geolocation_source" : str,
+            "wepp_id" : str,
+            "generation_data_source" : str,
+            "estimated_generation_note_2013" : str,
+            "estimated_generation_note_2014" : str,
+            "estimated_generation_note_2015" : str,
+            "estimated_generation_note_2016" : str,
+            "estimated_generation_note_2017" : str,
+        }
+    )
+    if not latitude_col in df.columns or not longitude_col in df.columns:
+        raise Exception(
+            f"latitude and longitude columns required in CSV columns, got: {df.columns}"
+        )
+    df = df.set_geometry(gp.points_from_xy(df[longitude_col], df[latitude_col]))
+    df.crs = crs
+    df.to_file(output_gpkg_fpath)
+    return os.path.exists(output_gpkg_fpath)

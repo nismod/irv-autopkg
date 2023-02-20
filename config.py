@@ -96,13 +96,15 @@ PACKAGES_HOST_URL = getenv("AUTOPKG_PACKAGES_HOST_URL", "http://localhost/packag
 STORAGE_BACKEND = getenv("AUTOPKG_STORAGE_BACKEND", "localfs")
 # Dev / Prod switch for testing
 if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
+    # TEST
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"))
     # The root-level folder when using localfs processing backend
-    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "tmp"))
+    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST", path.join(path.dirname(path.abspath(__file__)), "tests", "data", "processing"))
     # Integration tests which require access to the GRIOSM Postgres instance will be run if this is set-True (1)
     TEST_GRI_OSM = bool(int(getenv("TEST_GRI_OSM", "0")))
 else:
+    # PROD
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
     # The root-level folder when using localfs processing backend
@@ -117,5 +119,8 @@ CELERY_APP = Celery(
     "AutoPackage",
     worker_prefetch_multiplier=1,
     broker_url=CELERY_BROKER,
-    result_backend=CELERY_BACKEND,
+    result_backend=CELERY_BACKEND
 )  # see: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
+
+# Seconds before submitted tasks expire
+TASK_EXPIRY_SECS = int(getenv("TASK_EXPIRY_SECS", "3600"))

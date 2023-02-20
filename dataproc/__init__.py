@@ -46,7 +46,7 @@ class DataPackageResource:
     path: List[str]
     description: str
     dataset_format: str
-    dataset_size_bytes: List[int]
+    dataset_size_bytes: int
     dataset_hashes: List[str]
     sources: List[dict]
     dp_license: DataPackageLicense

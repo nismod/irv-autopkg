@@ -16,12 +16,12 @@ from tests.helpers import (
     load_country_geojson,
     assert_table_in_pg,
     drop_natural_earth_roads_from_pg,
-    setup_test_data_paths,
     assert_datapackage_resource,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+    DummyTaskExecutor
 )
 from config import PACKAGES_HOST_URL
 
@@ -32,7 +32,7 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_processing_data_dir = os.path.join(
-            LOCAL_FS_PROCESSING_DATA_TOP_DIR, "natural_earth_vector"
+            LOCAL_FS_PROCESSING_DATA_TOP_DIR, Metadata().name, Metadata().version
         )
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         cls.test_data_dir = None
@@ -58,10 +58,15 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
             pass
 
     def setUp(self):
-        self.proc = Processor(self.boundary, self.storage_backend)
-        # __NOTE__: Reset the paths helper to reflect the test environment for processing root
-        setup_test_data_paths(self.proc, self.test_processing_data_dir)
+        self.task_executor = DummyTaskExecutor()
         self.meta = Metadata()
+        self.proc = Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        )
 
     def test_processor_init(self):
         """"""
@@ -69,13 +74,24 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
 
     def test_context_manager(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             self.assertIsInstance(proc, Processor)
 
     def test_context_manager_cleanup_on_error(self):
         """"""
-        with Processor(self.boundary, self.storage_backend) as proc:
-            setup_test_data_paths(self.proc, self.test_processing_data_dir)
+        with Processor(
+            self.meta,
+            self.boundary,
+            self.storage_backend,
+            self.task_executor,
+            self.test_processing_data_dir,
+        ) as proc:
             test_fpath = os.path.join(proc.tmp_processing_folder, "testfile")
             # Add a file into the tmp processing backend
             with open(test_fpath, "w") as fptr:
@@ -110,10 +126,10 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
             pass
         prov_log = self.proc.generate()
         # # Assert the log contains a succesful entries
-        self.assertTrue(prov_log[f"{Metadata().name} - crop completed"])
-        self.assertTrue(prov_log[f"{Metadata().name} - move to storage success"])
+        self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop completed"])
+        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
         # # Collect the URI for the final Raster
-        final_uri = prov_log[f"{Metadata().name} - result URI"]
+        final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         # Assert the file exists
         self.assertTrue(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
         # Check the datapackage thats included in the prov log

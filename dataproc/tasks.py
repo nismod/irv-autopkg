@@ -3,21 +3,23 @@ Processor Task Wrappers
 """
 from typing import Any, List
 from contextlib import contextmanager
+import logging
 
+from celery import signals
 from celery.utils.log import get_task_logger
 from redis import Redis
 
 from config import (
+    LOG_LEVEL,
     CELERY_APP,
     TASK_LOCK_TIMEOUT,
     STORAGE_BACKEND,
     LOCALFS_STORAGE_BACKEND_ROOT,
-    REDIS_HOST
+    LOCALFS_PROCESSING_BACKEND_ROOT,
+    REDIS_HOST,
 )
 from dataproc import Boundary
-from dataproc.helpers import (
-    get_processor_by_name,
-)
+from dataproc.helpers import get_processor_by_name, get_processor_meta_by_name
 from dataproc.processors.internal import (
     BoundaryProcessor,
     ProvenanceProcessor,
@@ -50,6 +52,21 @@ def task_signature(boundary_name: str, processor: str):
     return f"{boundary_name}.{processor}"
 
 
+@signals.after_setup_task_logger.connect
+def quieter_fiona_logging(logger, *args, **kwargs):
+    """
+    Fiona package is really verbose at DEBUG -
+        e.g. it logs every line of a processed CSV,
+        so we turn it down here
+    """
+    logging.getLogger("fiona").propagate = False
+
+@signals.after_setup_logger.connect
+def config_logging(logger, *args, **kwargs):
+    """"""
+    logger.setLevel(LOG_LEVEL)
+
+
 # SETUP TASK
 @CELERY_APP.task()
 def boundary_setup(boundary: Boundary) -> dict:
@@ -58,7 +75,7 @@ def boundary_setup(boundary: Boundary) -> dict:
 
     Includes task lock context manager to ensure duplicate tasks are not executed in parallel.
     Duplicate tasks are skipped in this instance.
-    
+
     """
     logger = get_task_logger(__name__)
     task_sig = task_signature(boundary["name"], "boundary_setup")
@@ -72,22 +89,23 @@ def boundary_setup(boundary: Boundary) -> dict:
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    return {"boundary_processor" : {"failed": type(err).__name__}}
+                    return {"boundary_processor": {"failed": type(err).__name__}}
                 finally:
-                    _ = redis_client.getdel(task_sig) 
+                    _ = redis_client.getdel(task_sig)
             else:
                 raise ProcessorAlreadyExecutingException()
     except ProcessorAlreadyExecutingException:
         logger.warning(
             "task with signature %s skipped because it was already executing", task_sig
         )
-        return {"boundary_processor" : {"skipped": f"{task_sig} already executing"}}
-    
+        return {"boundary_processor": {"skipped": f"{task_sig} already executing"}}
 
 
 # DATASET PROCESSOR TASK
-@CELERY_APP.task()
-def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) -> dict:
+@CELERY_APP.task(bind=True)
+def processor_task(
+    self, sink: dict, boundary: Boundary, processor_name_version: str
+) -> dict:
     """
     Generic task that implements a processor
 
@@ -103,7 +121,14 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
             if acquired:
                 try:
                     module = get_processor_by_name(processor_name_version)
-                    with module(boundary, storage_backend) as proc:
+                    module_meta = get_processor_meta_by_name(processor_name_version)
+                    with module(
+                        module_meta,
+                        boundary,
+                        storage_backend,
+                        self,
+                        LOCALFS_PROCESSING_BACKEND_ROOT,
+                    ) as proc:
                         result = proc.generate()
                     # Update sink for this processor
                     sink[processor_name_version] = result
@@ -118,13 +143,10 @@ def processor_task(sink: dict, boundary: Boundary, processor_name_version: str) 
                 raise ProcessorAlreadyExecutingException()
     except ProcessorAlreadyExecutingException:
         logger.warning(
-                    "task with signature %s skipped because it was already executing", task_sig
-                )
+            "task with signature %s skipped because it was already executing", task_sig
+        )
         sink[processor_name_version] = {"skipped": f"{task_sig} already executing"}
         return sink
-    # Potentially do this during execution - get the progress from the processor
-    # self.update_state(state="PROGRESS", meta={'progress': 50})
-    # See: https://docs.celeryq.dev/en/stable/userguide/calling.html#on-message
 
 
 # COMPLETION TASK
@@ -134,7 +156,7 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
     Generate / update the processing provenance for a given boundary
     Includes task lock context manager to ensure duplicate tasks are not executed in parallel.
     Duplicate tasks are retried in this instance so we always generate provenance.
-    
+
     """
     logger = get_task_logger(__name__)
     task_sig = task_signature(boundary["name"], "generate_provenance")

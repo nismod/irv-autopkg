@@ -5,23 +5,21 @@ API Helpers
 import traceback
 import json
 import base64
-from typing import Any, List
+from typing import Any, List, Tuple, Union
 import urllib.parse
 
 from celery import group
+from celery.result import GroupResult
 from celery.utils import uuid
-from api import schemas
 
+from api import schemas
 from dataproc import tasks, Boundary
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import (
-    processor_name,
     get_processor_meta_by_name,
-    build_processor_name_version,
 )
 from dataproc.exceptions import InvalidProcessorException
 from api.exceptions import (
-    CannotGetExecutingTasksException,
     CannotGetCeleryTasksInfoException,
 )
 
@@ -127,7 +125,44 @@ def processor_meta(
 
 
 # Celery Queue Interactions
+def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatus:
+    """
+    Generate job status info from a GroupStatus object
 
+    state=PENDING - info = None
+    state=EXECUTING - info = {'progress': int, 'current_task': str} 
+        Comes from the processor updating its states
+    state=SUCCESS/FAILURE - info = {output of prov log in processor}
+
+    """
+    global_perc_complete = []
+    global_status = []
+    processors = []
+    for result in group_result.results:
+        global_perc_complete.append(100/len(group_result.results) if result.state in ["SUCCESS", "FAILURE"] else 0)
+        global_status.append(True if result.state in ["SUCCESS", "FAILURE"] else False)
+        if result.info is not None and isinstance(result.info, dict):
+            for proc_name, task_meta in result.info.items():
+                if proc_name == "boundary_processor":
+                    continue
+                if not isinstance(task_meta, dict):
+                    continue
+                # While its progressing we report the progress, otherwise we show the result
+                processors.append(schemas.JobStatus(
+                    processor_name=proc_name,
+                    job_id=result.id,
+                    job_status=result.state,
+                    job_progress=schemas.JobProgress(
+                        percent_complete=task_meta['progress'] if isinstance(task_meta, dict) and 'progress' in task_meta.keys() else 0,
+                        current_task=task_meta['current_task'] if isinstance(task_meta, dict) and 'current_task' in task_meta.keys() else "UNKNOWN",
+                    ) if result.state not in ["SUCCESS", "FAILURE"] else None,
+                    job_result=task_meta if result.state in ["SUCCESS", "FAILURE"] else None,
+                ))
+    return schemas.JobGroupStatus(
+        job_group_status="COMPLETE" if all(global_status) else "PENDING", 
+        job_group_percent_complete=sum(global_perc_complete),
+        job_group_processors=processors
+    )
 
 def get_celery_active_tasks() -> dict:
     """Return list of tasks currently executed by Celery workers"""
@@ -155,6 +190,8 @@ def get_celery_scheduled_tasks() -> dict:
 
 def get_celery_task_info(task_id: str) -> dict:
     """
+    DEPRECATED
+
         Information about a specific task
          Example Output
          {
@@ -219,6 +256,8 @@ def _task_arg_contains_boundary(boundary_name: str, task: dict) -> bool:
 
 def currently_active_or_reserved_processors(boundary_name: str) -> List[str]:
     """
+    DEPRECATED
+
     Collect a list of name.version entries for
         processors wither executing (active) or queued (reserved)
         against a given boundary name

@@ -4,7 +4,9 @@ Unit tests for Datapackage Generation
 import os
 import unittest
 
-from dataproc.helpers import add_license_to_datapackage, add_dataset_to_datapackage
+from datapackage import Package, Resource
+
+from dataproc.helpers import add_license_to_datapackage, add_dataset_to_datapackage, datapackage_resource
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc.processors.core.test_processor.version_1 import (
     Metadata as TestProcMetadata,
@@ -26,7 +28,6 @@ class TestDataPackage(unittest.TestCase):
         self.datapackage = {
             "name": "ghana",
             "title": "ghana",
-            "profile": "ghana-data-package",
             "licenses": [],
             "resources": [],
         }
@@ -42,16 +43,12 @@ class TestDataPackage(unittest.TestCase):
 
     def test_add_dataset_to_datapackage(self):
         """Test addition of a dataset to a datapackage"""
-        expected = DataPackageResource(
-            name=TestProcMetadata().name,
-            version=TestProcMetadata().version,
-            path="/test/uri",
-            description=TestProcMetadata().description,
-            dataset_format="data_format",
-            dataset_size_bytes=1,
-            dataset_hashes=[{"/test/uri": "243737210677e8f38a4bc8567c108335"}],
-            sources=[TestProcMetadata().data_author],
-            dp_license=TestProcMetadata().data_license,
+        expected = datapackage_resource(
+            TestProcMetadata(),
+            ["http://test.com/test/uri"],
+            "GeoTIFF",
+            [1],
+            [{"/test/uri": "243737210677e8f38a4bc8567c108335"}],
         )
         datapackage = add_dataset_to_datapackage(
             expected,
@@ -64,3 +61,10 @@ class TestDataPackage(unittest.TestCase):
             self.datapackage,
         )
         self.assertEqual(len(datapackage["resources"]), 1)
+
+        # Test parsing the datapackage
+        package = Package(datapackage)
+        if not package.valid:
+            print (package.errors)
+            print (datapackage)
+        self.assertTrue(package.valid)

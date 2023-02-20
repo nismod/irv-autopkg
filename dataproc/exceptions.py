@@ -32,3 +32,9 @@ class DatasetNotFoundException(DataProcException):
 class SourceRasterProjectionException(DataProcException):
     """Prohblem with source raster projection"""
 
+class UnexpectedFilesException(DataProcException):
+    """Unexpected files encountered during execution"""
+
+class ZenodoGetFailedException(DataProcException):
+    """Zenodo Get command returned non-zero result"""
+
