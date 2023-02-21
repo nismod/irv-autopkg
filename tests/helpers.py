@@ -13,6 +13,7 @@ import rasterio
 import shapely
 from shapely.ops import transform
 import pyproj
+from pyarrow.fs import S3FileSystem
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
@@ -116,7 +117,7 @@ def create_tree(
     wipe_existing: bool = True
 ):
     """
-    Create a fake tree so we can check reading packages
+    Create a fake tree in local FS so we can check reading packages
     """
     # Generate the datapackage.jsons
     for package in packages:
@@ -174,13 +175,66 @@ def create_tree(
                 exist_ok=True,
             )
 
-
 def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
     """
-    Cleanup the test tree
+    Cleanup the test tree from local FS
     """
     for package in packages:
         shutil.rmtree(os.path.join(top_level_path, package), ignore_errors=True)
+
+def create_tree_awss3(
+    s3_fs: S3FileSystem,
+    bucket: str,
+    packages: list = ["gambia", "zambia"],
+    datasets: list = ["aqueduct", "biodiversity", "osm_roads"],
+    wipe_existing: bool = True
+):
+    """
+    Create a fake tree in local FS so we can check reading packages
+    """
+    # Generate the datapackage.jsons
+    for package in packages:
+        if wipe_existing is True:
+            try:
+                s3_fs.delete_dir(os.path.join(bucket, package))
+            except FileNotFoundError:
+                pass
+        s3_fs.create_dir(os.path.join(bucket, package))
+        dp = gen_datapackage(package, datasets)
+        dp_fpath = os.path.join(bucket, package, "datapackage.json")
+        with s3_fs.open_output_stream(dp_fpath) as stream:
+            stream.write(json.dumps(dp).encode())
+
+    if "gambia" in packages:
+        if "noexist" in datasets:
+            # An invalid processor or dataset was placed in the tree
+            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "noexist"))
+        if "aqueduct" in datasets:
+            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "aqueduct", "0.1"))
+        if "biodiversity" in datasets:
+            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "biodiversity", "version_1"))
+        if "osm_roads" in datasets:
+            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "osm_roads", "20221201"))
+        if "natural_earth_raster" in datasets:
+            s3_fs.create_dir(os.path.join(
+                    bucket,
+                    "gambia",
+                    "datasets",
+                    "natural_earth_raster",
+                    "version_1",
+                ))
+    if "zambia" in packages:
+        if "osm_roads" in datasets:
+            s3_fs.create_dir(os.path.join(bucket, "zambia", "datasets", "osm_roads", "20230401"))
+
+def remove_tree_awss3(
+    s3_fs: S3FileSystem,
+    bucket: str,
+    packages: list = ["gambia", "zambia"]
+):
+    """Remove a tree from aws s3 backend"""
+    for package in packages:
+        s3_fs.delete_dir(os.path.join(bucket, package))
 
 
 def assert_raster_bounds_correct(
