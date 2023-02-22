@@ -135,8 +135,6 @@ else:
     # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
     S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg-dev")
     S3_REGION = getenv("S3_REGION", "eu-west-2")
-# Integration tests for AWSS3 can be run using the following switch
-TEST_AWSS3 = True
 
 # Name matching Soundex Distance Default
 NAME_SEARCH_DISTANCE = int(getenv("AUTOPKG_NAME_SEARCH_DISTANCE", "2"))

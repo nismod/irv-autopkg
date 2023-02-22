@@ -5,24 +5,32 @@ import os
 import unittest
 import shutil
 
-from dataproc.backends import LocalFSStorageBackend
-from dataproc import Boundary
-from dataproc.processors.core.gridfinder.version_1 import (
-    Processor,
-    Metadata,
-)
-from dataproc.helpers import assert_geotiff, assert_vector_file
+
 from tests.helpers import (
     load_country_geojson,
-    assert_raster_bounds_correct,
+    assert_vector_output,
+    assert_raster_output,
     assert_datapackage_resource,
+    clean_packages
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
     DummyTaskExecutor,
 )
-from config import PACKAGES_HOST_URL
+from dataproc import Boundary
+from dataproc.processors.core.gridfinder.version_1 import (
+    Processor,
+    Metadata,
+)
+from dataproc.backends.storage import init_storage_backend
+from dataproc.backends.storage.awss3 import S3Manager
+from config import (
+    PACKAGES_HOST_URL,
+    S3_REGION,
+    STORAGE_BACKEND,
+    S3_BUCKET,
+)
 
 TEST_DATA_DIR = os.path.join(
     os.path.dirname(
@@ -44,16 +52,30 @@ class TestGridFinderV1Processor(unittest.TestCase):
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+        cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
+        # Ensure clean test-env
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
         shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
-        shutil.rmtree(
-            os.path.join(cls.storage_backend.top_level_folder_path, "gambia"),
-            ignore_errors=True,
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
         )
 
     def setUp(self):
@@ -115,12 +137,13 @@ class TestGridFinderV1Processor(unittest.TestCase):
             "lv.tif": "ESRI:54009",
             "targets.tif": "EPSG:4326",
         }
-        try:
-            shutil.rmtree(
-                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            pass
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
         # Move test-data into the expected source folder
         for _file in os.scandir(TEST_DATA_DIR):
             shutil.copy(
@@ -139,22 +162,39 @@ class TestGridFinderV1Processor(unittest.TestCase):
         for final_uri in final_uris.split(","):
             fname = os.path.basename(final_uri)
             if os.path.splitext(fname)[1] == ".tif":
-                # # Assert the geotiffs are valid
-                assert_geotiff(
-                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
-                    check_crs=expected_crs[fname],
-                )
-                # # Assert the envelopes
-                assert_raster_bounds_correct(
-                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
-                    self.boundary["envelope_geojson"],
-                )
+                if STORAGE_BACKEND == "localfs":
+                    assert_raster_output(
+                        self.boundary["envelope_geojson"],
+                        final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                        check_crs=expected_crs[fname],
+                    )
+                elif STORAGE_BACKEND == "awss3":
+                    with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                        assert_raster_output(
+                            self.boundary["envelope_geojson"],
+                            s3_fs=s3_fs,
+                            s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                            check_crs=expected_crs[fname],
+                        )
+                else:
+                    pass
             else:
-                assert_vector_file(
-                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
-                    (163, 2),
-                    expected_crs=expected_crs[fname],
-                )
+                if STORAGE_BACKEND == "localfs":
+                    assert_vector_output(
+                        (163, 2),
+                        expected_crs[fname],
+                        local_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                    )
+                elif STORAGE_BACKEND == "awss3":
+                    with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                        assert_vector_output(
+                            (163, 2),
+                            expected_crs[fname],
+                            s3_fs=s3_fs,
+                            s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                        )
+                else:
+                    pass
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log["datapackage"])
