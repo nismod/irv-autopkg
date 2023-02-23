@@ -2,7 +2,7 @@
 Helper methods / classes
 """
 import inspect
-from typing import List
+from typing import Generator, List
 from types import ModuleType
 import os
 import requests
@@ -10,6 +10,10 @@ import zipfile
 import json
 from subprocess import check_output, CalledProcessError, check_call
 import shutil
+from collections import OrderedDict
+from time import time
+import csv
+import warnings
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.backends import StorageBackend
@@ -530,6 +534,146 @@ def gpkg_layer_name(pg_table_name: str, boundary: Boundary) -> str:
     return f"{pg_table_name}_{boundary['name']}"
 
 
+def copy_from_pg_table(pg_uri: str, sql: str, output_csv_fpath: str) -> int:
+    """
+    Execute a COPY FROM for the given pg uri and SQL statement
+
+    ::returns filesize int
+    """
+    import psycopg2
+    sql = f"""COPY ({sql}) TO STDOUT WITH CSV HEADER"""
+    with psycopg2.connect(dsn=pg_uri) as conn:
+        with open(output_csv_fpath, 'w') as fptr:
+            with conn.cursor() as cur:
+                cur.copy_expert(sql, fptr)
+    with open(output_csv_fpath, 'rb') as fptr:
+        total_lines = sum(1 for i in fptr) - 1 # Remove header line
+    return total_lines
+
+
+def crop_osm_to_geopkg(
+    boundary: Boundary,
+    pg_uri: str,
+    pg_table: str,
+    output_fpath: str,
+    geometry_column: str = 'geom',
+    extract_type: str = "clip",
+    limit : int = None,
+    batch_size: int = 1000,
+) -> Generator:
+    """
+    Uses GDAL interface to crop table to geopkg
+    https://gis.stackexchange.com/questions/397023/issue-to-convert-from-postgresql-input-to-gpkg-using-python-gdal-api-function-gd
+
+    GEOPKG Supports only a single Geometry column per table: https://github.com/opengeospatial/geopackage/issues/77
+
+    __NOTE__: We assume the input and output CRS is 4326
+
+    __NOTE__: PG doesnt permit EXCEPT syntax with field selection,
+        so all fields will be output (minus the original geometries if using "clip")
+
+    ::kwarg extract_type str
+        Either "intersect" - keep the entire intersecting feature in the output
+        or "clip" includes only the clipped geometry in the output
+
+    ::returns Generator[int, int, int, int] 
+        Progress yield: csv_line_count, current_idx, lines_success, lines_skipped, lines_failed
+    """
+    import fiona
+    from fiona.crs import from_epsg as crs_from_epsg
+    from shapely import from_wkt, to_geojson, from_wkb
+
+    geojson = json.dumps(boundary["geojson"])
+    if extract_type == "intersect":
+        stmt = f"SELECT {geometry_column}, properties FROM {pg_table} WHERE ST_Intersects(ST_GeomFromGeoJSON('{geojson}'), {geometry_column})"
+    else:
+        # Clip - remembering the geometry inside properties is the entire geometry, not the clipped one
+        stmt = f"""
+            WITH clip_geom AS (
+                SELECT st_geomfromgeojson(\'{geojson}\') AS geometry
+            )
+            SELECT (ST_Dump(ST_Intersection(clip_geom.geometry, {pg_table}.{geometry_column}))).geom AS {geometry_column}, properties
+            FROM {pg_table}, clip_geom
+            WHERE ST_Intersects({pg_table}.{geometry_column}, clip_geom.geometry)
+        """
+    if limit is not None and int(limit):
+        stmt = f'{stmt} LIMIT {limit}'
+    try:
+        # Generate CSV using COPY command
+        tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f'{time()}_tmp.csv')
+        csv_line_count = copy_from_pg_table(pg_uri, stmt, tmp_csv_fpath)
+        # Load CSV to geopkg
+        crs = crs_from_epsg(4326)
+        schema = {
+            'geometry': 'LineString',
+            'properties': OrderedDict({
+                'asset_id': 'float:16',
+                'osm_way_id': 'str',
+                'asset_type': 'str',
+                'paved': 'bool',
+                'material': 'str',
+                'lanes': 'int',
+                '_asset_type': 'str',
+                'rehab_cost_USD_per_km': 'float:16',
+                'sector': 'str',
+                'subsector': 'str',
+                'tag_bridge': 'str',
+                'bridge': 'bool',
+                'wkt': 'str'
+            })
+        }
+        template = {_k:None for _k, _ in schema['properties'].items()}
+        with fiona.open(output_fpath, 'w', driver='GPKG', crs=crs, schema=schema) as output:
+            with open(tmp_csv_fpath, newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+                next(reader, None) # Skip header
+                lines_skipped = 0
+                lines_failed = 0
+                lines_success = 0
+                batch = []
+                for idx, row in enumerate(reader):
+                    try:
+                        data = json.loads(row[1])
+                        outrow = {}
+                        geom = from_wkb(row[0])
+                        if geom.geom_type != 'LineString':
+                            lines_skipped+=1
+                            continue
+                        outrow['geometry'] = json.loads(to_geojson(geom))
+                        # Null missing fields
+                        outrow['properties'] = OrderedDict(template | data)
+                        batch.append(outrow)
+                        if len(batch) >= batch_size:
+                            output.writerecords(batch)
+                            output.flush()
+                            lines_success+=len(batch)
+                            batch = []
+                            yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+                    except Exception as err:
+                        warnings.warn(f'failed to load rows to due: {err}')
+                        # Attempt to load everything in the batch apart from the failed row
+                        if batch:
+                            for outrow in batch:
+                                try:
+                                    output.write(outrow)
+                                    output.flush()
+                                    lines_success+=1
+                                except Exception as rowerr:
+                                    warnings.warn(f"failed to load row: {outrow} due to {rowerr}")
+                                    lines_failed+=1
+                                finally:
+                                    batch = []
+                # Final batch leftover
+                if len(batch) > 0:
+                    output.writerecords(batch)
+                    lines_success+=len(batch)
+                    yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+    finally:
+        # Cleanup
+        if os.path.exists(tmp_csv_fpath):
+            os.remove(tmp_csv_fpath)
+    yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+
 def gdal_crop_pg_table_to_geopkg(
     boundary: Boundary,
     pg_uri: str,
@@ -543,14 +687,10 @@ def gdal_crop_pg_table_to_geopkg(
     """
     Uses GDAL interface to crop table to geopkg
     https://gis.stackexchange.com/questions/397023/issue-to-convert-from-postgresql-input-to-gpkg-using-python-gdal-api-function-gd
-
     GEOPKG Supports only a single Geometry column per table: https://github.com/opengeospatial/geopackage/issues/77
-
     __NOTE__: We assume the input and output CRS is 4326
-
     __NOTE__: PG doesnt permit EXCEPT syntax with field selection,
         so all fields will be output (minus the original geometries if using "clip")
-
     ::kwarg extract_type str
         Either "intersect" - keep the entire intersecting feature in the output
         or "clip" - (Default) - includes only the clipped geometry in the output
@@ -586,7 +726,6 @@ def gdal_crop_pg_table_to_geopkg(
         layerName=gpkg_layer_name(pg_table, boundary),
     )
     gdal.VectorTranslate(output_fpath, ds, options=vector_options)
-
 
 def gp_crop_file_to_geopkg(
     input_fpath: str,
