@@ -28,6 +28,9 @@ services:
     command: redis-server --save 20 1 --loglevel debug
     volumes: 
       - ./data/redis:/data
+    cpus: "0.25"
+    mem_reservation: "50M"
+    mem_limit: "250M"
 
   flower:
     image: mher/flower
@@ -70,6 +73,9 @@ services:
     env_file:
       - envs/.api_and_dataproc.env
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    cpus: "0.25"
+    mem_reservation: "50M"
+    mem_limit: "250M"
 
 
   # These test-harness containers require API and Dataproc to be running

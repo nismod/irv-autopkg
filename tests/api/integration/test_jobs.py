@@ -21,7 +21,17 @@ from tests.helpers import build_route, remove_tree, assert_package
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
-from config import PACKAGES_HOST_URL
+from tests.helpers import create_tree_awss3, remove_tree_awss3, clean_packages
+from dataproc.backends.storage.awss3 import AWSS3StorageBackend, S3Manager
+from config import (
+    STORAGE_BACKEND,
+    S3_BUCKET,
+    S3_ACCESS_KEY_ENV,
+    S3_SECRET_KEY_ENV,
+    S3_REGION,
+    PACKAGES_HOST_URL
+)
+
 
 JOB_SUBMIT_DATA_BOUNDARY_NOEXIST = {
     "boundary_name": "noexist",
@@ -70,6 +80,9 @@ class TestProcessingJobs(unittest.TestCase):
 
     def setUp(self):
         self.max_job_await = 6  # secs
+        self.storage_backend = AWSS3StorageBackend(
+            S3_BUCKET, S3_ACCESS_KEY_ENV, S3_SECRET_KEY_ENV
+        )
 
     def test_get_job_no_exist(self):
         """"""
@@ -115,13 +128,19 @@ class TestProcessingJobs(unittest.TestCase):
             response.json()["detail"][0]["msg"], "duplicate processors not allowed"
         )
 
-    # __NOTE__: These submission tests use different bounaries 
+    # __NOTE__: These submission tests use different boundaries 
     #           so results do not overlap in the backend queue
 
     def test_submit_job(self):
         """Simple submission and await completion of a job"""
         # Ensure the package tree is clean
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["zambia"])
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
         expected_code = 202
         route = build_route(JOBS_BASE_ROUTE)
         response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
@@ -142,11 +161,21 @@ class TestProcessingJobs(unittest.TestCase):
                 self.fail("max await reached")
         self.assertEqual(response.json()["job_group_status"], "COMPLETE")
         # Assert the package integrity, including submitted processor
-        assert_package(
-            LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-            "gambia",
+        if STORAGE_BACKEND == 'localfs':
+            assert_package(
+                LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+                "gambia",
+            )
+        elif STORAGE_BACKEND == 'awss3':
+            #TODO: create assert_package_awss3 method in tests.helpers
+            pass
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
         )
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
@@ -156,7 +185,13 @@ class TestProcessingJobs(unittest.TestCase):
         max_wait = 20  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        remove_tree(LOCAL_FS_PACKAGE_DATA_TOP_DIR, packages=["gambia"])
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["zambia"],
+        )
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):

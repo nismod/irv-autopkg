@@ -13,10 +13,13 @@ import rasterio
 import shapely
 from shapely.ops import transform
 import pyproj
-from pyarrow.fs import S3FileSystem
+from pyarrow import fs
+from pyarrow.fs import S3FileSystem, LocalFileSystem
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
+from dataproc.helpers import assert_geotiff, assert_vector_file
+from dataproc.backends.storage.awss3 import S3Manager
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -114,7 +117,7 @@ def create_tree(
     top_level_path: str,
     packages: list = ["gambia", "zambia"],
     datasets: list = ["aqueduct", "biodiversity", "osm_roads"],
-    wipe_existing: bool = True
+    wipe_existing: bool = True,
 ):
     """
     Create a fake tree in local FS so we can check reading packages
@@ -175,6 +178,7 @@ def create_tree(
                 exist_ok=True,
             )
 
+
 def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
     """
     Cleanup the test tree from local FS
@@ -182,12 +186,13 @@ def remove_tree(top_level_path: str, packages=["gambia", "zambia"]):
     for package in packages:
         shutil.rmtree(os.path.join(top_level_path, package), ignore_errors=True)
 
+
 def create_tree_awss3(
     s3_fs: S3FileSystem,
     bucket: str,
     packages: list = ["gambia", "zambia"],
     datasets: list = ["aqueduct", "biodiversity", "osm_roads"],
-    wipe_existing: bool = True
+    wipe_existing: bool = True,
 ):
     """
     Create a fake tree in local FS so we can check reading packages
@@ -210,31 +215,146 @@ def create_tree_awss3(
             # An invalid processor or dataset was placed in the tree
             s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "noexist"))
         if "aqueduct" in datasets:
-            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "aqueduct", "0.1"))
+            s3_fs.create_dir(
+                os.path.join(bucket, "gambia", "datasets", "aqueduct", "0.1")
+            )
         if "biodiversity" in datasets:
-            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "biodiversity", "version_1"))
+            s3_fs.create_dir(
+                os.path.join(bucket, "gambia", "datasets", "biodiversity", "version_1")
+            )
         if "osm_roads" in datasets:
-            s3_fs.create_dir(os.path.join(bucket, "gambia", "datasets", "osm_roads", "20221201"))
+            s3_fs.create_dir(
+                os.path.join(bucket, "gambia", "datasets", "osm_roads", "20221201")
+            )
         if "natural_earth_raster" in datasets:
-            s3_fs.create_dir(os.path.join(
+            s3_fs.create_dir(
+                os.path.join(
                     bucket,
                     "gambia",
                     "datasets",
                     "natural_earth_raster",
                     "version_1",
-                ))
+                )
+            )
     if "zambia" in packages:
         if "osm_roads" in datasets:
-            s3_fs.create_dir(os.path.join(bucket, "zambia", "datasets", "osm_roads", "20230401"))
+            s3_fs.create_dir(
+                os.path.join(bucket, "zambia", "datasets", "osm_roads", "20230401")
+            )
+
 
 def remove_tree_awss3(
-    s3_fs: S3FileSystem,
-    bucket: str,
-    packages: list = ["gambia", "zambia"]
+    s3_fs: S3FileSystem, bucket: str, packages: list = ["gambia", "zambia"]
 ):
     """Remove a tree from aws s3 backend"""
     for package in packages:
         s3_fs.delete_dir(os.path.join(bucket, package))
+
+
+def clean_packages(
+    backend_type: str,
+    storage_backend: Any,
+    s3_bucket: str = None,
+    s3_region="eu-west-2",
+    packages=["gambia"],
+):
+    """Remove packages used in a test"""
+    try:
+        if backend_type == "awss3":
+            with S3Manager(*storage_backend._parse_env(), region=s3_region) as s3_fs:
+                remove_tree_awss3(s3_fs, s3_bucket, packages=packages)
+        elif backend_type == "localfs":
+            remove_tree(storage_backend.top_level_folder_path, packages=packages)
+        else:
+            print("unknown backend type:", backend_type)
+    except FileNotFoundError:
+        pass
+
+def assert_vector_output(
+    expected_shape: tuple,
+    expected_crs: str,
+    local_vector_fpath: str=None,
+    s3_fs: S3FileSystem = None,
+    s3_vector_fpath: str = None,
+    tmp_folder: str = None,
+):
+    """
+    Wrapper for assert vector file with support for fetching from S3
+    """
+    if s3_fs and s3_vector_fpath:
+        if not tmp_folder:
+            local_vector_fpath = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "data",
+                "tmp",
+                os.path.basename(s3_vector_fpath),
+            )
+        else:
+            local_vector_fpath = os.path.join(
+                tmp_folder, os.path.basename(s3_vector_fpath)
+            )
+        fs.copy_files(
+            s3_vector_fpath,
+            local_vector_fpath,
+            source_filesystem=s3_fs,
+            destination_filesystem=fs.LocalFileSystem(),
+        )
+    assert_vector_file(
+        local_vector_fpath,
+        expected_shape,
+        expected_crs=expected_crs,
+    )
+
+def assert_raster_output(
+    envelope: dict,
+    localfs_raster_fpath: str = None,
+    s3_fs: S3FileSystem = None,
+    s3_raster_fpath: str = None,
+    check_crs: str = "EPSG:4326",
+    check_compression=True,
+    tolerence: float = 0.1,
+    tmp_folder: str = None,
+):
+    """
+    Wrapper for assert_geotiff and assert_raster_bounds_correct
+        which asserts either local or S3 source results
+    if localfs_raster_fpath is provided then local source will be assumed
+
+    if s3_fs and s3_raster_fpath are provided then requested source
+        will be pulled locally before assertions.
+    """
+    try:
+        if s3_fs and s3_raster_fpath:
+            if not tmp_folder:
+                localfs_raster_fpath = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "data",
+                    "tmp",
+                    os.path.basename(s3_raster_fpath),
+                )
+            else:
+                localfs_raster_fpath = os.path.join(
+                    tmp_folder, os.path.basename(s3_raster_fpath)
+                )
+            fs.copy_files(
+                s3_raster_fpath,
+                localfs_raster_fpath,
+                source_filesystem=s3_fs,
+                destination_filesystem=fs.LocalFileSystem(),
+            )
+        assert_geotiff(
+            localfs_raster_fpath,
+            check_crs=check_crs,
+            check_compression=check_compression,
+        )
+        assert_raster_bounds_correct(
+            localfs_raster_fpath, envelope, tolerence=tolerence
+        )
+    finally:
+        # Clean local S3 artifacts
+        if s3_fs and s3_raster_fpath:
+            if os.path.exists(localfs_raster_fpath):
+                os.remove(localfs_raster_fpath)
 
 
 def assert_raster_bounds_correct(
@@ -276,12 +396,20 @@ def assert_raster_bounds_correct(
         ), f"bounds {src.bounds.bottom} did not match expected {min(y_coords)} within tolerence {tolerence}"
 
 
-def assert_package(
-    top_level_fpath: str, boundary_name: str
-):
+def assert_exists_awss3(s3_fs: S3FileSystem, s3_raster_fpath: str):
+    """
+    Check if a given file exists on the s3 filessytem
+    """
+    chk = s3_fs.get_file_info(s3_raster_fpath)
+    assert (
+        chk.type != fs.FileType.NotFound
+    ), f"file was not found on S3 {s3_raster_fpath}"
+
+
+def assert_package(top_level_fpath: str, boundary_name: str):
     """Assert integrity of a package and datasets contained within
-        This does not assert the integrity of actualy data files (raster/vector);
-        just the folder structure
+    This does not assert the integrity of actualy data files (raster/vector);
+    just the folder structure
     """
     required_top_level_docs = [
         "index.html",
@@ -338,10 +466,11 @@ def assert_datapackage_resource(dp_resource: dict):
     assert "name" in dp_resource.keys(), "datapackage missing name"
     assert isinstance(dp_resource["path"], list), "datapackage path not a list"
     assert isinstance(dp_resource["hashes"], list), "datapackage hashes not a list"
-    assert isinstance(dp_resource["bytes"], int), f"datapackage bytes {dp_resource['bytes']} not a int was {type(dp_resource['bytes'])}"
-    assert (
-        len(dp_resource["path"])
-        == len(dp_resource["hashes"])
+    assert isinstance(
+        dp_resource["bytes"], int
+    ), f"datapackage bytes {dp_resource['bytes']} not a int was {type(dp_resource['bytes'])}"
+    assert len(dp_resource["path"]) == len(
+        dp_resource["hashes"]
     ), f"datapackage path and hashes must be the same length {len(dp_resource['path'])}, {len(dp_resource['hashes'])}"
     assert isinstance(dp_resource["license"], dict), "datapackage license must be dict"
     assert (
