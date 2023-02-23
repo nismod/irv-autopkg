@@ -9,7 +9,7 @@ from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     version_name_from_file,
-    gdal_crop_pg_table_to_geopkg,
+    crop_osm_to_geopkg,
     data_file_hash,
     data_file_size,
     processor_name_from_file,
@@ -60,8 +60,7 @@ class Processor(BaseProcessorABC):
     input_pg_table = "features"
     input_geometry_column = "geom"
     output_geometry_operation = "clip" # Clip or intersect
-    output_geometry_column = "clipped_geometry"
-    output_layer_name = "gri-osm"
+    osm_crop_batch_size = 1000
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
@@ -87,7 +86,7 @@ class Processor(BaseProcessorABC):
         # Crop to given boundary
         self.update_progress(10, "cropping source")
         self.log.debug("%s - cropping to geopkg", self.metadata.name)
-        gdal_crop_pg_table_to_geopkg(
+        gen = crop_osm_to_geopkg(
             self.boundary,
             str(get_db_uri_ogr(
                 dbname=os.getenv(self.pg_osm_dbname_env),
@@ -100,11 +99,17 @@ class Processor(BaseProcessorABC):
             output_fpath,
             geometry_column=self.input_geometry_column,
             extract_type=self.output_geometry_operation,
-            clipped_geometry_column_name=self.output_geometry_column
+            batch_size=self.osm_crop_batch_size
         )
+        while True:
+            try:
+                progress = next(gen)
+                self.update_progress(10 + int((progress[1]/progress[0])*80), "cropping source")
+            except StopIteration:
+                break
         self.provenance_log[f"{self.metadata.name} - crop completed"] = True
         # Move cropped data to backend
-        self.update_progress(50, "moving result")
+        self.update_progress(90, "moving result")
         self.log.debug("%s - moving cropped data to backend", {self.metadata.name})
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
@@ -127,6 +132,7 @@ class Processor(BaseProcessorABC):
         self.provenance_log["datapackage"] = datapkg
         self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
         # Cleanup as required
+        os.remove(output_fpath)
         return self.provenance_log
 
     def generate_documentation(self):

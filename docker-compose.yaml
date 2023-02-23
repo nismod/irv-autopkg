@@ -42,7 +42,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.4-dev
     user: autopkg
     build: .
     volumes:
@@ -53,9 +53,12 @@ services:
     env_file:
       - envs/.api_and_dataproc.env
     command: celery --app dataproc.tasks worker
+    cpus: 2
+    mem_reservation: "500M"
+    mem_limit: "1G"
 
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.4-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
@@ -73,7 +76,7 @@ services:
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
   # To run tests change AUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.4-dev
     volumes:
       - ./tests/data:/usr/src/app/tests/data
     env_file:
@@ -81,7 +84,7 @@ services:
     command: python3 -m unittest discover /usr/src/app/tests/api
 
   test-dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.3-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.4-dev
     volumes:
       - ./tests/data:/usr/src/app/tests/data
     env_file:
