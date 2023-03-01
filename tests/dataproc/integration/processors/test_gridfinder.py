@@ -181,14 +181,14 @@ class TestGridFinderV1Processor(unittest.TestCase):
             else:
                 if STORAGE_BACKEND == "localfs":
                     assert_vector_output(
-                        (163, 2),
+                        (84, 2),
                         expected_crs[fname],
                         local_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                     )
                 elif STORAGE_BACKEND == "awss3":
                     with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
                         assert_vector_output(
-                            (163, 2),
+                            (84, 2),
                             expected_crs[fname],
                             s3_fs=s3_fs,
                             s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),

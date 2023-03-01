@@ -51,12 +51,11 @@ services:
     volumes:
       - ./data/packages:/data/packages
       - ./data/processing:/data/processing
-      - ./tests/data/packages:/usr/src/app/tests/data/packages
-      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
+      - ./tests:/usr/src/app/tests
     env_file:
       - envs/.api_and_dataproc.env
     command: celery --app dataproc.tasks worker
-    cpus: 2
+    cpus: 1
     mem_reservation: "500M"
     mem_limit: "1G"
 
@@ -66,13 +65,12 @@ services:
     volumes:
       - ./data/packages:/data/packages
       - ./data/processing:/data/processing
-      - ./tests/data/packages:/usr/src/app/tests/data/packages
-      - ./tests/data/tmp:/usr/src/app/tests/data/tmp
+      - ./tests:/usr/src/app/tests
     ports:
       - 8000:8000
     env_file:
       - envs/.api_and_dataproc.env
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
     cpus: "0.25"
     mem_reservation: "50M"
     mem_limit: "250M"
@@ -84,15 +82,15 @@ services:
   test-api:
     image: ghcr.io/nismod/irv-autopkg:0.2.5-dev
     volumes:
-      - ./tests/data:/usr/src/app/tests/data
+      - ./tests:/usr/src/app/tests
     env_file:
       - envs/.api_and_dataproc.env
-    command: python3 -m unittest discover /usr/src/app/tests/api
+    command: python -m unittest discover /usr/src/app/tests/api
 
   test-dataproc:
     image: ghcr.io/nismod/irv-autopkg:0.2.5-dev
     volumes:
-      - ./tests/data:/usr/src/app/tests/data
+      - ./tests:/usr/src/app/tests
     env_file:
       - envs/.api_and_dataproc.env
     command: python -m unittest discover /usr/src/app/tests/dataproc

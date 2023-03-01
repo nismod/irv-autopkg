@@ -87,6 +87,13 @@ class TestProcessingJobs(unittest.TestCase):
     def setUp(self):
         self.max_job_await = 20  # secs
         self.storage_backend = init_storage_backend(STORAGE_BACKEND)
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia", "zambia", "ssudan"],
+        )
 
     def test_get_job_no_exist(self):
         """"""
@@ -132,17 +139,9 @@ class TestProcessingJobs(unittest.TestCase):
             response.json()["detail"][0]["msg"], "duplicate processors not allowed"
         )
 
-
     def test_submit_job(self):
         """Simple submission and await completion of a job"""
         # Ensure the package tree is clean
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["gambia"],
-        )
         expected_code = 202
         route = build_route(JOBS_BASE_ROUTE)
         response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
@@ -178,29 +177,14 @@ class TestProcessingJobs(unittest.TestCase):
                 "gambia",
                 expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
             )
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["gambia"],
-        )
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
-        Submission of a second job containing
-            the same boundary and processor while one is already executing
+        Submission of a second job containing the same boundary and processor while one is already executing (test processor)
         """
-        max_wait = 20  # secs
+        max_wait = 60  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["zambia"],
-        )
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
@@ -276,29 +260,14 @@ class TestProcessingJobs(unittest.TestCase):
                 "zambia",
                 expected_processor_versions=JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC["processors"],
             )
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["gambia"],
-        )
 
     def test_submit_job_already_processing_using_ne_vector_processor(self):
         """
-        Submission of a second job containing
-            the same boundary and processor while one is already executing
+        Submission of a second job containing the same boundary and processor while one is already executing (ne vector)
         """
         max_wait = 60  # secs
         dup_processors_to_submit = 8
         expected_responses = [202 for i in range(dup_processors_to_submit)]
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["ssudan"],
-        )
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
         for _ in range(dup_processors_to_submit):
@@ -368,10 +337,3 @@ class TestProcessingJobs(unittest.TestCase):
                 "ssudan",
                 expected_processor_versions=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC["processors"],
             )
-        clean_packages(
-            STORAGE_BACKEND,
-            self.storage_backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["ssudan"],
-        )

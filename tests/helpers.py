@@ -7,6 +7,7 @@ import inspect
 import json
 from typing import Any, List, Tuple
 import shutil
+from time import sleep
 
 import sqlalchemy as sa
 import rasterio
@@ -257,12 +258,19 @@ def clean_packages(
     s3_bucket: str = None,
     s3_region="eu-west-2",
     packages=["gambia"],
+    s3_wait: int=5
 ):
     """Remove packages used in a test"""
     try:
         if backend_type == "awss3":
             with S3Manager(*storage_backend._parse_env(), region=s3_region) as s3_fs:
                 remove_tree_awss3(s3_fs, s3_bucket, packages=packages)
+            while True:
+                packages = storage_backend.packages()
+                if packages:
+                    sleep(0.5)
+                else:
+                    break
         elif backend_type == "localfs":
             remove_tree(storage_backend.top_level_folder_path, packages=packages)
         else:

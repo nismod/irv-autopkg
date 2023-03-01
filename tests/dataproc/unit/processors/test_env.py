@@ -15,3 +15,5 @@ class TestProcessorEnv(unittest.TestCase):
         import shapely
         import pyproj
         import rasterio
+        import pyarrow as pa
+        import geopandas as gp
