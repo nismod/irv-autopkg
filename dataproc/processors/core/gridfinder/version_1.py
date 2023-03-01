@@ -20,7 +20,7 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_license_file,
     fetch_zenodo_doi,
-    gp_crop_file_to_geopkg,
+    fiona_crop_file_to_geopkg,
     assert_vector_file,
 )
 
@@ -102,10 +102,12 @@ class Processor(BaseProcessorABC):
                     source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
                 )
             elif os.path.splitext(os.path.basename(source_fpath))[1] == ".gpkg":
-                crop_success = gp_crop_file_to_geopkg(
+                crop_success = fiona_crop_file_to_geopkg(
                     source_fpath,
                     self.boundary,
                     output_fpath,
+                    output_schema = {'properties': {'source': 'str'}, 'geometry': 'LineString'},
+                    output_crs=4326
                 )
             else:
                 continue
