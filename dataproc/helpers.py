@@ -511,7 +511,9 @@ def assert_vector_file(
     gdf = gp.read_file(fpath)
     assert isinstance(gdf, gp.geodataframe.GeoDataFrame)
     if expected_shape is not None:
-        assert gdf.shape == expected_shape, f"shape did not match expected: {gdf.shape}, {expected_shape}"
+        assert (
+            gdf.shape == expected_shape
+        ), f"shape did not match expected: {gdf.shape}, {expected_shape}"
     if expected_crs is not None:
         crs = ":".join(gdf.crs.to_authority())
         assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
@@ -541,13 +543,14 @@ def copy_from_pg_table(pg_uri: str, sql: str, output_csv_fpath: str) -> int:
     ::returns filesize int
     """
     import psycopg2
+
     sql = f"""COPY ({sql}) TO STDOUT WITH CSV HEADER"""
     with psycopg2.connect(dsn=pg_uri) as conn:
-        with open(output_csv_fpath, 'w') as fptr:
+        with open(output_csv_fpath, "w") as fptr:
             with conn.cursor() as cur:
                 cur.copy_expert(sql, fptr)
-    with open(output_csv_fpath, 'rb') as fptr:
-        total_lines = sum(1 for i in fptr) - 1 # Remove header line
+    with open(output_csv_fpath, "rb") as fptr:
+        total_lines = sum(1 for i in fptr) - 1  # Remove header line
     return total_lines
 
 
@@ -556,9 +559,9 @@ def crop_osm_to_geopkg(
     pg_uri: str,
     pg_table: str,
     output_fpath: str,
-    geometry_column: str = 'geom',
+    geometry_column: str = "geom",
     extract_type: str = "clip",
-    limit : int = None,
+    limit: int = None,
     batch_size: int = 1000,
 ) -> Generator:
     """
@@ -576,11 +579,11 @@ def crop_osm_to_geopkg(
         Either "intersect" - keep the entire intersecting feature in the output
         or "clip" includes only the clipped geometry in the output
 
-    ::returns Generator[int, int, int, int] 
+    ::returns Generator[int, int, int, int]
         Progress yield: csv_line_count, current_idx, lines_success, lines_skipped, lines_failed
     """
     import fiona
-    from fiona.crs import from_epsg as crs_from_epsg
+    from fiona.crs import CRS
     from shapely import from_wkt, to_geojson, from_wkb
 
     geojson = json.dumps(boundary["geojson"])
@@ -597,36 +600,40 @@ def crop_osm_to_geopkg(
             WHERE ST_Intersects({pg_table}.{geometry_column}, clip_geom.geometry)
         """
     if limit is not None and int(limit):
-        stmt = f'{stmt} LIMIT {limit}'
+        stmt = f"{stmt} LIMIT {limit}"
     try:
         # Generate CSV using COPY command
-        tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f'{time()}_tmp.csv')
+        tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f"{time()}_tmp.csv")
         csv_line_count = copy_from_pg_table(pg_uri, stmt, tmp_csv_fpath)
         # Load CSV to geopkg
-        crs = crs_from_epsg(4326)
+        crs = CRS.from_epsg(4326)
         schema = {
-            'geometry': 'LineString',
-            'properties': OrderedDict({
-                'asset_id': 'float:16',
-                'osm_way_id': 'str',
-                'asset_type': 'str',
-                'paved': 'bool',
-                'material': 'str',
-                'lanes': 'int',
-                '_asset_type': 'str',
-                'rehab_cost_USD_per_km': 'float:16',
-                'sector': 'str',
-                'subsector': 'str',
-                'tag_bridge': 'str',
-                'bridge': 'bool',
-                'wkt': 'str'
-            })
+            "geometry": "LineString",
+            "properties": OrderedDict(
+                {
+                    "asset_id": "float:16",
+                    "osm_way_id": "str",
+                    "asset_type": "str",
+                    "paved": "bool",
+                    "material": "str",
+                    "lanes": "int",
+                    "_asset_type": "str",
+                    "rehab_cost_USD_per_km": "float:16",
+                    "sector": "str",
+                    "subsector": "str",
+                    "tag_bridge": "str",
+                    "bridge": "bool",
+                    "wkt": "str",
+                }
+            ),
         }
-        template = {_k:None for _k, _ in schema['properties'].items()}
-        with fiona.open(output_fpath, 'w', driver='GPKG', crs=crs, schema=schema) as output:
-            with open(tmp_csv_fpath, newline='') as csvfile:
-                reader = csv.reader(csvfile, delimiter=',', quotechar='"')
-                next(reader, None) # Skip header
+        template = {_k: None for _k, _ in schema["properties"].items()}
+        with fiona.open(
+            output_fpath, "w", driver="GPKG", crs=crs, schema=schema
+        ) as output:
+            with open(tmp_csv_fpath, newline="") as csvfile:
+                reader = csv.reader(csvfile, delimiter=",", quotechar='"')
+                next(reader, None)  # Skip header
                 lines_skipped = 0
                 lines_failed = 0
                 lines_success = 0
@@ -636,43 +643,46 @@ def crop_osm_to_geopkg(
                         data = json.loads(row[1])
                         outrow = {}
                         geom = from_wkb(row[0])
-                        if geom.geom_type != 'LineString':
-                            lines_skipped+=1
+                        if geom.geom_type != "LineString":
+                            lines_skipped += 1
                             continue
-                        outrow['geometry'] = json.loads(to_geojson(geom))
+                        outrow["geometry"] = json.loads(to_geojson(geom))
                         # Null missing fields
-                        outrow['properties'] = OrderedDict(template | data)
+                        outrow["properties"] = OrderedDict(template | data)
                         batch.append(outrow)
                         if len(batch) >= batch_size:
                             output.writerecords(batch)
                             output.flush()
-                            lines_success+=len(batch)
+                            lines_success += len(batch)
                             batch = []
-                            yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+                            yield csv_line_count, idx + 1, lines_success, lines_skipped, lines_failed
                     except Exception as err:
-                        warnings.warn(f'failed to load rows to due: {err}')
+                        warnings.warn(f"failed to load rows to due: {err}")
                         # Attempt to load everything in the batch apart from the failed row
                         if batch:
                             for outrow in batch:
                                 try:
                                     output.write(outrow)
                                     output.flush()
-                                    lines_success+=1
+                                    lines_success += 1
                                 except Exception as rowerr:
-                                    warnings.warn(f"failed to load row: {outrow} due to {rowerr}")
-                                    lines_failed+=1
+                                    warnings.warn(
+                                        f"failed to load row: {outrow} due to {rowerr}"
+                                    )
+                                    lines_failed += 1
                                 finally:
                                     batch = []
                 # Final batch leftover
                 if len(batch) > 0:
                     output.writerecords(batch)
-                    lines_success+=len(batch)
-                    yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+                    lines_success += len(batch)
+                    yield csv_line_count, idx + 1, lines_success, lines_skipped, lines_failed
     finally:
         # Cleanup
         if os.path.exists(tmp_csv_fpath):
             os.remove(tmp_csv_fpath)
-    yield csv_line_count, idx+1, lines_success, lines_skipped, lines_failed
+    yield csv_line_count, idx + 1, lines_success, lines_skipped, lines_failed
+
 
 def gdal_crop_pg_table_to_geopkg(
     boundary: Boundary,
@@ -697,6 +707,7 @@ def gdal_crop_pg_table_to_geopkg(
         Defaults to "both"
     """
     from osgeo import gdal
+
     if debug:
         gdal.UseExceptions()
         gdal.SetConfigOption("CPL_DEBUG", "ON")
@@ -727,26 +738,45 @@ def gdal_crop_pg_table_to_geopkg(
     )
     gdal.VectorTranslate(output_fpath, ds, options=vector_options)
 
-def gp_crop_file_to_geopkg(
+
+def fiona_crop_file_to_geopkg(
     input_fpath: str,
     boundary: Boundary,
     output_fpath: str,
-    mask_type: str = "boundary",
+    output_schema: dict,
+    output_crs: int = 4326
 ) -> bool:
     """
-    Geopandas - crop file by given boundary mask
+    Crop file by given boundary mask, streaming data from the given input to output GPKG.
 
-    ::kwarg mask_type str One of 'boundary' or 'envelope'
-        Crop the input file by the boundary, or the envolope of the boundary.
+    Intersects using Shapely.interects
+
+    ::arg schema Fiona schema of format.  Must match input schema, e.g.:
+        {
+            "geometry": "LineString",
+            "properties": OrderedDict(
+                {
+                    "asset_id": "float:16",
+                    "osm_way_id": "str",
+                    "asset_type": "str",
+                    ...
+                }
+            ),
+        }
     """
-    import geopandas as gp
-    gdf_clipped = gp.read_file(
-        input_fpath,
-        mask=boundary["geojson"] if mask_type == "boundary" else boundary["envelope"],
-    )
-    gdf_clipped.to_file(output_fpath)
-    return os.path.exists(output_fpath)
+    import fiona
+    from fiona.crs import CRS
+    import shapely
 
+    clip_geom = shapely.from_geojson(json.dumps(boundary.geojson))
+    with fiona.open(
+            output_fpath, "w", driver="GPKG", crs=CRS.from_epsg(output_crs), schema=output_schema
+        ) as fptr_output:
+        with fiona.open(input_fpath) as fptr_input:
+            for input_row in fptr_input:
+                if shapely.geometry.shape(input_row.geometry).intersects(clip_geom):
+                    fptr_output.write(input_row)
+    return os.path.exists(output_fpath)
 
 def csv_to_gpkg(
     input_csv_fpath: str,
@@ -764,26 +794,26 @@ def csv_to_gpkg(
     df = pd.read_csv(
         input_csv_fpath,
         dtype={
-            "country" : str,
-            "country_long" : str,
-            "name" : str,
-            "gppd_idnr" : str,
-            "primary_fuel" : str,
-            "other_fuel1" : str,
-            "other_fuel2" : str,
-            "other_fuel3" : str,
-            "owner" : str,
-            "source" : str,
-            "url" : str,
-            "geolocation_source" : str,
-            "wepp_id" : str,
-            "generation_data_source" : str,
-            "estimated_generation_note_2013" : str,
-            "estimated_generation_note_2014" : str,
-            "estimated_generation_note_2015" : str,
-            "estimated_generation_note_2016" : str,
-            "estimated_generation_note_2017" : str,
-        }
+            "country": str,
+            "country_long": str,
+            "name": str,
+            "gppd_idnr": str,
+            "primary_fuel": str,
+            "other_fuel1": str,
+            "other_fuel2": str,
+            "other_fuel3": str,
+            "owner": str,
+            "source": str,
+            "url": str,
+            "geolocation_source": str,
+            "wepp_id": str,
+            "generation_data_source": str,
+            "estimated_generation_note_2013": str,
+            "estimated_generation_note_2014": str,
+            "estimated_generation_note_2015": str,
+            "estimated_generation_note_2016": str,
+            "estimated_generation_note_2017": str,
+        },
     )
     if not latitude_col in df.columns or not longitude_col in df.columns:
         raise Exception(
