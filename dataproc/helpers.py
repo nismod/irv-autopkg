@@ -504,19 +504,20 @@ def assert_vector_file(
 
     Optionally assert the data shape and CRS authority string
 
-    ::param fpath str Absolute filepath
+    ::arg fpath str Absolute filepath
+    ::kwarg expected_crs str CRS with authority - e.g. "EPSG:4326"
     """
-    import geopandas as gp
+    import fiona
 
-    gdf = gp.read_file(fpath)
-    assert isinstance(gdf, gp.geodataframe.GeoDataFrame)
-    if expected_shape is not None:
-        assert (
-            gdf.shape == expected_shape
-        ), f"shape did not match expected: {gdf.shape}, {expected_shape}"
-    if expected_crs is not None:
-        crs = ":".join(gdf.crs.to_authority())
-        assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
+    with fiona.open(fpath, 'r') as fptr:
+        if expected_shape is not None:
+            shape = (len(fptr), len(fptr.schema['properties'].keys()) + 1) # Add geom col to count of cols
+            assert (
+                shape == expected_shape
+            ), f"shape did not match expected: {shape}, {expected_shape}"
+        if expected_crs is not None:
+            crs = ":".join(fptr.crs.to_authority())
+            assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
 
 
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):

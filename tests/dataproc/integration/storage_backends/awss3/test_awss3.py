@@ -9,8 +9,9 @@ from config import (
     S3_BUCKET,
     S3_ACCESS_KEY_ENV,
     S3_SECRET_KEY_ENV,
+    S3_REGION
 )
-from tests.helpers import create_tree_awss3, remove_tree_awss3
+from tests.helpers import create_tree_awss3, remove_tree_awss3, clean_packages
 
 
 class TestAWSS3StorageBackend(unittest.TestCase):
@@ -19,6 +20,13 @@ class TestAWSS3StorageBackend(unittest.TestCase):
     def setUp(self):
         self.backend = AWSS3StorageBackend(
             S3_BUCKET, S3_ACCESS_KEY_ENV, S3_SECRET_KEY_ENV
+        )
+        clean_packages(
+            STORAGE_BACKEND,
+            self.backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia", "zambia", "ssudan"],
         )
 
     def expected_fs_structure(self):
