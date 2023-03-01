@@ -19,7 +19,7 @@ from pyarrow.fs import S3FileSystem, LocalFileSystem
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
 from dataproc.helpers import assert_geotiff, assert_vector_file
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.backends.storage.awss3 import S3Manager, AWSS3StorageBackend
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -438,6 +438,34 @@ def assert_package(top_level_fpath: str, boundary_name: str):
             os.path.join(top_level_fpath, boundary_name, doc)
         ), f"top-level {doc} missing"
 
+def assert_package_awss3(awss3_backend: AWSS3StorageBackend, boundary_name: str, expected_processor_versions: List=[]):
+    """Assert integrity of a package and datasets contained within (on S3)
+    This does not assert the integrity of actualy data files (raster/vector);
+    just the folder structure
+    """
+    required_top_level_docs = [
+        "index.html",
+        "license.html",
+        "version.html",
+        "provenance.json",
+        "datapackage.json",
+    ]
+    packages = awss3_backend._list_directories(awss3_backend._build_absolute_path(""))
+    assert (
+        boundary_name in packages
+    ), f"{boundary_name} missing in package S3 root: {packages}"
+
+    # Ensure the top-level index and other docs exist
+    for doc in required_top_level_docs:
+        assert awss3_backend.boundary_file_exists(
+            boundary_name, doc
+        ), f"package {boundary_name} is missing a top-level file: {doc}"
+
+    # Check we have folders for the expected processor versions
+    for proc_version in expected_processor_versions:
+        proc, version = proc_version.split('.')
+        s3_versions = awss3_backend.dataset_versions(boundary_name, proc)
+        assert version in s3_versions, f"{version} not found in dataset {s3_versions} for processor {proc}"
 
 def assert_table_in_pg(db_uri: str, tablename: str):
     """Check a given table exists in PG"""
