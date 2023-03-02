@@ -759,7 +759,7 @@ def fiona_crop_file_to_geopkg(
     from fiona.crs import CRS
     import shapely
 
-    clip_geom = shapely.from_geojson(json.dumps(boundary.geojson))
+    clip_geom = shapely.from_geojson(json.dumps(boundary['geojson']))
     with fiona.open(
             output_fpath, "w", driver="GPKG", crs=CRS.from_epsg(output_crs), schema=output_schema
         ) as fptr_output:
