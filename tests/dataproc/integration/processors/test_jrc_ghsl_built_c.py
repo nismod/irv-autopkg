@@ -5,24 +5,31 @@ import os
 import unittest
 import shutil
 
-from dataproc.backends import LocalFSStorageBackend
-from dataproc import Boundary
-from dataproc.processors.core.jrc_ghsl_built_c.r2022_epoch2018_10m_mszfun import (
-    Processor,
-    Metadata,
-)
-from dataproc.helpers import assert_geotiff
 from tests.helpers import (
     load_country_geojson,
     assert_raster_bounds_correct,
-    assert_datapackage_resource
+    assert_datapackage_resource,
+    clean_packages,
+    assert_raster_output
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
     DummyTaskExecutor
 )
-from config import PACKAGES_HOST_URL
+from dataproc import Boundary
+from dataproc.processors.core.jrc_ghsl_built_c.r2022_epoch2018_10m_mszfun import (
+    Processor,
+    Metadata,
+)
+from dataproc.backends.storage import init_storage_backend
+from dataproc.backends.storage.awss3 import S3Manager
+from config import (
+    PACKAGES_HOST_URL,
+    S3_REGION,
+    STORAGE_BACKEND,
+    S3_BUCKET,
+)
 
 
 class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
@@ -36,14 +43,31 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+        cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
+        # Ensure clean test-env
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
         shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
-        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"), ignore_errors=True)
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     def setUp(self):
         self.task_executor = DummyTaskExecutor()
@@ -100,13 +124,6 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
 
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
-        self.skipTest(f"Skipping JRC BUILT-C due to WIP")
-        try:
-            shutil.rmtree(
-                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            pass
         # Limit the files to be downloaded  in the fetcher
         self.proc.total_expected_files = 2
         prov_log = self.proc.generate()
@@ -116,10 +133,22 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
         for final_uri in final_uris.split(","):
-            # # Assert the geotiffs are valid
-            assert_geotiff(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), check_crs="ESRI:54009")
-            # # Assert the envelopes
-            assert_raster_bounds_correct(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR), self.boundary["envelope_geojson"])
+            if STORAGE_BACKEND == "localfs":
+                assert_raster_output(
+                    self.boundary["envelope_geojson"],
+                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                    check_crs="ESRI:54009",
+                )
+            elif STORAGE_BACKEND == "awss3":
+                with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                    assert_raster_output(
+                        self.boundary["envelope_geojson"],
+                        s3_fs=s3_fs,
+                        s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                        check_crs="ESRI:54009",
+                    )
+            else:
+                pass
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log['datapackage'])
