@@ -432,65 +432,55 @@ def crop_raster(
     raster_output_fpath: str,
     boundary: Boundary,
     preserve_raster_crs=False,
+    working_mem_mb=256,
+    creation_options="COMPRESS=PACKBITS",
+    debug=False
 ) -> bool:
     """
-    Crop a raster file to the given boundary (EPSG:4326)
-
-    Generates a geotiff.
-
-    __NOTE__ if the input raster CRS is not EPSG:4326 the boundary will be rep
-
-    ::param raster_input_fpath str Absolute Filepath of input
-    ::param raster_output_fpath str Absolute Filepath of output
-    ::kwarg preserve_raster_crs bool If True the source raster CRS will be preserved in the result
-        (input boundary will be reprojected to source CRS before clip)
+    Crop a raster using GDAL warp
     """
-
-    import rasterio
-    import rasterio.mask
+    from osgeo import gdal
     import shapely
-    from shapely.ops import transform
     import pyproj
+    from shapely.ops import transform
+    import shlex
+    import subprocess
 
-    # Create the path to output if it doesnt exist
-    os.makedirs(os.path.dirname(raster_output_fpath), exist_ok=True)
-    shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
-    with rasterio.open(raster_input_fpath) as src:
-        # Project the source boundary () to source raster if requested output is to match source raster CRS
-        source_raster_epsg = ":".join(src.crs.to_authority())
-        if preserve_raster_crs is True:
-            source_boundary_crs = pyproj.CRS("EPSG:4326")
-            target_boundary_crs = pyproj.CRS(source_raster_epsg)
+    from config import CROP_WORK_MEM_MB
 
-            project = pyproj.Transformer.from_crs(
-                source_boundary_crs, target_boundary_crs, always_xy=True
-            ).transform
-            shape = transform(project, shape)
-        else:
-            # Abort if source raster is not matching 4326
-            if source_raster_epsg != "EPSG:4326":
-                raise SourceRasterProjectionException(
-                    f"Aborting unknown reproject - Source raster is {source_raster_epsg} and preserve_raster_crs is False"
-                )
+    # Attempt to load working_mem from the environment if not set
+    if working_mem_mb == 256 and CROP_WORK_MEM_MB:
+        working_mem_mb = CROP_WORK_MEM_MB
+    
+    if preserve_raster_crs is True:
+        inds = gdal.Open(raster_input_fpath)
+        source_boundary_crs = pyproj.CRS("EPSG:4326")
+        target_boundary_crs = pyproj.crs.CRS.from_wkt(inds.GetProjection())
 
-        out_image, out_transform = rasterio.mask.mask(src, [shape], crop=True)
-        out_meta = src.meta
+        project = pyproj.Transformer.from_crs(
+            source_boundary_crs, target_boundary_crs, always_xy=True
+        ).transform
+        inshape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
+        shape = transform(project, inshape)
+        bounds = shape.bounds
+        crs = ":".join(target_boundary_crs.to_authority())
+    else:
+        shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
+        bounds = shape.bounds
+        crs = "EPSG:4326"
 
-    out_meta.update(
-        {
-            "driver": "GTiff",
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform,
-        }
-    )
+    # Doing this from a subprocess is generally more fruitful
+    gdal_warp = shutil.which('gdalwarp')
+    if not gdal_warp:
+        raise Exception("gdalwarp not found")
+    cmd = f'{gdal_warp} {raster_input_fpath} {raster_output_fpath} -t_srs {crs} -te {" ".join([str(i) for i in bounds])} -wm {working_mem_mb} -co {creation_options}'
+    if debug is True:
+        print ("Raster Crop Command:", cmd)
 
-    with rasterio.open(
-        raster_output_fpath, "w", **out_meta, compress="PACKBITS"
-    ) as dest:
-        dest.write(out_image)
-
-        return os.path.exists(raster_output_fpath)
+    result = subprocess.run(shlex.split(cmd), capture_output=True)
+    if debug is True:
+        print ("Raster Crop Result:", result)
+    return os.path.exists(raster_output_fpath)
 
 
 # VECTOR OPERATIONS

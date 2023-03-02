@@ -151,3 +151,6 @@ CELERY_APP = Celery(
 
 # Seconds before submitted tasks expire
 TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
+
+# Work Mem Allocation for Raster Crop (see gdal_warp -wm {MB})
+CROP_WORK_MEM_MB = int(getenv("AUTOPKG_CROP_WORK_MEM_MB", "256"))
