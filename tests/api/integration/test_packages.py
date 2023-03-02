@@ -6,6 +6,7 @@ import os
 import sys
 import inspect
 import unittest
+import shutil
 
 import requests
 
@@ -20,7 +21,7 @@ from tests.helpers import (
     remove_tree,
     assert_datapackage_resource,
     create_tree_awss3,
-    remove_tree_awss3,
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
@@ -31,6 +32,7 @@ from config import (
     S3_BUCKET,
     S3_ACCESS_KEY_ENV,
     S3_SECRET_KEY_ENV,
+    S3_REGION
 )
 
 
@@ -40,9 +42,21 @@ class TestPackages(unittest.TestCase):
     These tests require API and Celery Worker to be run ning (with redis)
     """
 
-    def setUp(self):
-        self.backend = AWSS3StorageBackend(
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = AWSS3StorageBackend(
             S3_BUCKET, S3_ACCESS_KEY_ENV, S3_SECRET_KEY_ENV
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
         )
 
     def assert_package(

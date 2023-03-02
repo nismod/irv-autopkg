@@ -9,6 +9,7 @@ import unittest
 from uuid import uuid4
 from time import time, sleep
 import json
+import shutil
 
 import requests
 
@@ -84,12 +85,24 @@ class TestProcessingJobs(unittest.TestCase):
     These tests require API and Celery Worker to be running (with redis)
     """
 
-    def setUp(self):
-        self.max_job_await = 20  # secs
-        self.storage_backend = init_storage_backend(STORAGE_BACKEND)
+    @classmethod
+    def setUpClass(cls):
+        cls.max_job_await = 20  # secs
+        cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
         clean_packages(
             STORAGE_BACKEND,
-            self.storage_backend,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia", "zambia", "ssudan"],
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
             s3_bucket=S3_BUCKET,
             s3_region=S3_REGION,
             packages=["gambia", "zambia", "ssudan"],
