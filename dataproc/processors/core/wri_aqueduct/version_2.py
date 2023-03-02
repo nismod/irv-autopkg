@@ -26,7 +26,6 @@ from dataproc.helpers import (
     generate_index_file,
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
-from dataproc.exceptions import FolderNotFoundException
 
 
 class Metadata(BaseMetadataABC):

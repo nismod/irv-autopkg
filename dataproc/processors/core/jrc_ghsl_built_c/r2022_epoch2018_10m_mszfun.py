@@ -26,7 +26,6 @@ from dataproc.helpers import (
     generate_license_file,
     generate_datapackage,
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
 

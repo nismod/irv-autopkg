@@ -24,7 +24,6 @@ from dataproc.helpers import (
     fetch_zenodo_doi,
     tiffs_in_folder,
 )
-from dataproc.exceptions import FolderNotFoundException
 
 
 class Metadata(BaseMetadataABC):

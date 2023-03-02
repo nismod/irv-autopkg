@@ -8,7 +8,6 @@ from typing import List
 
 from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.helpers import (
     processor_name_from_file,
     version_name_from_file,

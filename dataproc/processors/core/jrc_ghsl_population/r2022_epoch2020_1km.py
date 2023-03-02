@@ -22,7 +22,6 @@ from dataproc.helpers import (
     generate_index_file,
     generate_license_file,
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
 
 
