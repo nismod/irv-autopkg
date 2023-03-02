@@ -18,7 +18,7 @@ from dataproc.helpers import (
     generate_datapackage,
     unpack_zip,
     csv_to_gpkg,
-    gp_crop_file_to_geopkg,
+    fiona_crop_file_to_geopkg,
     assert_vector_file,
 )
 
@@ -50,6 +50,47 @@ class Processor(BaseProcessorABC):
     source_zip_url = "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
     expected_zip_hash = "083f11452efc1ed0e8fb1494f0ce49e5c37718e2"
     source_file = "global_power_plant_database.gpkg"
+    output_schema = {
+        "properties": {
+            "country": "str",
+            "country_long": "str",
+            "name": "str",
+            "gppd_idnr": "str",
+            "capacity_mw": "float",
+            "latitude": "float",
+            "longitude": "float",
+            "primary_fuel": "str",
+            "other_fuel1": "str",
+            "other_fuel2": "str",
+            "other_fuel3": "str",
+            "commissioning_year": "float",
+            "owner": "str",
+            "source": "str",
+            "url": "str",
+            "geolocation_source": "str",
+            "wepp_id": "str",
+            "year_of_capacity_data": "float",
+            "generation_gwh_2013": "float",
+            "generation_gwh_2014": "float",
+            "generation_gwh_2015": "float",
+            "generation_gwh_2016": "float",
+            "generation_gwh_2017": "float",
+            "generation_gwh_2018": "float",
+            "generation_gwh_2019": "float",
+            "generation_data_source": "str",
+            "estimated_generation_gwh_2013": "float",
+            "estimated_generation_gwh_2014": "float",
+            "estimated_generation_gwh_2015": "float",
+            "estimated_generation_gwh_2016": "float",
+            "estimated_generation_gwh_2017": "float",
+            "estimated_generation_note_2013": "str",
+            "estimated_generation_note_2014": "str",
+            "estimated_generation_note_2015": "str",
+            "estimated_generation_note_2016": "str",
+            "estimated_generation_note_2017": "str",
+        },
+        "geometry": "Point",
+    }
     expected_source_gpkg_shape = (34936, 37)
 
     def exists(self):
@@ -80,8 +121,11 @@ class Processor(BaseProcessorABC):
         # Crop to given boundary
         self.update_progress(50, "cropping source")
         self.log.debug("%s - cropping to geopkg", self.metadata.name)
-        crop_result = gp_crop_file_to_geopkg(
-            source_gpkg_fpath, self.boundary, output_fpath, mask_type="boundary"
+        crop_result = fiona_crop_file_to_geopkg(
+            source_gpkg_fpath,
+            self.boundary,
+            output_fpath,
+            self.output_schema
         )
 
         self.provenance_log[f"{self.metadata.name} - crop completed"] = crop_result
@@ -107,7 +151,9 @@ class Processor(BaseProcessorABC):
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
         # Cleanup as required
         return self.provenance_log
 
@@ -151,14 +197,17 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", self.metadata.name
+                "%s - all source files appear to exist and are valid",
+                self.metadata.name,
             )
             return os.path.join(self.source_folder, self.source_file)
         # Fetch the source zip
         self.log.debug("%s - fetching zip", self.metadata.name)
         local_zip_fpath = self._fetch_zip()
         self.log.debug("%s - fetched zip to %s", self.metadata.name, local_zip_fpath)
-        self.provenance_log[f"{self.metadata.name} - zip download path"] = local_zip_fpath
+        self.provenance_log[
+            f"{self.metadata.name} - zip download path"
+        ] = local_zip_fpath
         # Unpack
         self.log.debug("%s - unpacking zip", self.metadata.name)
         unpack_zip(local_zip_fpath, self.tmp_processing_folder)
@@ -177,7 +226,9 @@ class Processor(BaseProcessorABC):
             longitude_col="longitude",
         )
         self.log.info(
-            "%s - CSV conversion to source GPKG success: %s", self.metadata.name, converted
+            "%s - CSV conversion to source GPKG success: %s",
+            self.metadata.name,
+            converted,
         )
 
         return gpkg_fpath

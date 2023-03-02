@@ -8,7 +8,6 @@ from typing import List
 
 from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.helpers import (
     processor_name_from_file,
     version_name_from_file,
@@ -20,7 +19,7 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_license_file,
     fetch_zenodo_doi,
-    gp_crop_file_to_geopkg,
+    fiona_crop_file_to_geopkg,
     assert_vector_file,
 )
 
@@ -65,7 +64,7 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
@@ -82,7 +81,7 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
@@ -102,10 +101,12 @@ class Processor(BaseProcessorABC):
                     source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
                 )
             elif os.path.splitext(os.path.basename(source_fpath))[1] == ".gpkg":
-                crop_success = gp_crop_file_to_geopkg(
+                crop_success = fiona_crop_file_to_geopkg(
                     source_fpath,
                     self.boundary,
                     output_fpath,
+                    output_schema = {'properties': {'source': 'str'}, 'geometry': 'LineString'},
+                    output_crs=4326
                 )
             else:
                 continue

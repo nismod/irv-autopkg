@@ -1,31 +1,36 @@
-FROM osgeo/gdal:alpine-small-3.6.2
-
-# set work directory
-WORKDIR /usr/src/app
+FROM osgeo/gdal:ubuntu-small-3.6.2
 
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# install dependencies
-COPY ./requirements.txt .
-RUN apk add --virtual .build-deps \
-        --repository http://dl-cdn.alpinelinux.org/alpine/edge/community \
-        --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
-        gcc libc-dev geos-dev geos && \
-    apk add --update --no-cache python3 python3-dev alpine-sdk && ln -sf python3 /usr/bin/python && \
-    python3 -m ensurepip && \
-    pip3 install --no-cache --upgrade pip setuptools && \
-    pip3 install -r requirements.txt
+# copy project
+WORKDIR /usr/src/app
 
+# install dependencies and add user
+RUN apt-get update && \ 
+    apt-get install -y python3-pip && \
+    rm -rf /var/lib/apt/lists/* && \
+    addgroup -gid 1002 autopkg && adduser --system --disabled-login -uid 1002 --gid 1002 autopkg
+
+# Load Pip deps as Autopkg
+COPY requirements.txt .
+USER autopkg
+RUN pip3 install --user --no-cache --upgrade --no-warn-script-location pip -r requirements.txt
+
+# Load App and alter user
+USER root
+COPY config.py .
+COPY api ./api
+COPY dataproc ./dataproc
+COPY tests/dataproc/unit ./tests/dataproc/unit
+COPY tests/helpers.py ./tests/helpers.py
+RUN chown -R autopkg:autopkg /usr/src/app
+
+USER autopkg
+# Make sure scripts in .local are usable:
+ENV PATH=/home/autopkg/.local/bin:$PATH
 ENV PYTHONPATH "${PYTHONPATH}:/usr/src/app/"
 
-# copy project
-COPY . .
-
-# Setup the Executing User
-RUN addgroup -g 1002 autopkg && adduser -SHD autopkg -u 1002 -G autopkg && \
-    chown -R autopkg:autopkg /usr/src/app
-
 # Run unit tests
-RUN python3 -m unittest discover /usr/src/app/tests/dataproc/unit
+RUN python3 -m unittest /usr/src/app/tests/dataproc/unit/processors/test_env.py

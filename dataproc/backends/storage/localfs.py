@@ -170,8 +170,8 @@ class LocalFSStorageBackend(StorageBackend):
         """
         full_path = self._build_absolute_path(boundary_name)
         os.mkdir(full_path)
-        if not self.boundary_folder_exists(full_path):
-            raise FolderCreationException(f"boundary folder path {full_path} not found")
+        if not self.boundary_folder_exists(boundary_name):
+            raise FolderCreationException(f"boundary folder path {boundary_name} not found")
 
     def create_boundary_data_folder(self, boundary_name: str):
         """
@@ -179,8 +179,8 @@ class LocalFSStorageBackend(StorageBackend):
         """
         full_path = self._build_absolute_path(boundary_name, self.datasets_folder_name)
         os.mkdir(full_path)
-        if not self.boundary_folder_exists(full_path):
-            raise FolderCreationException(f"boundary folder path {full_path} not found")
+        if not self.boundary_data_folder_exists(boundary_name):
+            raise FolderCreationException(f"boundary data-folder path {boundary_name} not found")
 
     def put_boundary_data(
         self,
@@ -234,7 +234,7 @@ class LocalFSStorageBackend(StorageBackend):
         remove_local_source=False
     ) -> str:
         """
-        Put an data output from a processor for a particular dataset and
+        Put data output from a processor for a particular dataset and
         version onto the backend
 
         ::kwarg remove_local_source bool Whether to delete the local source file 
@@ -301,7 +301,7 @@ class LocalFSStorageBackend(StorageBackend):
     @staticmethod
     def count_file_types_in_folder(folder_path: str, file_type="tif") -> int:
         """
-        Count the number of tiffs in a folder
+        Count the number of files of a type in a folder
         """
         count = 0
         for dir_info in os.scandir(folder_path):
@@ -327,7 +327,7 @@ class LocalFSStorageBackend(StorageBackend):
             self.dataset_data_folder_name,
         )
         if not os.path.exists(folder):
-            raise FolderNotFoundException()
+            raise FileNotFoundError()
         return self.count_file_types_in_folder(folder, datafile_ext)
 
     def remove_boundary_data_files(
@@ -345,7 +345,7 @@ class LocalFSStorageBackend(StorageBackend):
             self.dataset_data_folder_name,
         )
         if not os.path.exists(folder):
-            raise FolderNotFoundException()
+            raise FileNotFoundError()
         for filename in os.listdir(folder):
             file_path = os.path.join(folder, filename)
             try:
@@ -360,7 +360,7 @@ class LocalFSStorageBackend(StorageBackend):
         """
         Update a packages datapackage.json file with details of a given dataset.
 
-        __NOTE__: Assumes the Boundary processor has already run and datapcakge exists (even as just template)
+        __NOTE__: Assumes the Boundary processor has already run and datapackage exists (even as just template)
         """
         # Load existing datapackage
         datapackage_fpath = self._build_absolute_path(boundary_name, "datapackage.json")

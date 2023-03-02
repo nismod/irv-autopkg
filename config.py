@@ -120,6 +120,22 @@ else:
     # The root-level folder when using localfs processing backend
     LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
 
+# S3 Storage Backend
+if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
+    # __NOTE__ These reference the ENVIRONMENT variables that can be used to access the secrets instead of the variables themselves
+    S3_ACCESS_KEY_ENV = "AUTOPKG_S3_ACCESS_KEY"
+    S3_SECRET_KEY_ENV = "AUTOPKG_S3_SECRET_KEY"
+    # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
+    S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg")
+    S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
+else:
+    # __NOTE__ These reference the ENVIRONMENT variables that can be used to access the secrets instead of the variables themselves
+    S3_ACCESS_KEY_ENV = "AUTOPKG_S3_TEST_ACCESS_KEY"
+    S3_SECRET_KEY_ENV = "AUTOPKG_S3_TEST_SECRET_KEY"
+    # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
+    S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg-dev")
+    S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
+
 # Name matching Soundex Distance Default
 NAME_SEARCH_DISTANCE = int(getenv("AUTOPKG_NAME_SEARCH_DISTANCE", "2"))
 
@@ -135,3 +151,6 @@ CELERY_APP = Celery(
 
 # Seconds before submitted tasks expire
 TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
+
+# Work Mem Allocation for Raster Crop (see gdal_warp -wm {MB})
+CROP_WORK_MEM_MB = int(getenv("AUTOPKG_CROP_WORK_MEM_MB", "256"))

@@ -5,23 +5,32 @@ import os
 import unittest
 import shutil
 
-from dataproc.backends import LocalFSStorageBackend
-from dataproc import Boundary
-from dataproc.processors.core.wri_powerplants.version_130 import (
-    Processor,
-    Metadata,
-)
-from dataproc.helpers import assert_vector_file
 from tests.helpers import (
+    assert_exists_awss3,
     load_country_geojson,
     assert_datapackage_resource,
+    clean_packages,
+    assert_vector_output
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
     DummyTaskExecutor
 )
-from config import PACKAGES_HOST_URL
+from dataproc import Boundary
+from dataproc.processors.core.wri_powerplants.version_130 import (
+    Processor,
+    Metadata,
+)
+from dataproc.backends.storage import init_storage_backend
+from dataproc.backends.storage.awss3 import S3Manager
+from config import (
+    PACKAGES_HOST_URL,
+    S3_REGION,
+    STORAGE_BACKEND,
+    S3_BUCKET,
+    TEST_GRI_OSM
+)
 
 
 class TestWRIPowerplantsProcessor(unittest.TestCase):
@@ -35,14 +44,31 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
         os.makedirs(cls.test_processing_data_dir, exist_ok=True)
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+        cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
+        # Ensure clean test-env
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
         shutil.rmtree(cls.test_processing_data_dir)
         # Package data
-        shutil.rmtree(os.path.join(cls.storage_backend.top_level_folder_path, "gambia"))
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     def setUp(self):
         self.task_executor = DummyTaskExecutor()
@@ -94,12 +120,13 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
 
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
-        try:
-            shutil.rmtree(
-                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            pass
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
         # Limit the files to be downloaded  in the fetcher
         self.proc.total_expected_files = 1
         prov_log = self.proc.generate()
@@ -112,14 +139,23 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
         # # Collect the URI for the final Raster
         final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         # Assert the file exists
-        self.assertTrue(
-            final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)
-        )
-        assert_vector_file(
-            final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
-            expected_shape=(2, 37),
-            expected_crs="EPSG:4326",
-        )
+        if STORAGE_BACKEND == "localfs":
+            self.assertTrue(os.path.exists(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)))
+            assert_vector_output(
+                expected_shape=(2, 37),
+                expected_crs="EPSG:4326",
+                local_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+            )
+        elif STORAGE_BACKEND == "awss3":
+            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                assert_vector_output(
+                    expected_shape=(2, 37),
+                    expected_crs="EPSG:4326",
+                    s3_fs=s3_fs,
+                    s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET)
+                )
+        else:
+            pass
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log["datapackage"])

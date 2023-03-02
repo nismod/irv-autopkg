@@ -48,7 +48,7 @@ logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
 # Initialise the storage backend helpers
-storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
+storage_backend = init_storage_backend(STORAGE_BACKEND)
 
 
 @router.get(PACKAGES_BASE_ROUTE, response_model=List[PackageSummary])

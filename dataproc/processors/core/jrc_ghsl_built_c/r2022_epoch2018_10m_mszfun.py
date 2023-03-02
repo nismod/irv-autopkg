@@ -26,7 +26,6 @@ from dataproc.helpers import (
     generate_license_file,
     generate_datapackage,
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
 
@@ -88,7 +87,7 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
@@ -105,7 +104,7 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
             # Cleanup anything in tmp processing
             self._clean_tmp_processing()

@@ -16,3 +16,5 @@ pyproj==3.4.1
 datapackage==1.15.2
 zenodo_get==1.3.4
 geopandas==0.12.2
+pyarrow==11.0.0
+fiona==1.9.1
