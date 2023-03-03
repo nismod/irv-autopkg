@@ -106,8 +106,6 @@ class Processor(BaseProcessorABC):
                 )
             except FileNotFoundError:
                 pass
-            # Cleanup anything in tmp processing
-            self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",
@@ -219,14 +217,6 @@ class Processor(BaseProcessorABC):
             f"{self.metadata.name} - created license documentation"
         ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
-
-    def _clean_tmp_processing(self):
-        """Remove the tmp processing folder and recreate"""
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def _fetch_source(self) -> List[str]:
         """

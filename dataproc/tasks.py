@@ -171,7 +171,10 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    sink["generate_provenance"] = {"failed": type(err).__name__}
+                    if isinstance(sink, dict):
+                        sink["generate_provenance"] = {"failed": type(err).__name__}
+                    else:
+                        sink.append({"generate_provenance failed": type(err).__name__})
                 finally:
                     _ = redis_client.getdel(task_sig)
             else:

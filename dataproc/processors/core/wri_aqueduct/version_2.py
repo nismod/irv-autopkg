@@ -95,12 +95,6 @@ class Processor(BaseProcessorABC):
         self.update_progress(10, "fetching and verifying source")
         self._fetch_source()
 
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
-
         self.log.debug("WRI Aqueduct - cropping geotiffs")
         results_fpaths = []
         for idx, fileinfo in enumerate(os.scandir(self.source_folder)):
