@@ -56,20 +56,20 @@ class AWSS3StorageBackend(StorageBackend):
     def __init__(
         self,
         bucket: str,
-        s3_access_key_env: str,
-        s3_secret_key_env: str,
+        s3_access_key: str,
+        s3_secret_key: str,
         s3_region="eu-west-2",
     ) -> None:
         """
 
         ::param bucket str S3 bucket under-which packages are stored
-        ::param s3_access_key_env str Environment variable containing S3 access key
-        ::param s3_secret_key_env str Environment variable containing S3 secret key
+        ::param s3_access_key str S3 access key
+        ::param s3_secret_key str S3 secret key
         """
         dict.__init__(self)
         self.bucket = bucket
-        self.s3_access_key_env = s3_access_key_env
-        self.s3_secret_key_env = s3_secret_key_env
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
         self.s3_region = s3_region
         _ = self._check_env()
 
@@ -79,15 +79,15 @@ class AWSS3StorageBackend(StorageBackend):
 
         ::returns Tuple[str, str] access_key, secret_key
         """
-        return os.getenv(self.s3_access_key_env), os.getenv(self.s3_secret_key_env)
+        return self.s3_access_key, self.s3_secret_key
 
     def _check_env(self) -> bool:
         """
         Check the env required for S3 appears to be valid
         """
-        if not all(self._parse_env()):
+        if not all([self.s3_access_key, self.s3_secret_key]):
             warnings.warn(
-                "AWSS3StorageBackend - s3_access_key_env and s3_secret_key_env required for S3 initialisation"
+                "AWSS3StorageBackend - s3_access_key and s3_secret_key required for S3 initialisation"
             )
             return False
         return True

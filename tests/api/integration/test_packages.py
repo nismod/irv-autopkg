@@ -31,8 +31,6 @@ from dataproc.backends.storage.awss3 import AWSS3StorageBackend, S3Manager
 from config import (
     STORAGE_BACKEND,
     S3_BUCKET,
-    S3_ACCESS_KEY_ENV,
-    S3_SECRET_KEY_ENV,
     S3_REGION
 )
 

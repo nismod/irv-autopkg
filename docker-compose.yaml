@@ -73,9 +73,9 @@ services:
     env_file:
       - envs/.api_and_dataproc.env
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000
-    cpus: "0.25"
-    mem_reservation: "50M"
-    mem_limit: "250M"
+    # cpus: "0.25"
+    # mem_reservation: "50M"
+    # mem_limit: "250M"
 
 
   # API test-harness requires API and Dataproc to be running

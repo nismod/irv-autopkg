@@ -73,7 +73,7 @@ TASK_LOCK_TIMEOUT = int(
 )  # seconds before locked tasks timeout
 
 # Deployment Env
-DEPLOYMENT_ENV = getenv("AUTOPKG_DEPLOYMENT_ENV", "dev")
+DEPLOYMENT_ENV = getenv("AUTOPKG_DEPLOYMENT_ENV", "prod")
 LOG_LEVEL = logging.getLevelName(getenv("AUTOPKG_LOG_LEVEL", "DEBUG"))
 INTEGRATION_TEST_ENDPOINT = getenv(
     "AUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000"
@@ -99,7 +99,7 @@ PACKAGES_HOST_URL = getenv("AUTOPKG_PACKAGES_HOST_URL", "http://localhost/packag
 # Storage backend to use
 STORAGE_BACKEND = getenv("AUTOPKG_STORAGE_BACKEND", "localfs")
 # Dev / Prod switch for testing
-if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
+if DEPLOYMENT_ENV == "test":
     # TEST
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv(
@@ -113,27 +113,23 @@ if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
     )
     # Integration tests which require access to the GRIOSM Postgres instance will be run if this is set-True (1)
     TEST_GRI_OSM = bool(int(getenv("TEST_GRI_OSM", "0")))
+    # AWSS3 Storage Backend
+    S3_ACCESS_KEY = getenv("AUTOPKG_S3_ACCESS_KEY")
+    S3_SECRET_KEY = getenv("AUTOPKG_S3_SECRET_KEY")
+    # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
+    S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg-dev")
+    S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
 else:
     # PROD
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
     # The root-level folder when using localfs processing backend
     LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
-
-# S3 Storage Backend
-if getenv("AUTOPKG_DEPLOYMENT_ENV", "prod") == "test":
-    # __NOTE__ These reference the ENVIRONMENT variables that can be used to access the secrets instead of the variables themselves
-    S3_ACCESS_KEY_ENV = "AUTOPKG_S3_ACCESS_KEY"
-    S3_SECRET_KEY_ENV = "AUTOPKG_S3_SECRET_KEY"
+    # AWSS3 Storage Backend
+    S3_ACCESS_KEY = getenv("AUTOPKG_S3_ACCESS_KEY")
+    S3_SECRET_KEY = getenv("AUTOPKG_S3_SECRET_KEY")
     # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
     S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg")
-    S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
-else:
-    # __NOTE__ These reference the ENVIRONMENT variables that can be used to access the secrets instead of the variables themselves
-    S3_ACCESS_KEY_ENV = "AUTOPKG_S3_TEST_ACCESS_KEY"
-    S3_SECRET_KEY_ENV = "AUTOPKG_S3_TEST_SECRET_KEY"
-    # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
-    S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg-dev")
     S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
 
 # Name matching Soundex Distance Default
