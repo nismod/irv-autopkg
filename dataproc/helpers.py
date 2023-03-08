@@ -261,6 +261,15 @@ def generate_datapackage(
 
 # FILE OPERATIONS
 
+def output_filename(dataset_name: str, dataset_version: str, boundary_name: str, file_format: str, dataset_subfilename: str = None) -> str:
+    """
+    Generate a standardized output filename
+    """
+    base = f"{dataset_name}-{dataset_version}"
+    if not dataset_subfilename:
+        return f"{base}-{boundary_name}.{file_format.replace('.', '')}"
+    else:
+        return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
 
 def unpack_zip(zip_fpath: str, target_folder: str):
     """
@@ -408,9 +417,18 @@ def fetch_zenodo_doi(
 
 
 # RASTER OPERATIONS
+def is_bigtiff(filename):
+    """
+    https://stackoverflow.com/questions/60427572/how-to-determine-if-a-tiff-was-written-in-bigtiff-format
+    """
+    import struct
+    with open(filename, 'rb') as f:
+        header = f.read(4)
+    byteorder = {b'II': '<', b'MM': '>', b'EP': '<'}[header[:2]]
+    version = struct.unpack(byteorder + "H", header[2:4])[0]
+    return version == 43
 
-
-def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=True):
+def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=True, check_is_bigtiff=False):
     """
     Check a given file is a valid geotiff
 
@@ -426,6 +444,8 @@ def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=T
         if check_compression is True:
             assert src.compression is not None, "raster did not have any compression"
 
+    if check_is_bigtiff is True:
+        assert is_bigtiff(fpath) is True, f"raster is not a bigtiff when it was expected to be: {fpath}"
 
 def crop_raster(
     raster_input_fpath: str,
@@ -433,7 +453,7 @@ def crop_raster(
     boundary: Boundary,
     preserve_raster_crs=False,
     working_mem_mb=256,
-    creation_options="COMPRESS=PACKBITS",
+    creation_options=["COMPRESS=PACKBITS"],
     debug=False
 ) -> bool:
     """
@@ -473,7 +493,10 @@ def crop_raster(
     gdal_warp = shutil.which('gdalwarp')
     if not gdal_warp:
         raise Exception("gdalwarp not found")
-    cmd = f'{gdal_warp} {raster_input_fpath} {raster_output_fpath} -t_srs {crs} -te {" ".join([str(i) for i in bounds])} -wm {working_mem_mb} -co {creation_options}'
+    cmd = f'{gdal_warp} {raster_input_fpath} {raster_output_fpath} -t_srs {crs} -te {" ".join([str(i) for i in bounds])} -wm {working_mem_mb}'
+    # Add Creation Options
+    for creation_option in creation_options:
+        cmd = cmd + f' -co {creation_option}'
     if debug is True:
         print ("Raster Crop Command:", cmd)
 
