@@ -21,6 +21,7 @@ from dataproc.helpers import (
     fetch_zenodo_doi,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
+    output_filename
 )
 
 
@@ -93,14 +94,25 @@ class Processor(BaseProcessorABC):
             self.update_progress(
                 10 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
+
+            subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
+            file_format = os.path.splitext(os.path.basename(source_fpath))[1]
+
             output_fpath = os.path.join(
-                self.tmp_processing_folder, os.path.basename(source_fpath)
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    file_format,
+                    dataset_subfilename=subfilename
+                )
             )
-            if os.path.splitext(os.path.basename(source_fpath))[1] == ".tif":
+            if file_format == ".tif":
                 crop_success = crop_raster(
                     source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
                 )
-            elif os.path.splitext(os.path.basename(source_fpath))[1] == ".gpkg":
+            elif file_format == ".gpkg":
                 crop_success = fiona_crop_file_to_geopkg(
                     source_fpath,
                     self.boundary,

@@ -24,6 +24,7 @@ from dataproc.helpers import (
     generate_license_file,
     generate_datapackage,
     generate_index_file,
+    output_filename
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 
@@ -107,7 +108,19 @@ class Processor(BaseProcessorABC):
                 10 + int(idx * (80 / self.total_expected_files)), "cropping source"
             )
             geotiff_fpath = os.path.join(self.source_folder, fileinfo.name)
-            output_fpath = os.path.join(self.tmp_processing_folder, fileinfo.name)
+            
+            subfilename = os.path.splitext(fileinfo.name)[0]
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=subfilename
+                )
+            )
+
             assert_geotiff(geotiff_fpath)
             crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
             self.log.debug(

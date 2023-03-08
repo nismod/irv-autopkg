@@ -20,6 +20,7 @@ from dataproc.helpers import (
     csv_to_gpkg,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
+    output_filename
 )
 
 
@@ -99,7 +100,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.gpkg",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
 
     def generate(self):
@@ -107,12 +108,11 @@ class Processor(BaseProcessorABC):
         if self.exists() is True:
             self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
-        # Setup output path in the processing backend
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], self.metadata.name, self.metadata.version, "outputs"
+
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
-        os.makedirs(output_folder, exist_ok=True)
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
         # Fetch source as required
         self.update_progress(10, "fetching and verifying source")

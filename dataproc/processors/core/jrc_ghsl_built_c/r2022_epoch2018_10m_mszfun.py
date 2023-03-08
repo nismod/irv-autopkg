@@ -25,6 +25,7 @@ from dataproc.helpers import (
     generate_index_file,
     generate_license_file,
     generate_datapackage,
+    output_filename
 )
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
@@ -124,9 +125,23 @@ class Processor(BaseProcessorABC):
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
             )
-            # Crop Source - preserve Molleweide
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=os.path.splitext(os.path.basename(source_fpath))[0]
+                )
+            )
+            # Crop Source - preserve Molleweide, assume we'll need BIGTIFF for this dataset
             crop_success = crop_raster(
-                source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+                source_fpath,
+                output_fpath,
+                self.boundary,
+                preserve_raster_crs=True,
+                creation_options=["COMPRESS=PACKBITS", "BIGTIFF=YES"],
             )
             self.log.debug(
                 "%s %s - success: %s",

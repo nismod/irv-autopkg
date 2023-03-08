@@ -23,6 +23,7 @@ from dataproc.helpers import (
     generate_license_file,
     fetch_zenodo_doi,
     tiffs_in_folder,
+    output_filename
 )
 
 
@@ -94,8 +95,16 @@ class Processor(BaseProcessorABC):
             self.update_progress(
                 10 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
+            subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
             output_fpath = os.path.join(
-                self.tmp_processing_folder, os.path.basename(source_fpath)
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=subfilename
+                )
             )
             crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(

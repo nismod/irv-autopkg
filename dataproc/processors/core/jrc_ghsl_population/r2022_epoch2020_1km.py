@@ -21,6 +21,7 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_index_file,
     generate_license_file,
+    output_filename
 )
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
 
@@ -93,7 +94,8 @@ class Processor(BaseProcessorABC):
         self.update_progress(10, "fetching and verifying source")
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
-            self.tmp_processing_folder, os.path.basename(source_fpath)
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
         # Crop Source - preserve Molleweide
         self.update_progress(50, "cropping source")
