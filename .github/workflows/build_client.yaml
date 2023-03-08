@@ -1,0 +1,69 @@
+name: Generate and publish TypeScript API client
+
+on:
+  workflow_call:
+    inputs:
+      container-registry:
+        type: string
+        required: true
+      image-name:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+
+env:
+  REGISTRY: npm.pkg.github.com
+
+jobs:
+  make-openapi:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.container-registry }}/${{ inputs.image-name }}:${{ inputs.version }}
+    steps:
+      - run: python -m main.openapi ~/openapi.json
+      
+      - uses: actions/upload-artifact@v3
+        with:
+          name: openapi
+          path: ~/openapi.json
+
+  publish-client:
+    needs: make-openapi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: client_gen/typescript
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: npm
+          registry-url: ${{ env.REGISTRY }}
+          scope: '@nismod'
+
+      - name: Set Node package version based on container version
+        run: npm version $VERSION
+        env:
+          VERSION: ${{ inputs.version }}
+
+      - run: npm ci
+
+      - name: Import OpenAPI JSON from previous step
+        uses: actions/download-artifact@v3
+        with:
+          name: openapi
+
+      - run: npm run generate-client
+
+      - name: Build project and publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

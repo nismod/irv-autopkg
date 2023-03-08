@@ -58,3 +58,12 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+
+  prepare_client:
+    needs: build-and-push-image
+    uses: nismod/irv-autopkg/.github/workflows/build_client.yaml
+    secrets: inherit
+    with:
+      container-registry: ${{ env.REGISTRY }}
+      image-name: ${{ env.IMAGE_NAME }}
+      version: ${{ env.VERSION }}
