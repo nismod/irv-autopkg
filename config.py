@@ -143,6 +143,7 @@ CELERY_APP = Celery(
     worker_concurrency=CELERY_CONCURRENCY,
     broker_url=CELERY_BROKER,
     result_backend=CELERY_BACKEND,
+    result_extended=True
 )
 
 # Seconds before submitted tasks expire
