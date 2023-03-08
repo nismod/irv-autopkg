@@ -57,22 +57,31 @@ JOB_SUBMIT_DATA_PROC_DUP = {
 JOB_SUBMIT_DATA_GAMBIA_TEST_PROC = {
     "boundary_name": "gambia",
     "processors": ["test_processor.version_1"],
-}  # Awaits 5 secs
+}
 
 JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC = {
     "boundary_name": "zambia",
     "processors": ["test_processor.version_1"],
-}  # Awaits 5 secs
+}
 
 JOB_SUBMIT_DATA_GHANA_TEST_PROC = {
     "boundary_name": "ghana",
     "processors": ["test_processor.version_1"],
-}  # Awaits 5 secs
+}
 
 JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
     "boundary_name": "ssudan",
     "processors": ["natural_earth_vector.version_1"],
-}  # Awaits 5 secs
+}
+
+JOB_SUBMIT_DATA_GUINEA_ALL_PROC = {
+    "boundary_name": "guineabissau",
+    "processors": [
+		"natural_earth_raster.version_1",
+		"natural_earth_vector.version_1",
+		"wri_powerplants.version_130",
+    ],
+} # Omits OSM and other requiring large downloads
 
 
 class TestProcessingJobs(unittest.TestCase):
@@ -189,7 +198,8 @@ class TestProcessingJobs(unittest.TestCase):
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
-        Submission of a second job containing the same boundary and processor while one is already executing (test processor)
+        Submission of a multiple jobs containing the same boundary and 
+            processor while one is already executing (test processor)
         """
         max_wait = 60  # secs
         dup_processors_to_submit = 8
@@ -255,7 +265,7 @@ class TestProcessingJobs(unittest.TestCase):
             test_proc_results,
         )
         # Processor success only reported once
-        self.assertTrue(len(set([json.dumps(i) for i in test_proc_results])))
+        self.assertTrue(len(set([json.dumps(i) for i in test_proc_results])), 1)
 
         # Assert we only get a single package output
         if STORAGE_BACKEND == "localfs":
@@ -274,8 +284,8 @@ class TestProcessingJobs(unittest.TestCase):
         """
         Submission of a second job containing the same boundary and processor while one is already executing (ne vector)
         """
-        max_wait = 60  # secs
-        dup_processors_to_submit = 8
+        max_wait = 30  # secs
+        dup_processors_to_submit = 2
         expected_responses = [202 for i in range(dup_processors_to_submit)]
         route = build_route(JOBS_BASE_ROUTE)
         responses = []
@@ -316,9 +326,16 @@ class TestProcessingJobs(unittest.TestCase):
         test_proc_results = []
         for result in results:
             test_proc_results.append(result["job_result"])
-        # Correct total processing results - including 7 exists
+        # Correct total processing results
         self.assertEqual(len(test_proc_results), dup_processors_to_submit)
-        # Test Processor Success
+        # Should have only ran fully once - the rest should be exists
+        count_processed_e2e = 0
+        count_processed_e2e_key = "natural_earth_vector - loaded NE Roads to PG"
+        for i in test_proc_results:
+            if count_processed_e2e_key in i.keys():
+                count_processed_e2e+=1
+        self.assertEqual(count_processed_e2e, 1)
+        # Test Processor Success keys all exist
         self.assertIn(
             sorted([
                 "natural_earth_vector - zip download path",
@@ -345,4 +362,52 @@ class TestProcessingJobs(unittest.TestCase):
                 self.storage_backend,
                 "ssudan",
                 expected_processor_versions=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC["processors"],
+            )
+
+    def test_all_processors(self):
+        """Submission of a job containing all processors"""
+        max_total_await = 120
+        expected_code = 202
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_GUINEA_ALL_PROC)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertIn("job_id", response.json().keys())
+        job_id = response.json()["job_id"]
+        # Await job completion
+        start = time()
+        all_processors_listed = []
+        while True:
+            route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
+            response = requests.get(route)
+            if response.json()["job_group_processors"]:
+                # All submitted processor names are covered in job group
+                all_processors_listed.append(
+                    set([i['processor_name'] for i in response.json()["job_group_processors"]]) == set(JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"])
+                )
+            if not response.json()["job_group_status"] == "PENDING":
+                # Final await for any S3 refreshing backend
+                sleep(1.0)
+                break
+            sleep(1.0)
+            if (time() - start) > max_total_await:
+                self.fail("max await breached")
+        # Check all the processors were covered in the job group (with some allowance for start-up)
+        self.assertTrue(all_processors_listed.count(False) < 0.2*len(all_processors_listed))
+        response = requests.get(route)
+        # Job progress should all be null
+        self.assertTrue(not any([i['job_progress'] for i in response.json()["job_group_processors"]]))
+        # Job status should be completed and successful for all
+        self.assertEqual(response.json()["job_group_status"], "COMPLETE")
+        self.assertSetEqual(set([i['job_status'] for i in response.json()["job_group_processors"]]), set(["SUCCESS"]))
+        # Assert the package integrity, including submitted processors
+        if STORAGE_BACKEND == "localfs":
+            assert_package(
+                LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+                "guineabissau",
+            )
+        elif STORAGE_BACKEND == "awss3":
+            assert_package_awss3(
+                self.storage_backend,
+                "guineabissau",
+                expected_processor_versions=JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"],
             )

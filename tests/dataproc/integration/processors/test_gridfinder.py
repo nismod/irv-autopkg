@@ -133,9 +133,9 @@ class TestGridFinderV1Processor(unittest.TestCase):
         We are using locally sourced test-files.
         """
         expected_crs = {
-            "grid.gpkg": "EPSG:4326",
-            "lv.tif": "ESRI:54009",
-            "targets.tif": "EPSG:4326",
+            "gridfinder-version_1-grid-gambia.gpkg": "EPSG:4326",
+            "gridfinder-version_1-lv-gambia.tif": "ESRI:54009",
+            "gridfinder-version_1-targets-gambia.tif": "EPSG:4326",
         }
         clean_packages(
             STORAGE_BACKEND,

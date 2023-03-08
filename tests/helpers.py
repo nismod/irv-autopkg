@@ -325,6 +325,7 @@ def assert_raster_output(
     check_compression=True,
     tolerence: float = 0.1,
     tmp_folder: str = None,
+    check_is_bigtiff: bool=False
 ):
     """
     Wrapper for assert_geotiff and assert_raster_bounds_correct
@@ -340,7 +341,7 @@ def assert_raster_output(
                 localfs_raster_fpath = os.path.join(
                     os.path.dirname(os.path.abspath(__file__)),
                     "data",
-                    "tmp",
+                    "processing",
                     os.path.basename(s3_raster_fpath),
                 )
             else:
@@ -357,6 +358,7 @@ def assert_raster_output(
             localfs_raster_fpath,
             check_crs=check_crs,
             check_compression=check_compression,
+            check_is_bigtiff=check_is_bigtiff
         )
         assert_raster_bounds_correct(
             localfs_raster_fpath, envelope, tolerence=tolerence

@@ -138,6 +138,7 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
                     self.boundary["envelope_geojson"],
                     final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                     check_crs="ESRI:54009",
+                    check_is_bigtiff=True
                 )
             elif STORAGE_BACKEND == "awss3":
                 with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
@@ -146,6 +147,7 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
                         s3_fs=s3_fs,
                         s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                         check_crs="ESRI:54009",
+                        check_is_bigtiff=True
                     )
             else:
                 pass
