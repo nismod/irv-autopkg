@@ -9,7 +9,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "generate-client": "openapi -i openapi.json -o src --useOptions --exportSchemas",
+    "generate-client": "openapi -i openapi.json -o src --client fetch --name AutoPkgClient --useOptions --exportSchemas true",
     "build": "tsc",
     "prepare": "npm run build"
   },
