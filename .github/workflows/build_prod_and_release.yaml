@@ -8,7 +8,7 @@ on:
       - master
 
 env:
-  VERSION: 0.2.5
+  VERSION: 0.2.6
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
