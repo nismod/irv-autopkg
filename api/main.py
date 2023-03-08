@@ -20,7 +20,11 @@ from api.routers import jobs, packages, probes, boundaries, processors
 from api.helpers import OPENAPI_TAGS_META
 
 app = FastAPI(
-    debug=True if DEPLOYMENT_ENV == "dev" else False, openapi_tags=OPENAPI_TAGS_META
+    title="IRV AutoPackaging API",
+    version="2.5.0",
+    description="API and backend-processing to generate / manage datapackages associated with boundaries",
+    debug=True if DEPLOYMENT_ENV == "dev" else False,
+    openapi_tags=OPENAPI_TAGS_META
 )
 
 
