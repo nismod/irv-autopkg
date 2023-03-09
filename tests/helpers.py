@@ -297,7 +297,7 @@ def assert_vector_output(
             local_vector_fpath = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 "data",
-                "tmp",
+                "processing",
                 os.path.basename(s3_vector_fpath),
             )
         else:

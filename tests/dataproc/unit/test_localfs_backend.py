@@ -6,6 +6,7 @@ import unittest
 
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from tests.helpers import create_tree, remove_tree
+from config import STORAGE_BACKEND
 
 LOCAL_FS_DATA_TOP_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -44,6 +45,8 @@ class TestLocalFSBackend(unittest.TestCase):
 
     def test_tree(self):
         """Test Generation of the package / dataset / version structure"""
+        if STORAGE_BACKEND != "localfs":
+            self.skipTest("localfs backend not in use")
         create_tree(LOCAL_FS_DATA_TOP_DIR)
         tree = self.backend.tree()
         self.assertDictEqual(tree, self.expected_fs_structure())
