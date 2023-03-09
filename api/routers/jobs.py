@@ -99,7 +99,11 @@ async def submit_processing_job(job: schemas.Job, status_code=status.HTTP_202_AC
         # Collect boundary geojson
         boundary_db = await DBController().get_boundary_by_name(job.boundary_name)
         boundary_dataproc = DataProcBoundary(
-            job.boundary_name, boundary_db.geometry, boundary_db.envelope
+            job.boundary_name,
+            boundary_db.geometry.dict()["__root__"],
+            boundary_db.envelope.dict()[
+                "__root__"
+            ],  # Due to GeoJSON dynamic type in external schema
         )
         # Check processors are all valid
         for processor_name_version in job.processors:

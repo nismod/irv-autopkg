@@ -5,7 +5,7 @@ from typing import List
 class Boundary(dict):
     """Encapsulates the definition of a boundary required for downstream processing"""
 
-    def __init__(self, name, geojson, envelope_geojson):
+    def __init__(self, name: str, geojson: dict, envelope_geojson: dict):
         dict.__init__(self, name=name, geojson=geojson, envelope_geojson=envelope_geojson)
         self.name = name
         self.geojson = geojson
