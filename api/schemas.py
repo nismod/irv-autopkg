@@ -6,26 +6,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
-class GeoJSON(BaseModel):
-    """Reference to the external GeoJSON JSON Schema"""
-    __root__: dict
-
-    class Config:
-        @staticmethod
-        def schema_extra(schema: dict):
-            schema.clear()
-            schema["$ref"] = "https://geojson.org/schema/GeoJSON.json"
-
-class DataPackage(BaseModel):
-    """Reference to the external DataPackage JSON Schema"""
-    __root__: dict
-
-    class Config:
-        @staticmethod
-        def schema_extra(schema: dict):
-            schema.clear()
-            schema["$ref"] = "https://specs.frictionlessdata.io/schemas/data-package.json"
-
 class BoundarySummary(BaseModel):
     """Summary of a boundary"""
     id=int
@@ -38,8 +18,8 @@ class BoundarySummary(BaseModel):
 class Boundary(BoundarySummary):
     """Complete boundary information"""
     admin_level:str
-    geometry:GeoJSON
-    envelope:GeoJSON
+    geometry:dict # GeoJSON
+    envelope:dict # GeoJSON
 
     class Config:
         orm_mode = True
@@ -75,7 +55,7 @@ class Package(PackageSummary):
     """Detailed information about a package"""
     boundary: Boundary # Boundary from-which the package has been created
     processors: List[Processor] # Datasets within this package
-    datapackage: DataPackage # Datapackage.json parsed from the FS and nested within the Package response
+    datapackage: dict # Datapackage.json parsed from the FS and nested within the Package response
 
 # Jobs
 
