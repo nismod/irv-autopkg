@@ -77,10 +77,7 @@ def get_status(job_id: str):
         # Remove Boundary processor from each jobs info
         logger.debug(
             "Group Status: %s",
-            [
-                [result.state, result.info, result.args, result.name]
-                for result in group_result.results
-            ],
+            [[result.state, result.info, result.args, result.name] for result in group_result.results],
         )
         # Create response object
         response = extract_group_state_info(group_result)

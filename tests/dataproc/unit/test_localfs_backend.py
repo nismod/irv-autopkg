@@ -47,7 +47,6 @@ class TestLocalFSBackend(unittest.TestCase):
         """Test Generation of the package / dataset / version structure"""
         if STORAGE_BACKEND != "localfs":
             self.skipTest("localfs backend not in use")
-        remove_tree(LOCAL_FS_DATA_TOP_DIR)
         create_tree(LOCAL_FS_DATA_TOP_DIR)
         tree = self.backend.tree()
         self.assertDictEqual(tree, self.expected_fs_structure())

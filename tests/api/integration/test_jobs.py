@@ -113,88 +113,88 @@ class TestProcessingJobs(unittest.TestCase):
             packages=["gambia", "zambia", "ssudan"],
         )
 
-    # def test_get_job_no_exist(self):
-    #     """"""
-    #     # Note - non existant tasks that are assumed as pending (i.e. a random UUID
-    #     expected_code = 200
-    #     expected_status = "PENDING"
-    #     noexist_job = str(uuid4())
-    #     route = build_route(JOB_STATUS_ROUTE.format(job_id=noexist_job))
-    #     response = requests.get(route)
-    #     self.assertEqual(response.status_code, expected_code)
-    #     self.assertEqual(response.json()["job_group_status"], expected_status)
+    def test_get_job_no_exist(self):
+        """"""
+        # Note - non existant tasks that are assumed as pending (i.e. a random UUID
+        expected_code = 200
+        expected_status = "PENDING"
+        noexist_job = str(uuid4())
+        route = build_route(JOB_STATUS_ROUTE.format(job_id=noexist_job))
+        response = requests.get(route)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertEqual(response.json()["job_group_status"], expected_status)
 
-    # def test_submit_job_no_such_boundary(self):
-    #     """Submission of a job against a boundary that doesnt exist"""
-    #     expected_code = 400
-    #     route = build_route(JOBS_BASE_ROUTE)
-    #     response = requests.post(route, json=JOB_SUBMIT_DATA_BOUNDARY_NOEXIST)
-    #     self.assertEqual(response.status_code, expected_code)
-    #     self.assertDictEqual(
-    #         response.json(), {"detail": "Requested boundary noexist could not be found"}
-    #     )
+    def test_submit_job_no_such_boundary(self):
+        """Submission of a job against a boundary that doesnt exist"""
+        expected_code = 400
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_BOUNDARY_NOEXIST)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertDictEqual(
+            response.json(), {"detail": "Requested boundary noexist could not be found"}
+        )
 
-    # def test_submit_job_no_such_processor(self):
-    #     """Submission of a job against a processor that doesnt exist"""
-    #     expected_code = 400
-    #     route = build_route(JOBS_BASE_ROUTE)
-    #     response = requests.post(route, json=JOB_SUBMIT_DATA_PROC_NOEXIST)
-    #     self.assertEqual(response.status_code, expected_code)
-    #     self.assertDictEqual(
-    #         response.json(),
-    #         {
-    #             "detail": f"Invalid processor.version: {JOB_SUBMIT_DATA_PROC_NOEXIST['processors'][0]}"
-    #         },
-    #     )
+    def test_submit_job_no_such_processor(self):
+        """Submission of a job against a processor that doesnt exist"""
+        expected_code = 400
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_PROC_NOEXIST)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertDictEqual(
+            response.json(),
+            {
+                "detail": f"Invalid processor.version: {JOB_SUBMIT_DATA_PROC_NOEXIST['processors'][0]}"
+            },
+        )
 
-    # def test_submit_job_duplicate_processor(self):
-    #     """Submission of a job with duplicate processors in the request"""
-    #     expected_code = 422
-    #     route = build_route(JOBS_BASE_ROUTE)
-    #     response = requests.post(route, json=JOB_SUBMIT_DATA_PROC_DUP)
-    #     self.assertEqual(response.status_code, expected_code)
-    #     self.assertEqual(
-    #         response.json()["detail"][0]["msg"], "duplicate processors not allowed"
-    #     )
+    def test_submit_job_duplicate_processor(self):
+        """Submission of a job with duplicate processors in the request"""
+        expected_code = 422
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_PROC_DUP)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertEqual(
+            response.json()["detail"][0]["msg"], "duplicate processors not allowed"
+        )
 
-    # def test_submit_job(self):
-    #     """Simple submission and await completion of a job"""
-    #     # Ensure the package tree is clean
-    #     expected_code = 202
-    #     route = build_route(JOBS_BASE_ROUTE)
-    #     response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
-    #     self.assertEqual(response.status_code, expected_code)
-    #     self.assertIn("job_id", response.json().keys())
-    #     job_id = response.json()["job_id"]
-    #     # Await job completion
-    #     start = time()
-    #     while True:
-    #         route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
-    #         response = requests.get(route)
-    #         if response.json()["job_group_processors"]:
-    #             self.assertEqual(
-    #                 response.json()["job_group_processors"][0]["job_id"], job_id
-    #             )
-    #         if not response.json()["job_group_status"] == "PENDING":
-    #             # Final await for any S3 refreshing backend
-    #             sleep(1.0)
-    #             break
-    #         sleep(1.0)
-    #         if (time() - start) > self.max_job_await:
-    #             self.fail("max await reached")
-    #     self.assertEqual(response.json()["job_group_status"], "COMPLETE")
-    #     # Assert the package integrity, including submitted processor
-    #     if STORAGE_BACKEND == "localfs":
-    #         assert_package(
-    #             LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-    #             "gambia",
-    #         )
-    #     elif STORAGE_BACKEND == "awss3":
-    #         assert_package_awss3(
-    #             self.storage_backend,
-    #             "gambia",
-    #             expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
-    #         )
+    def test_submit_job(self):
+        """Simple submission and await completion of a job"""
+        # Ensure the package tree is clean
+        expected_code = 202
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertIn("job_id", response.json().keys())
+        job_id = response.json()["job_id"]
+        # Await job completion
+        start = time()
+        while True:
+            route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
+            response = requests.get(route)
+            if response.json()["job_group_processors"]:
+                self.assertEqual(
+                    response.json()["job_group_processors"][0]["job_id"], job_id
+                )
+            if not response.json()["job_group_status"] == "PENDING":
+                # Final await for any S3 refreshing backend
+                sleep(1.0)
+                break
+            sleep(1.0)
+            if (time() - start) > self.max_job_await:
+                self.fail("max await reached")
+        self.assertEqual(response.json()["job_group_status"], "COMPLETE")
+        # Assert the package integrity, including submitted processor
+        if STORAGE_BACKEND == "localfs":
+            assert_package(
+                LOCAL_FS_PACKAGE_DATA_TOP_DIR,
+                "gambia",
+            )
+        elif STORAGE_BACKEND == "awss3":
+            assert_package_awss3(
+                self.storage_backend,
+                "gambia",
+                expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
+            )
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
