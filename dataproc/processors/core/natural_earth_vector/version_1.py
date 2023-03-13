@@ -46,7 +46,10 @@ class Metadata(BaseMetadataABC):
         "natural_earth_vector_roads"  # The dataset this processor targets
     )
     data_author = "Natural Earth Data"
-    data_license = ""
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="Natural Earth",
         title="Natural Earth",

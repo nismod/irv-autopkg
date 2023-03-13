@@ -38,7 +38,36 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = "gridfinder"  # The dataset this processor targets
-    data_author = "Arderne, Christopher; NIcolas, Claire; Zorn, Conrad; Koks, Elco E"
+    data_author = "Arderne, Christopher; Nicolas, Claire; Zorn, Conrad; Koks, Elco E"
+    data_title = "Gridfinder"
+    data_title_long = "Gridfinder data from 'Predictive mapping of the global power system using open data'"
+    data_summary = """
+Three primary global data outputs from the research:
+
+grid.gpkg: Vectorized predicted distribution and transmission line network, with existing OpenStreetMap lines tagged in the 'source' column
+targets.tif: Binary raster showing locations predicted to be connected to distribution grid. 
+lv.tif: Raster of predicted low-voltage infrastructure in kilometres per cell.
+
+This data was created with code in the following three repositories:
+
+https://github.com/carderne/gridfinder
+https://github.com/carderne/predictive-mapping-global-power
+https://github.com/carderne/access-estimator
+
+Full steps to reproduce are contained in this file:
+
+https://github.com/carderne/predictive-mapping-global-power/blob/master/README.md
+
+The data can be visualized at the following location:
+
+https://gridfinder.org
+    """
+    data_citation = """
+Arderne, Christopher, Nicolas, Claire, Zorn, Conrad, & Koks, Elco E. (2020).
+Data from: Predictive mapping of the global power system using open data [Data
+set]. In Nature Scientific Data (1.1.1, Vol. 7, Number Article 19). Zenodo.
+https://doi.org/10.5281/zenodo.3628142    
+"""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",

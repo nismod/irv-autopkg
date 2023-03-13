@@ -39,6 +39,10 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "natural_earth_raster"  # The dataset this processor targets
     data_author = "Natural Earth Data"
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",

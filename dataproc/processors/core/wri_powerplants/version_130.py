@@ -34,6 +34,17 @@ class Metadata(BaseMetadataABC):
     version = version_name_from_file(inspect.stack()[1].filename)
     dataset_name = "wri_powerplants"
     data_author = "World Resources Institute"
+    data_title = "WRI Global Power Plant Database"
+    data_title_long = "World Resources Institute Global Power Plant Database"
+    data_summary = """The Global Power Plant Database is a comprehensive, open source database of power plants around the world. It
+centralizes power plant data to make it easier to navigate, compare and draw insights for one’s own analysis.
+The database covers approximately 35,000 power plants from 167 countries and includes thermal plants (e.g. coal,
+gas, oil, nuclear, biomass, waste, geothermal) and renewables (e.g. hydro, wind, solar). Each power plant is
+geolocated and entries contain information on plant capacity, generation, ownership, and fuel type. It will be
+continuously updated as data becomes available."""
+    data_citation = """Global Energy Observatory, Google, KTH Royal Institute of Technology in Stockholm, Enipedia, World Resources
+Institute. 2018. Global Power Plant Database. Published on Resource Watch and Google Earth Engine;
+http://resourcewatch.org/ https://earthengine.google.com/"""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
