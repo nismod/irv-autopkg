@@ -32,6 +32,10 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "nightlights"  # The dataset this processor targets
     data_author = "Nightlights Author"
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",

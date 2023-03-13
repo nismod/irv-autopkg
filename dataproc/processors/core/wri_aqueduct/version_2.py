@@ -42,7 +42,18 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = "wri_aqueduct"  # The dataset this processor targets
-    data_author = "WRI"
+    data_title = "Aqueduct Flood Hazard Maps"
+    data_title_long = "World Resource Institute - Aqueduct Flood Hazard Maps (Version 2, updated October 20, 2020)"
+    data_author = "Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. Díaz Loaiza, et al."
+    data_summary = """World Resource Institute - Aqueduct Flood Hazard Maps (Version 2 (updated
+October 20, 2020)).  Inundation depth in meters for coastal and riverine
+floods over 1km grid squares. 1 in 2 to 1 in 1000 year return periods.
+Baseline, RCP 4.5 & 8.5 emission scenarios. Current and future maps in 2030,
+2050 and 2080."""
+    data_citation = """
+Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. Díaz Loaiza, et al. 2020.
+Aqueduct Floods Methodology. Technical Note. Washington, D.C.: World Resources Institute. Available online at:
+www.wri.org/publication/aqueduct-floods-methodology."""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",

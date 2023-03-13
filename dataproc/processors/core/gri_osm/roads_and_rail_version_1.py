@@ -36,7 +36,23 @@ class Metadata(BaseMetadataABC):
     dataset_name = (
         "gri_osm_road_and_rail"  # The dataset this processor targets
     )
-    data_author = "GRI/OSM"
+    data_author = "nismod/open-gira contributors and OpenStreetMap contributors"
+    data_title = "Road and Rail networks derived from OpenStreetMap"
+    data_title_long = "Road and Rail networks derived from OpenStreetMap"
+    data_summary = """
+OpenStreetMap provides map data, including on road and railway networks.
+This dataset is a derived, processed extract from the global OpenStreetMap
+database, produced by researchers at the University of Oxford to support
+infrastructure systems analysis and climate risk and resilience assessments.
+
+The data is produced from a snapshot of OpenStreetMap (the current version is 
+taken from November 2022) by a reproducible pipeline which is under development
+and made freely available at https://github.com/nismod/open-gira.
+    """
+    data_citation = """
+Russell T., Thomas F., nismod/open-gira contributors and OpenStreetMap contributors (2022)
+Global Road and Rail networks derived from OpenStreetMap. [Dataset] Available at https://global.infrastructureresilience.org
+    """
     data_license = DataPackageLicense(
         name="ODbL-1.0",
         title="Open Data Commons Open Database License 1.0",
