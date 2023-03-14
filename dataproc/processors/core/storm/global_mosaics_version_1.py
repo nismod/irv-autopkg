@@ -23,8 +23,8 @@ from dataproc.helpers import (
     generate_license_file,
     fetch_zenodo_doi,
     tiffs_in_folder,
+    output_filename
 )
-from dataproc.exceptions import FolderNotFoundException
 
 
 class Metadata(BaseMetadataABC):
@@ -66,7 +66,7 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
@@ -83,7 +83,7 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
@@ -95,8 +95,16 @@ class Processor(BaseProcessorABC):
             self.update_progress(
                 10 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
+            subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
             output_fpath = os.path.join(
-                self.tmp_processing_folder, os.path.basename(source_fpath)
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=subfilename
+                )
             )
             crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(

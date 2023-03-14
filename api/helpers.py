@@ -155,6 +155,21 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
                     ) if result.state not in ["SUCCESS", "FAILURE"] else None,
                     job_result=task_meta if result.state in ["SUCCESS", "FAILURE"] else None,
                 ))
+        else:
+            # Awaiting execution - attempt to get info direct
+            try:
+                _result = get_celery_task_info(result.id)
+                host = list(_result.keys())[0]
+                proc_name = (_result[host][result.id][1]['args'][2])
+                processors.append(schemas.JobStatus(
+                    processor_name=proc_name,
+                    job_id=result.id,
+                    job_status=result.state,
+                    job_progress=None,
+                    job_result=None,
+                ))
+            except KeyError:
+                pass
     return schemas.JobGroupStatus(
         job_group_status="COMPLETE" if all(global_status) else "PENDING", 
         job_group_percent_complete=sum(global_perc_complete),

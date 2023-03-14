@@ -19,6 +19,7 @@ from dataproc.helpers import (
     generate_license_file,
     data_file_hash,
     data_file_size,
+    output_filename
 )
 
 
@@ -62,7 +63,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.tif",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
 
     def generate(self):
@@ -75,15 +76,10 @@ class Processor(BaseProcessorABC):
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
         self.update_progress(50,"cropping source")
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"],
-            "natural_earth_raster",
-            self.metadata.version,
-            "outputs",
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
-        os.makedirs(output_folder, exist_ok=True)
-
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.tif")
         self.log.debug("Natural earth raster - cropping geotiff")
         crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
         self.provenance_log[f"{self.metadata.name} - crop success"] = crop_success

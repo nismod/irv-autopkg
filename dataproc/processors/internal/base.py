@@ -45,7 +45,7 @@ class BaseProcessorABC(ABC):
         self.source_folder = self.paths_helper.build_absolute_path("source_data")
         os.makedirs(self.source_folder, exist_ok=True)
         # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp", self.boundary['name'])
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def __enter__(self):
@@ -60,7 +60,7 @@ class BaseProcessorABC(ABC):
             exc_tb,
         )
         try:
-            shutil.rmtree(self.tmp_processing_folder)
+            shutil.rmtree(self.tmp_processing_folder, ignore_errors=True)
         except FileNotFoundError:
             pass
 

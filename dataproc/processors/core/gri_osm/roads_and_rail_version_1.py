@@ -15,7 +15,8 @@ from dataproc.helpers import (
     processor_name_from_file,
     generate_index_file,
     generate_license_file,
-    generate_datapackage
+    generate_datapackage,
+    output_filename
 )
 from config import (
     get_db_uri_ogr
@@ -68,7 +69,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.gpkg",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
 
     def generate(self):
@@ -77,11 +78,10 @@ class Processor(BaseProcessorABC):
             self.provenance_log[self.metadata.name] = "exists"
             return self.provenance_log
         # Setup output path in the processing backend
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], self.metadata.name, self.metadata.version, "outputs"
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
-        os.makedirs(output_folder, exist_ok=True)
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
         # Crop to given boundary
         self.update_progress(10, "cropping source")

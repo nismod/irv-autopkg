@@ -14,7 +14,6 @@ from config import (
     CELERY_APP,
     TASK_LOCK_TIMEOUT,
     STORAGE_BACKEND,
-    LOCALFS_STORAGE_BACKEND_ROOT,
     LOCALFS_PROCESSING_BACKEND_ROOT,
     REDIS_HOST,
 )
@@ -28,7 +27,7 @@ from dataproc.exceptions import ProcessorAlreadyExecutingException
 from dataproc.backends.storage import init_storage_backend
 
 # Setup Configured Storage Backend
-storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
+storage_backend = init_storage_backend(STORAGE_BACKEND)
 
 # Used for guarding against parallel execution of duplicate tasks
 redis_client = Redis(host=REDIS_HOST)
@@ -172,7 +171,10 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    sink["generate_provenance"] = {"failed": type(err).__name__}
+                    if isinstance(sink, dict):
+                        sink["generate_provenance"] = {"failed": type(err).__name__}
+                    else:
+                        sink.append({"generate_provenance failed": type(err).__name__})
                 finally:
                     _ = redis_client.getdel(task_sig)
             else:

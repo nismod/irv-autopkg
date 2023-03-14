@@ -126,6 +126,24 @@ docker-compose up -d db redis api dataproc
 docker-compose run test-api
 ```
 
+#### Localfs or S3 Backend
+
+Altering deployment env with `AUTOPKG_STORAGE_BACKEND=awss3` or `AUTOPKG_STORAGE_BACKEND=localfs` will also mean tests run against the configured
+backend.
+
+__NOTE__ awss3 integration tests require supplied access keys to have RW permissions on the configured bucket.
+
+```bash
+export AUTOPKG_STORAGE_BACKEND=awss3 && python -m unittest discover tests/dataproc
+```
+
+To conduct a simple set of tests (no processors) against S3 to check basic functionality you can use:
+
+```bash
+export AUTOPKG_STORAGE_BACKEND=awss3
+python -m unittest tests/dataproc/integration/storage_backends/awss3/test_awss3.py
+```
+
 ### PG Schema Management with Alembic
 
 The database schema is managed through Alembic.  The following serves as a guide to basic usage for extending the schema - refer to https://alembic.sqlalchemy.org/en/latest/ for more information.

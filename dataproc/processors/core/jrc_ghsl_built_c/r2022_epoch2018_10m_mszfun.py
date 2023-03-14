@@ -25,8 +25,8 @@ from dataproc.helpers import (
     generate_index_file,
     generate_license_file,
     generate_datapackage,
+    output_filename
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
 
@@ -88,7 +88,7 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
@@ -105,10 +105,8 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
-            # Cleanup anything in tmp processing
-            self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",
@@ -127,9 +125,22 @@ class Processor(BaseProcessorABC):
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
             )
-            # Crop Source - preserve Molleweide
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=os.path.splitext(os.path.basename(source_fpath))[0]
+                )
+            )
+            # Crop Source - preserve Molleweide, assume we'll need BIGTIFF for this dataset
             crop_success = crop_raster(
-                source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+                source_fpath,
+                output_fpath,
+                self.boundary,
+                creation_options=["COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "BIGTIFF=YES"],
             )
             self.log.debug(
                 "%s %s - success: %s",
@@ -220,14 +231,6 @@ class Processor(BaseProcessorABC):
             f"{self.metadata.name} - created license documentation"
         ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
-
-    def _clean_tmp_processing(self):
-        """Remove the tmp processing folder and recreate"""
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def _fetch_source(self) -> List[str]:
         """
