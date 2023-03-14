@@ -110,7 +110,7 @@ class Processor(BaseProcessorABC):
             )
             if file_format == ".tif":
                 crop_success = crop_raster(
-                    source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+                    source_fpath, output_fpath, self.boundary
                 )
             elif file_format == ".gpkg":
                 crop_success = fiona_crop_file_to_geopkg(

@@ -101,7 +101,8 @@ class Processor(BaseProcessorABC):
         self.update_progress(50, "cropping source")
         self.log.debug("%s - cropping source", self.metadata.name)
         crop_success = crop_raster(
-            source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+            source_fpath, output_fpath, self.boundary,
+            creation_options=["COMPRESS=PACKBITS"] # This fails for jrc pop with higher compression
         )
         self.log.debug(
             "%s %s - success: %s",

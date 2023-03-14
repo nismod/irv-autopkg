@@ -19,6 +19,7 @@ from tests.dataproc.integration.processors import (
     DummyTaskExecutor
 )
 from dataproc import Boundary
+from dataproc.helpers import tiffs_in_folder
 from dataproc.processors.core.wri_aqueduct.version_2 import (
     Processor,
     Metadata,
@@ -135,11 +136,14 @@ class TestWRIAqueductProcessor(unittest.TestCase):
         # Collect the URIs for the final Raster
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
-        for final_uri in final_uris.split(","):
+        # Collect the original source fpaths for pixel assertion
+        source_tiffs = tiffs_in_folder(self.proc.source_folder)
+        for idx, final_uri in enumerate(final_uris.split(",")):
             if STORAGE_BACKEND == "localfs":
                 assert_raster_output(
                     self.boundary["envelope_geojson"],
                     final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                    pixel_check_raster_fpath=os.path.join(self.proc.source_folder, source_tiffs[idx])
                 )
             elif STORAGE_BACKEND == "awss3":
                 with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
@@ -147,6 +151,7 @@ class TestWRIAqueductProcessor(unittest.TestCase):
                         self.boundary["envelope_geojson"],
                         s3_fs=s3_fs,
                         s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                        pixel_check_raster_fpath=os.path.join(self.proc.source_folder, source_tiffs[idx])
                     )
             else:
                 pass

@@ -137,6 +137,10 @@ class TestGridFinderV1Processor(unittest.TestCase):
             "gridfinder-version_1-lv-gambia.tif": "ESRI:54009",
             "gridfinder-version_1-targets-gambia.tif": "EPSG:4326",
         }
+        result_source_map = {
+            "gridfinder-version_1-lv-gambia.tif": "lv.tif",
+            "gridfinder-version_1-targets-gambia.tif": "targets.tif"
+        }
         clean_packages(
             STORAGE_BACKEND,
             self.storage_backend,
@@ -159,14 +163,17 @@ class TestGridFinderV1Processor(unittest.TestCase):
         # Collect the URIs for the final Raster
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
+        # Collect the original source fpaths for pixel assertion
         for final_uri in final_uris.split(","):
             fname = os.path.basename(final_uri)
             if os.path.splitext(fname)[1] == ".tif":
+                # Match original source raster for pixel assertion
                 if STORAGE_BACKEND == "localfs":
                     assert_raster_output(
                         self.boundary["envelope_geojson"],
                         final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                         check_crs=expected_crs[fname],
+                        pixel_check_raster_fpath=os.path.join(self.proc.source_folder, result_source_map[fname])
                     )
                 elif STORAGE_BACKEND == "awss3":
                     with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
@@ -175,6 +182,7 @@ class TestGridFinderV1Processor(unittest.TestCase):
                             s3_fs=s3_fs,
                             s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                             check_crs=expected_crs[fname],
+                            pixel_check_raster_fpath=os.path.join(self.proc.source_folder, result_source_map[fname])
                         )
                 else:
                     pass
