@@ -16,10 +16,11 @@ from shapely.ops import transform
 import pyproj
 from pyarrow import fs
 from pyarrow.fs import S3FileSystem, LocalFileSystem
+import numpy as np
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
-from dataproc.helpers import assert_geotiff, assert_vector_file
+from dataproc.helpers import assert_geotiff, assert_vector_file, sample_geotiff, sample_geotiff_coords
 from dataproc.backends.storage.awss3 import S3Manager, AWSS3StorageBackend
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -325,7 +326,9 @@ def assert_raster_output(
     check_compression=True,
     tolerence: float = 0.1,
     tmp_folder: str = None,
-    check_is_bigtiff: bool=False
+    check_is_bigtiff: bool=False,
+    pixel_check_raster_fpath: str = None,
+    pixel_check_num_samples: int = 100
 ):
     """
     Wrapper for assert_geotiff and assert_raster_bounds_correct
@@ -334,6 +337,10 @@ def assert_raster_output(
 
     if s3_fs and s3_raster_fpath are provided then requested source
         will be pulled locally before assertions.
+
+    ::kwarg pixel_check_raster_fpath str 
+        If this kwarg is set then pixels will be sampled from the raster at localfs_raster_fpath    
+        and compared to pisels in the raster at pixel_check_raster_fpath
     """
     try:
         if s3_fs and s3_raster_fpath:
@@ -354,11 +361,20 @@ def assert_raster_output(
                 source_filesystem=s3_fs,
                 destination_filesystem=fs.LocalFileSystem(),
             )
+        if pixel_check_raster_fpath is not None:
+            # Collect sample and coords from the first raster, then sample second raster
+            src_coords = sample_geotiff_coords(localfs_raster_fpath, pixel_check_num_samples)
+            _, expected_samples = sample_geotiff(pixel_check_raster_fpath, coords=src_coords)
+        else:
+            src_coords = None
+            expected_samples = None
         assert_geotiff(
             localfs_raster_fpath,
             check_crs=check_crs,
             check_compression=check_compression,
-            check_is_bigtiff=check_is_bigtiff
+            check_is_bigtiff=check_is_bigtiff,
+            check_pixel_coords=src_coords,
+            check_pixel_expected_samples=expected_samples
         )
         assert_raster_bounds_correct(
             localfs_raster_fpath, envelope, tolerence=tolerence

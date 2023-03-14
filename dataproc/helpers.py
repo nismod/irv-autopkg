@@ -2,7 +2,7 @@
 Helper methods / classes
 """
 import inspect
-from typing import Generator, List
+from typing import Generator, List, Tuple
 from types import ModuleType
 import os
 import requests
@@ -14,6 +14,10 @@ from collections import OrderedDict
 from time import time
 import csv
 import warnings
+
+import rasterio
+from rasterio import sample
+import numpy as np
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.backends import StorageBackend
@@ -428,21 +432,64 @@ def is_bigtiff(filename):
     version = struct.unpack(byteorder + "H", header[2:4])[0]
     return version == 43
 
-def assert_geotiff(fpath: str, check_crs: str = "EPSG:4326", check_compression=True, check_is_bigtiff=False):
+def sample_geotiff_coords(fpath: str, num_coords: int = 10) -> np.ndarray:
     """
-    Check a given file is a valid geotiff
+    Retrieve a set of coordinates within the bounds of the given raster
+    """
+    with rasterio.open(fpath, 'r') as src:
+        return np.column_stack((
+            np.random.uniform(low=src.bounds.left, high=src.bounds.right, size=(num_coords,)),
+            np.random.uniform(low=src.bounds.bottom, high=src.bounds.top, size=(num_coords,))
+        ))
+
+def sample_geotiff(fpath: str, coords: np.ndarray = None, num_samples: int = 10) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """
+    Retrieve a sample of given GeoTIFF file.
+
+    Optionally provide coords from-which to sample pixels. (2d np array of coordinates within the raster bounds)
+
+    If not provided coords will be sampled at random from the raster bounds
+
+    ::returns Tuple (coords, samples (shape = num_samplesx(np.array(pixel per band))))
+    """
+    if coords is None:
+        # Take a random sample of coords within bounds
+        coords = sample_geotiff_coords(fpath, num_samples)
+    with rasterio.open(fpath, 'r') as src:
+        samples = sample.sample_gen(src, coords)
+        return coords, [sample for sample in samples]
+
+def assert_geotiff(
+        fpath: str,
+        check_crs: str = "EPSG:4326",
+        check_compression=True,
+        check_is_bigtiff=False,
+        check_pixel_coords: np.ndarray=None,
+        check_pixel_expected_samples: List[np.ndarray]=None
+    ):
+    """
+    Check a given file is a valid geotiff, optionally checking:
+        Coordinate Reference System Match
+        Compression exists (Any)
+        The TIFF has BIGTIFF tags
+        The TIFF pixels match some expected data samples at given coordinates
 
     ::param fpath str Absolute filepath
     """
-    import rasterio
-
-    with rasterio.open(fpath) as src:
+    with rasterio.open(fpath, 'r') as src:
         if check_crs is not None:
             assert (
                 src.meta["crs"] == check_crs
             ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
+        
         if check_compression is True:
             assert src.compression is not None, "raster did not have any compression"
+
+        if check_pixel_coords is not None and check_pixel_expected_samples is not None:
+            src_samples = sample.sample_gen(src, check_pixel_coords)
+            for idx, src_sample in enumerate(src_samples):
+                assert np.array_equal(src_sample, check_pixel_expected_samples[idx]) is True, \
+                    f"source pixels did not match expected pixel samples at coords: {check_pixel_coords[idx]}, {src_sample} != {check_pixel_expected_samples[idx]}"
 
     if check_is_bigtiff is True:
         assert is_bigtiff(fpath) is True, f"raster is not a bigtiff when it was expected to be: {fpath}"
@@ -451,13 +498,11 @@ def crop_raster(
     raster_input_fpath: str,
     raster_output_fpath: str,
     boundary: Boundary,
-    preserve_raster_crs=False,
-    working_mem_mb=256,
     creation_options=["COMPRESS=PACKBITS"],
     debug=False
 ) -> bool:
     """
-    Crop a raster using GDAL warp
+    Crop a raster using GDAL translate
     """
     from osgeo import gdal
     import shapely
@@ -465,35 +510,28 @@ def crop_raster(
     from shapely.ops import transform
     import shlex
     import subprocess
-
-    from config import CROP_WORK_MEM_MB
-
-    # Attempt to load working_mem from the environment if not set
-    if working_mem_mb == 256 and CROP_WORK_MEM_MB:
-        working_mem_mb = CROP_WORK_MEM_MB
     
-    if preserve_raster_crs is True:
-        inds = gdal.Open(raster_input_fpath)
-        source_boundary_crs = pyproj.CRS("EPSG:4326")
-        target_boundary_crs = pyproj.crs.CRS.from_wkt(inds.GetProjection())
+    # # Gather the resolution
+    inds = gdal.Open(raster_input_fpath)
 
+    source_boundary_crs = pyproj.CRS("EPSG:4326")
+    target_boundary_crs = pyproj.crs.CRS.from_wkt(inds.GetProjection())
+    if source_boundary_crs != target_boundary_crs:
+        # Reproject boundary to source raster for projwin
         project = pyproj.Transformer.from_crs(
             source_boundary_crs, target_boundary_crs, always_xy=True
         ).transform
         inshape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
         shape = transform(project, inshape)
         bounds = shape.bounds
-        crs = ":".join(target_boundary_crs.to_authority())
     else:
         shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
         bounds = shape.bounds
-        crs = "EPSG:4326"
 
-    # Doing this from a subprocess is generally more fruitful
-    gdal_warp = shutil.which('gdalwarp')
-    if not gdal_warp:
-        raise Exception("gdalwarp not found")
-    cmd = f'{gdal_warp} {raster_input_fpath} {raster_output_fpath} -t_srs {crs} -te {" ".join([str(i) for i in bounds])} -wm {working_mem_mb}'
+    gdal_translate = shutil.which('gdal_translate')
+    if not gdal_translate:
+        raise Exception("gdal_translate not found")
+    cmd = f'{gdal_translate} -projwin {bounds[0]} {bounds[3]} {bounds[2]} {bounds[1]} {raster_input_fpath} {raster_output_fpath}'
     # Add Creation Options
     for creation_option in creation_options:
         cmd = cmd + f' -co {creation_option}'

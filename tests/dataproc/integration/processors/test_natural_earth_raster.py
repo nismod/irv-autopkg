@@ -18,6 +18,7 @@ from tests.dataproc.integration.processors import (
     DummyTaskExecutor,
 )
 from dataproc import Boundary
+from dataproc.helpers import sample_geotiff
 from dataproc.processors.core.natural_earth_raster.version_1 import (
     Processor,
     Metadata,
@@ -143,6 +144,7 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
             assert_raster_output(
                 self.boundary["envelope_geojson"],
                 final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                pixel_check_raster_fpath=self.proc._fetch_source()
             )
         elif STORAGE_BACKEND == "awss3":
             with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
@@ -150,6 +152,7 @@ class TestNaturalEarthRasterProcessor(unittest.TestCase):
                     self.boundary["envelope_geojson"],
                     s3_fs=s3_fs,
                     s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                    pixel_check_raster_fpath=self.proc._fetch_source()
                 )
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())

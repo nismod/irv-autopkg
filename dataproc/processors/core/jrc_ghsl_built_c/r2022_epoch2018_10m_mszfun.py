@@ -140,8 +140,7 @@ class Processor(BaseProcessorABC):
                 source_fpath,
                 output_fpath,
                 self.boundary,
-                preserve_raster_crs=True,
-                creation_options=["COMPRESS=PACKBITS", "BIGTIFF=YES"],
+                creation_options=["COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "BIGTIFF=YES"],
             )
             self.log.debug(
                 "%s %s - success: %s",

@@ -132,13 +132,16 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
         # Collect the URIs for the final Rasters
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
-        for final_uri in final_uris.split(","):
+        # Collect the original source fpaths for pixel assertion
+        source_fpaths = self.proc._fetch_source()
+        for idx, final_uri in enumerate(final_uris.split(",")):
             if STORAGE_BACKEND == "localfs":
                 assert_raster_output(
                     self.boundary["envelope_geojson"],
                     final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                     check_crs="ESRI:54009",
-                    check_is_bigtiff=True
+                    check_is_bigtiff=True,
+                    pixel_check_raster_fpath=source_fpaths[idx]
                 )
             elif STORAGE_BACKEND == "awss3":
                 with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
@@ -147,7 +150,8 @@ class TestJRCGHSLBuiltCR2022Processor(unittest.TestCase):
                         s3_fs=s3_fs,
                         s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                         check_crs="ESRI:54009",
-                        check_is_bigtiff=True
+                        check_is_bigtiff=True,
+                        pixel_check_raster_fpath=source_fpaths[idx]
                     )
             else:
                 pass
