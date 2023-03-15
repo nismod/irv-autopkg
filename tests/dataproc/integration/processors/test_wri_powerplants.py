@@ -47,7 +47,7 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
         cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
         # Ensure clean test-env
         # Tmp and Source data
-        shutil.rmtree(cls.test_processing_data_dir)
+        shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
         clean_packages(
             STORAGE_BACKEND,
@@ -60,7 +60,7 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # Tmp and Source data
-        shutil.rmtree(cls.test_processing_data_dir)
+        shutil.rmtree(cls.test_processing_data_dir, ignore_errors=True)
         # Package data
         clean_packages(
             STORAGE_BACKEND,
