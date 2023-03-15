@@ -55,33 +55,26 @@ class Boundary(BoundarySummary):
         orm_mode = True
 
 
-class ProcessorMetadata(BaseModel):
+class ProcessorVersionMetadata(BaseModel):
     """Detail about a Data Processor"""
-
     name: str
     description: str
-    dataset: str
-    author: str
-    license: dict
-    origin_url: str
     version: str
-    status: Optional[str] = ""
-
-
-class ProcessorVersion(BaseModel):
-    """A Version of a Processor"""
-
-    version: str
-    processor: ProcessorMetadata  # Metadata about the versioned processor which created this dataset
-    uri: Optional[str] = ""
-
+    status: Optional[str] = "" # Used while executing
+    uri: Optional[str] = "" # Used when package is available
+    data_author: str
+    data_title: str
+    data_title_long: str
+    data_summary: str
+    data_citation: str
+    data_license: dict
+    data_origin_url: str
 
 class Processor(BaseModel):
     """Summary information about a Processor"""
-
     name: str  # Name of the processor
     versions: List[
-        ProcessorVersion
+        ProcessorVersionMetadata
     ]  # Versions of the processor, which are created by versioned processors of the same name
 
 
