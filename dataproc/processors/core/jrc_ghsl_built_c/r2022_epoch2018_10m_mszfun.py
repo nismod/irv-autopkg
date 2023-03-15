@@ -158,7 +158,7 @@ class Processor(BaseProcessorABC):
         results_fpaths = []
         for idx, source_fpath in enumerate(source_fpaths):
             self.update_progress(
-                10 + int(idx * (80 / len(source_fpaths))), "cropping source"
+                20 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
@@ -185,6 +185,9 @@ class Processor(BaseProcessorABC):
                 self.metadata.name,
                 os.path.basename(source_fpath),
                 crop_success,
+            )
+            self.update_progress(
+                20 + int(idx * (80 / len(source_fpaths))), "generating hash"
             )
             if crop_success:
                 results_fpaths.append(
