@@ -17,7 +17,11 @@ class BaseMetadataABC(ABC):
     description: str = ""  # Longer processor description
     version: str = ""  # Version of the Processor
     dataset_name: str = ""  # The dataset this processor targets
+    data_title: str = ""  # Short one-liner title for dataset, ~30 characters is good
+    data_title_long: str = ""  # Long title for dataset
     data_author: str = ""
+    data_summary: str = ""  # 1-3 paragraph prose summary of the dataset
+    data_citation: str = ""  # Suggested citation, e.g. "Nicholas, C (2023) irv-autopkg. [Software] Available at: https://github.com/nismod/irv-autopkg"
     data_license: DataPackageLicense = None
     data_origin_url: str = ""
 

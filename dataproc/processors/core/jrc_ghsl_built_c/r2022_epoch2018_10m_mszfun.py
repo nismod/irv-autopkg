@@ -47,6 +47,43 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "r2022_epoch2018_10m_mszfun"  # The dataset this processor targets
     data_author = "Joint Research Centre"
+    data_title = "GHS-BUILT-C MSZ and FC, R2022 E2018 10m"
+    data_title_long = "JRC Global Human Settlement Layer - Built-Up Characteristics (GHS-BUILT-C - MSZ & FC) - Release 2022 - Epoch 2018 - 10m resolution - Morphological Settlement Zone & Functional Classification"
+    data_summary = """
+The spatial raster dataset delineates the boundaries of the human settlements at
+10m resolution, and describe their inner characteristics in terms of the
+morphology of the built environment and the functional use. The Morphological
+Settlement Zone (MSZ) delineates the spatial domain of all the human settlements
+at the neighboring scale of approx. 100m, based on the spatial generalization of
+the built-up surface fraction (BUFRAC) function. The objective is to fill the
+open spaces that are surrounded by large patches of built space. MSZ, open
+spaces, and built spaces basic class abstractions are derived by mathematical
+morphology spatial filtering (opening, closing, regional maxima) from the BUFRAC
+function. They are further classified according to the information regarding
+vegetation intensity (GHS-BUILT-C_VEG_GLOBE_R2022A), water surfaces
+(GHS_LAND_GLOBE_R2022A), road surfaces (OSM highways), functional use
+(GHS-BUILT-C_FUN_GLOBE_R2022A), and building height (GHS-BUILT-H_GLOBE_R2022A).
+
+The main characteristics of this dataset are listed below. The complete
+information about the GHSL main products can be found in the GHSL Data Package
+2022 report (10.33 MB):
+https://ghsl.jrc.ec.europa.eu/documents/GHSL_Data_Package_2022.pdf
+    """
+    data_citation = """
+Dataset:
+
+Pesaresi M., P. Panagiotis (2022): GHS-BUILT-C R2022A - GHS Settlement
+Characteristics, derived from Sentinel2 composite (2018) and other GHS R2022A
+data.European Commission, Joint Research Centre (JRC) PID:
+http://data.europa.eu/89h/dde11594-2a66-4c1b-9a19-821382aed36e,
+doi:10.2905/DDE11594-2A66-4C1B-9A19-821382AED36E
+
+Concept & Methodology:
+
+Schiavina M., Melchiorri M., Pesaresi M., Politis P., Freire S., Maffenini L.,
+Florio P., Ehrlich D., Goch K., Tommasi P., Kemper T. GHSL Data Package 2022,
+JRC 129516, ISBN 978-92-76-53071-8 doi:10.2760/19817 
+    """
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
