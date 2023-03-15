@@ -42,6 +42,7 @@ class Metadata(BaseMetadataABC):
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "http://url"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

@@ -69,6 +69,7 @@ class ProcessorVersionMetadata(BaseModel):
     data_citation: str
     data_license: dict
     data_origin_url: str
+    data_formats: List[str]
 
 class Processor(BaseModel):
     """Summary information about a Processor"""

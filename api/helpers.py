@@ -118,6 +118,7 @@ def processor_meta(
             data_citation=meta.data_citation,
             data_license=meta.data_license.asdict(),
             data_origin_url=meta.data_origin_url,
+            data_formats=meta.data_formats
         )
 
 

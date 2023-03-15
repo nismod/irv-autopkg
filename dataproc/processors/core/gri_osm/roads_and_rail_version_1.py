@@ -61,6 +61,7 @@ Global Road and Rail networks derived from OpenStreetMap. [Dataset] Available at
     data_origin_url = (
         "https://global.infrastructureresilience.org"
     )
+    data_formats = ["Geopackage"]
 
 
 class Processor(BaseProcessorABC):

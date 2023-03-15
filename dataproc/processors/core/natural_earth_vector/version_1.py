@@ -58,6 +58,7 @@ class Metadata(BaseMetadataABC):
     data_origin_url = (
         "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/roads/"
     )
+    data_formats = ["Geopackage"]
 
 
 class Processor(BaseProcessorABC):

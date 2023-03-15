@@ -50,6 +50,7 @@ async def get_processors():
                     data_citation=meta.data_citation,
                     data_license=meta.data_license.asdict(),
                     data_origin_url=meta.data_origin_url,
+                    data_formats=meta.data_formats
                 )
                 output_versions.append(version)
             results.append(schemas.Processor(name=proc_name, versions=output_versions))
@@ -85,6 +86,7 @@ async def get_processor(name: str):
                         data_citation=meta.data_citation,
                         data_license=meta.data_license.asdict(),
                         data_origin_url=meta.data_origin_url,
+                        data_formats=meta.data_formats
                     )
                     output_versions.append(version)
                 return schemas.Processor(name=proc_name, versions=output_versions)
@@ -123,6 +125,7 @@ async def get_processor_version(name: str, version: str):
             data_citation=meta.data_citation,
             data_license=meta.data_license.asdict(),
             data_origin_url=meta.data_origin_url,
+            data_formats=meta.data_formats
         )
     except HTTPException:
         raise

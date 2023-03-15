@@ -90,6 +90,7 @@ JRC 129516, ISBN 978-92-76-53071-8 doi:10.2760/19817
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=builtC"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

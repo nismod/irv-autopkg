@@ -35,6 +35,7 @@ EXPECTED_PROCESSOR_VERSION = {
         "title": "Creative Commons Attribution 4.0",
     },
     "data_origin_url": "http://url",
+    "data_formats" : ["GeoTIFF"]
 }
 
 
