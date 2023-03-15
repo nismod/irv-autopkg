@@ -46,7 +46,7 @@ async def search_boundary(
     """Search for boundaries by name or coordinates."""
     try:
         logger.debug("performing %s with query %s", inspect.stack()[0][3], [name, latitude, longitude])
-        if latitude and longitude:
+        if latitude is not None and longitude is not None:
             result = await DBController().search_boundaries_by_coordinates(
                 latitude, longitude
             )

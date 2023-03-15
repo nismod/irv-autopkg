@@ -106,6 +106,7 @@ https://doi.org/10.4121/14510817.v3
         path="https://creativecommons.org/share-your-work/public-domain/cc0/",
     )
     data_origin_url = "https://doi.org/10.5281/zenodo.7438145"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

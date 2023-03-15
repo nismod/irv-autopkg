@@ -95,7 +95,7 @@ def random_task_uuid():
 
 def processor_meta(
     processor_name_version: str, executing: bool = False
-) -> schemas.ProcessorVersion:
+) -> schemas.ProcessorVersionMetadata:
     """
     Generate ProcessorVersion (with nested metadata) for a given processor version
     """
@@ -106,18 +106,19 @@ def processor_meta(
         raise InvalidProcessorException()
     if meta_cls is not None:
         meta = meta_cls()
-        return schemas.ProcessorVersion(
-            processor=schemas.ProcessorMetadata(
-                name=processor_name_version,
-                description=meta.description,
-                dataset=meta.dataset_name,
-                author=meta.data_author,
-                license=meta.data_license.asdict(),
-                origin_url=meta.data_origin_url,
-                version=meta.version,
-                status="executing" if executing is True else "complete",
-            ),
-            version=meta.version
+        return schemas.ProcessorVersionMetadata(
+            name=processor_name_version,
+            description=meta.description,
+            version=meta.version,
+            status="executing" if executing is True else "complete",
+            data_author=meta.data_author,
+            data_title=meta.data_title,
+            data_title_long=meta.data_title_long,
+            data_summary=meta.data_summary,
+            data_citation=meta.data_citation,
+            data_license=meta.data_license.asdict(),
+            data_origin_url=meta.data_origin_url,
+            data_formats=meta.data_formats
         )
 
 
@@ -145,16 +146,18 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
                 if not isinstance(task_meta, dict):
                     continue
                 # While its progressing we report the progress, otherwise we show the result
-                processors.append(schemas.JobStatus(
-                    processor_name=proc_name,
-                    job_id=result.id,
-                    job_status=result.state,
-                    job_progress=schemas.JobProgress(
-                        percent_complete=task_meta['progress'] if isinstance(task_meta, dict) and 'progress' in task_meta.keys() else 0,
-                        current_task=task_meta['current_task'] if isinstance(task_meta, dict) and 'current_task' in task_meta.keys() else "UNKNOWN",
-                    ) if result.state not in ["SUCCESS", "FAILURE"] else None,
-                    job_result=task_meta if result.state in ["SUCCESS", "FAILURE"] else None,
-                ))
+                processors.append(
+                    schemas.JobStatus(
+                        processor_name=proc_name,
+                        job_id=result.id,
+                        job_status=result.state,
+                        job_progress=schemas.JobProgress(
+                            percent_complete=task_meta['progress'] if isinstance(task_meta, dict) and 'progress' in task_meta.keys() else 0,
+                            current_task=task_meta['current_task'] if isinstance(task_meta, dict) and 'current_task' in task_meta.keys() else "UNKNOWN",
+                        ) if result.state not in ["SUCCESS", "FAILURE"] else None,
+                        job_result=task_meta if result.state in ["SUCCESS", "FAILURE"] else None,
+                    )
+                )
         else:
             # Awaiting execution - attempt to get info direct
             try:
@@ -171,7 +174,7 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
             except KeyError:
                 pass
     return schemas.JobGroupStatus(
-        job_group_status="COMPLETE" if all(global_status) else "PENDING", 
+        job_group_status="COMPLETE" if all(global_status) else "PENDING",
         job_group_percent_complete=sum(global_perc_complete),
         job_group_processors=processors
     )

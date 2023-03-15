@@ -100,8 +100,8 @@ class TestBoundaries(unittest.TestCase):
         """
         Retrieve boundaries by searching for a name
         """
-        search_name = 'gh'
-        expected_names = ['ghana', 'guinea']
+        search_name = 'mbi'
+        expected_names = ['mozambique', 'gambia', 'zambia']
         route = build_route(f"{BOUNDARY_SEARCH_ROUTE}?name={search_name}")
         response = requests.get(route)
         self.assert_boundary_summary(response, expected_count=len(expected_names))
@@ -123,6 +123,16 @@ class TestBoundaries(unittest.TestCase):
     def test_search_boundary_by_coords(self):
         search_latitude = 28.2
         search_longitude = 3.2
+        expected_names = ['algeria']
+        route = build_route(f"{BOUNDARY_SEARCH_ROUTE}?latitude={search_latitude}&longitude={search_longitude}")
+        response = requests.get(route)
+        self.assert_boundary_summary(response, expected_count=len(expected_names))
+        self.assertCountEqual(
+            [item["name"] for item in response.json()], expected_names)
+        
+    def test_search_boundary_by_coords_zero(self):
+        search_latitude = 28.2
+        search_longitude = 0.0
         expected_names = ['algeria']
         route = build_route(f"{BOUNDARY_SEARCH_ROUTE}?latitude={search_latitude}&longitude={search_longitude}")
         response = requests.get(route)

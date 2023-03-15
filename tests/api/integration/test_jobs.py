@@ -77,12 +77,13 @@ JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
 JOB_SUBMIT_DATA_GUINEA_ALL_PROC = {
     "boundary_name": "guineabissau",
     "processors": [
-		"natural_earth_raster.version_1",
-		"natural_earth_vector.version_1",
-		"wri_powerplants.version_130",
+        "natural_earth_raster.version_1",
+        "natural_earth_vector.version_1",
+        "wri_powerplants.version_130",
     ],
-} # Omits OSM and other requiring large downloads
+}  # Omits OSM and other requiring large downloads
 
+PACAKGES_USED = ["gambia", "zambia", "ssudan", "guineabissau"]
 
 class TestProcessingJobs(unittest.TestCase):
 
@@ -99,7 +100,7 @@ class TestProcessingJobs(unittest.TestCase):
             cls.storage_backend,
             s3_bucket=S3_BUCKET,
             s3_region=S3_REGION,
-            packages=["gambia", "zambia", "ssudan"],
+            packages=PACAKGES_USED,
         )
 
     @classmethod
@@ -110,7 +111,16 @@ class TestProcessingJobs(unittest.TestCase):
             cls.storage_backend,
             s3_bucket=S3_BUCKET,
             s3_region=S3_REGION,
-            packages=["gambia", "zambia", "ssudan"],
+            packages=PACAKGES_USED,
+        )
+
+    def setUp(self):
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=PACAKGES_USED,
         )
 
     def test_get_job_no_exist(self):
@@ -198,7 +208,7 @@ class TestProcessingJobs(unittest.TestCase):
 
     def test_submit_job_already_processing_using_test_processor(self):
         """
-        Submission of a multiple jobs containing the same boundary and 
+        Submission of a multiple jobs containing the same boundary and
             processor while one is already executing (test processor)
         """
         max_wait = 60  # secs
@@ -382,7 +392,13 @@ class TestProcessingJobs(unittest.TestCase):
             if response.json()["job_group_processors"]:
                 # All submitted processor names are covered in job group
                 all_processors_listed.append(
-                    set([i['processor_name'] for i in response.json()["job_group_processors"]]) == set(JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"])
+                    set(
+                        [
+                            i["processor_name"]
+                            for i in response.json()["job_group_processors"]
+                        ]
+                    )
+                    == set(JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"])
                 )
             if not response.json()["job_group_status"] == "PENDING":
                 # Final await for any S3 refreshing backend
@@ -392,13 +408,25 @@ class TestProcessingJobs(unittest.TestCase):
             if (time() - start) > max_total_await:
                 self.fail("max await breached")
         # Check all the processors were covered in the job group (with some allowance for start-up)
-        self.assertTrue(all_processors_listed.count(False) < 0.2*len(all_processors_listed))
+        self.assertTrue(
+            all_processors_listed.count(False) < 0.2 * len(all_processors_listed)
+        )
         response = requests.get(route)
-        # Job progress should all be null
-        self.assertTrue(not any([i['job_progress'] for i in response.json()["job_group_processors"]]))
+        # Job progress should not exist
+        self.assertTrue(
+            not any(
+                [
+                    "job_progress" in i.keys()
+                    for i in response.json()["job_group_processors"]
+                ]
+            )
+        )
         # Job status should be completed and successful for all
         self.assertEqual(response.json()["job_group_status"], "COMPLETE")
-        self.assertSetEqual(set([i['job_status'] for i in response.json()["job_group_processors"]]), set(["SUCCESS"]))
+        self.assertSetEqual(
+            set([i["job_status"] for i in response.json()["job_group_processors"]]),
+            set(["SUCCESS"]),
+        )
         # Assert the package integrity, including submitted processors
         if STORAGE_BACKEND == "localfs":
             assert_package(
@@ -409,5 +437,7 @@ class TestProcessingJobs(unittest.TestCase):
             assert_package_awss3(
                 self.storage_backend,
                 "guineabissau",
-                expected_processor_versions=JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"],
+                expected_processor_versions=JOB_SUBMIT_DATA_GUINEA_ALL_PROC[
+                    "processors"
+                ],
             )

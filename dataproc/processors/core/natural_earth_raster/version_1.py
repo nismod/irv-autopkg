@@ -49,6 +49,7 @@ class Metadata(BaseMetadataABC):
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://www.naturalearthdata.com/downloads/50m-natural-earth-2/50m-natural-earth-ii-with-shaded-relief/"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

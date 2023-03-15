@@ -74,6 +74,7 @@ https://doi.org/10.5281/zenodo.3628142
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://doi.org/10.5281/zenodo.3628142"
+    data_formats = ["Geopackage", "GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

@@ -58,7 +58,7 @@ def extract_job_id(node):
     return proc_id
 
 
-@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus)
+@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus, response_model_exclude_none=True)
 def get_status(job_id: str):
     """Get status of a DAG associated with a given package"""
     try:

@@ -62,6 +62,7 @@ www.wri.org/publication/aqueduct-floods-methodology."""
     data_origin_url = (
         "http://wri-projects.s3.amazonaws.com/AqueductFloodTool/download/v2/index.html"
     )
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):

@@ -51,6 +51,7 @@ http://resourcewatch.org/ https://earthengine.google.com/"""
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://datasets.wri.org/dataset/globalpowerplantdatabase"
+    data_formats = ["Geopackage"]
 
 
 class Processor(BaseProcessorABC):

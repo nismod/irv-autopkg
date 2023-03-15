@@ -76,6 +76,7 @@ Information Laboratories in Europe (AGILE), AGILE 2016
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=pop"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
