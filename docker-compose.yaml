@@ -47,7 +47,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.6-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
     user: autopkg
     build: .
     volumes:
@@ -62,7 +62,7 @@ services:
     mem_limit: "1G"
 
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.6-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
@@ -82,7 +82,7 @@ services:
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
   # To run tests change AUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.6-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
     volumes:
       - ./tests:/usr/src/app/tests
     env_file:
@@ -91,7 +91,7 @@ services:
 
   # Dataproc test-harness only requires DB
   test-dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.6-dev
+    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
     volumes:
       - ./tests:/usr/src/app/tests
     env_file:
