@@ -77,7 +77,7 @@ class Queries:
         Search for boundaries by fuzzy matching matching name
         """
         stmt = select(models.Boundary).where(
-            func.difference(name, models.Boundary.name) > distance
+            func.like(models.Boundary.name, f"%{name}%")
         )
         res = await self.database.fetch_all(stmt)
         if not res:
