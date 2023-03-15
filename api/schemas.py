@@ -7,8 +7,8 @@ from typing import List, Optional
 from pydantic import BaseModel, validator
 
 
-class GeoJSON(BaseModel):
-    """Reference to the external GeoJSON JSON Schema"""
+class Polygon(BaseModel):
+    """Reference to the external GeoJSON Polygon JSON Schema"""
 
     __root__: dict
 
@@ -16,7 +16,19 @@ class GeoJSON(BaseModel):
         @staticmethod
         def schema_extra(schema: dict):
             schema.clear()
-            schema["$ref"] = "https://geojson.org/schema/GeoJSON.json"
+            schema["$ref"] = "https://geojson.org/schema/Polygon.json"
+
+
+class MultiPolygon(BaseModel):
+    """Reference to the external GeoJSON MultiPolygon JSON Schema"""
+
+    __root__: dict
+
+    class Config:
+        @staticmethod
+        def schema_extra(schema: dict):
+            schema.clear()
+            schema["$ref"] = "https://geojson.org/schema/MultiPolygon.json"
 
 
 class DataPackage(BaseModel):
@@ -48,8 +60,8 @@ class Boundary(BoundarySummary):
     """Complete boundary information"""
 
     admin_level: str
-    geometry: GeoJSON
-    envelope: GeoJSON
+    geometry: MultiPolygon
+    envelope: Polygon
 
     class Config:
         orm_mode = True
