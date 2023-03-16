@@ -174,7 +174,7 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
             except Exception:
                 # Sometimes Celery fails to return a result object - when under heavy load
                 processors.append(schemas.JobStatus(
-                    processor_name="failed to complete task status",
+                    processor_name="task details not available",
                     job_id=result.id,
                     job_status=result.state,
                     job_progress=None,
