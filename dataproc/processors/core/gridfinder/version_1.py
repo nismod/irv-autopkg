@@ -1,5 +1,5 @@
 """
-Test vector Processor
+Gridfinder Processor
 """
 
 import os
