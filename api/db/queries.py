@@ -71,7 +71,7 @@ class Queries:
         return res
 
     async def search_boundaries_by_name(
-        self, name: str, distance: int
+        self, name: str
     ) -> List[models.Boundary]:
         """
         Search for boundaries by fuzzy matching matching name
