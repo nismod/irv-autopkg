@@ -132,9 +132,6 @@ else:
     S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg")
     S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
 
-# Name matching Soundex Distance Default
-NAME_SEARCH_DISTANCE = int(getenv("AUTOPKG_NAME_SEARCH_DISTANCE", "2"))
-
 # Initialised Startup Data
 DBURI_API = get_db_uri(API_POSTGRES_DB)
 CELERY_APP = Celery(

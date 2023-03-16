@@ -6,7 +6,7 @@ import json
 from typing import List
 from fastapi.logger import logger
 
-from config import LOG_LEVEL, NAME_SEARCH_DISTANCE
+from config import LOG_LEVEL
 from api.db import database
 from api import schemas
 from api.db.queries import Queries
@@ -58,5 +58,5 @@ class DBController:
         """
         Get summary information about boundaries with a name similar to the given
         """
-        boundaries = await Queries(database).search_boundaries_by_name(name, NAME_SEARCH_DISTANCE)
+        boundaries = await Queries(database).search_boundaries_by_name(name)
         return [schemas.BoundarySummary.from_orm(boundary) for boundary in boundaries]
