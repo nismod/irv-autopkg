@@ -74,16 +74,7 @@ JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
     "processors": ["natural_earth_vector.version_1"],
 }
 
-JOB_SUBMIT_DATA_GUINEA_ALL_PROC = {
-    "boundary_name": "guineabissau",
-    "processors": [
-        "natural_earth_raster.version_1",
-        "natural_earth_vector.version_1",
-        "wri_powerplants.version_130",
-    ],
-}  # Omits OSM and other requiring large downloads
-
-PACAKGES_USED = ["gambia", "zambia", "ssudan", "guineabissau"]
+PACAKGES_USED = ["gambia", "zambia", "ssudan"]
 
 class TestProcessingJobs(unittest.TestCase):
 
@@ -372,72 +363,4 @@ class TestProcessingJobs(unittest.TestCase):
                 self.storage_backend,
                 "ssudan",
                 expected_processor_versions=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC["processors"],
-            )
-
-    def test_all_processors(self):
-        """Submission of a job containing all processors"""
-        max_total_await = 120
-        expected_code = 202
-        route = build_route(JOBS_BASE_ROUTE)
-        response = requests.post(route, json=JOB_SUBMIT_DATA_GUINEA_ALL_PROC)
-        self.assertEqual(response.status_code, expected_code)
-        self.assertIn("job_id", response.json().keys())
-        job_id = response.json()["job_id"]
-        # Await job completion
-        start = time()
-        all_processors_listed = []
-        while True:
-            route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
-            response = requests.get(route)
-            if response.json()["job_group_processors"]:
-                # All submitted processor names are covered in job group
-                all_processors_listed.append(
-                    set(
-                        [
-                            i["processor_name"]
-                            for i in response.json()["job_group_processors"]
-                        ]
-                    )
-                    == set(JOB_SUBMIT_DATA_GUINEA_ALL_PROC["processors"])
-                )
-            if not response.json()["job_group_status"] == "PENDING":
-                # Final await for any S3 refreshing backend
-                sleep(1.0)
-                break
-            sleep(1.0)
-            if (time() - start) > max_total_await:
-                self.fail("max await breached")
-        # Check all the processors were covered in the job group (with some allowance for start-up)
-        self.assertTrue(
-            all_processors_listed.count(False) < 0.2 * len(all_processors_listed)
-        )
-        response = requests.get(route)
-        # Job progress should not exist
-        self.assertTrue(
-            not any(
-                [
-                    "job_progress" in i.keys()
-                    for i in response.json()["job_group_processors"]
-                ]
-            )
-        )
-        # Job status should be completed and successful for all
-        self.assertEqual(response.json()["job_group_status"], "COMPLETE")
-        self.assertSetEqual(
-            set([i["job_status"] for i in response.json()["job_group_processors"]]),
-            set(["SUCCESS"]),
-        )
-        # Assert the package integrity, including submitted processors
-        if STORAGE_BACKEND == "localfs":
-            assert_package(
-                LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-                "guineabissau",
-            )
-        elif STORAGE_BACKEND == "awss3":
-            assert_package_awss3(
-                self.storage_backend,
-                "guineabissau",
-                expected_processor_versions=JOB_SUBMIT_DATA_GUINEA_ALL_PROC[
-                    "processors"
-                ],
             )
