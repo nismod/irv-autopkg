@@ -171,8 +171,15 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
                     job_progress=None,
                     job_result=None,
                 ))
-            except KeyError:
-                pass
+            except Exception:
+                # Sometimes Celery fails to return a result object - when under heavy load
+                processors.append(schemas.JobStatus(
+                    processor_name="failed to complete task status",
+                    job_id=result.id,
+                    job_status=result.state,
+                    job_progress=None,
+                    job_result=None,
+                ))
     return schemas.JobGroupStatus(
         job_group_status="COMPLETE" if all(global_status) else "PENDING",
         job_group_percent_complete=sum(global_perc_complete),
@@ -205,7 +212,6 @@ def get_celery_scheduled_tasks() -> dict:
 
 def get_celery_task_info(task_id: str) -> dict:
     """
-    DEPRECATED
 
         Information about a specific task
          Example Output

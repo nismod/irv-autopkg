@@ -1,15 +1,17 @@
 """
-Gridfinder Processor
+ISIMP Drought V1 Processor
 """
 
 import os
 import inspect
+import shutil
 from typing import List
 
 from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     processor_name_from_file,
+    tiffs_in_folder,
     version_name_from_file,
     crop_raster,
     assert_geotiff,
@@ -19,10 +21,10 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_license_file,
     fetch_zenodo_doi,
-    fiona_crop_file_to_geopkg,
-    assert_vector_file,
-    output_filename
+    output_filename,
+    unpack_zip,
 )
+from .helpers import VERSION_1_SOURCE_FILES
 
 
 class Metadata(BaseMetadataABC):
@@ -33,55 +35,44 @@ class Metadata(BaseMetadataABC):
     name = processor_name_from_file(
         inspect.stack()[1].filename
     )  # this must follow snakecase formatting, without special chars
-    description = "gridfinder - Predictive mapping of the global power system using open data"  # Longer processor description
+    description = "ISIMP Drought v1 processor"  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
-    dataset_name = "gridfinder"  # The dataset this processor targets
-    data_author = "Arderne, Christopher; Nicolas, Claire; Zorn, Conrad; Koks, Elco E"
-    data_title = "Gridfinder"
-    data_title_long = "Gridfinder data from 'Predictive mapping of the global power system using open data'"
+    dataset_name = "ISIMP Drought"  # The dataset this processor targets
+    data_author = "Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020)"
+    data_title = "ISIMP Drought"
+    data_title_long = "Annual probability of extreme heat and drought events, derived from Lange et al 2020"
     data_summary = """
-Three primary global data outputs from the research:
+        The time series of extreme events given by Lange et al has been processed into an annual probability of occurrence by researchers at the University of Oxford, using the pipeline available online at https://github.com/nismod/infra-risk-vis/blob/45d8974c311067141ee6fcaa1321c7ecdaa59752/etl/pipelines/isimip/Snakefile - this is a draft dataset, used for visualisation in https://global.infrastructureresilience.org/ but not otherwise reviewed or published.
 
-grid.gpkg: Vectorized predicted distribution and transmission line network, with existing OpenStreetMap lines tagged in the 'source' column
-targets.tif: Binary raster showing locations predicted to be connected to distribution grid. 
-lv.tif: Raster of predicted low-voltage infrastructure in kilometres per cell.
+        If you use this, please cite: Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616
 
-This data was created with code in the following three repositories:
+        This is shared under a CC0 1.0 Universal Public Domain Dedication (CC0 1.0) When using ISIMIP data for your research, please appropriately credit the data providers, e.g. either by citing the DOI for the dataset, or by appropriate acknowledgment.
 
-https://github.com/carderne/gridfinder
-https://github.com/carderne/predictive-mapping-global-power
-https://github.com/carderne/access-estimator
+        Annual probability of drought (soil moisture below a baseline threshold) or extreme heat (temperature and humidity-based indicators over a threshold) events on a 0.5° grid. 8 hydrological models forced by 4 GCMs under baseline, RCP 2.6 & 6.0 emission scenarios. Current and future maps in 2030, 2050 and 2080.
 
-Full steps to reproduce are contained in this file:
+        The ISIMIP2b climate input data and impact model output data analyzed in this study are available in the ISIMIP data repository at ESGF, see https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=input and https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=output, respectively. More information about the GHM, GGCM, and GVM output data is provided by Gosling et al. (2020), Arneth et al. (2020), and Reyer et al. (2019), respectively.
 
-https://github.com/carderne/predictive-mapping-global-power/blob/master/README.md
-
-The data can be visualized at the following location:
-
-https://gridfinder.org
+        Event definitions are given in Lange et al, table 1. Land area is exposed to drought if monthly soil moisture falls below the 2.5th percentile of the preindustrial baseline distribution for at least seven consecutive months. Land area is exposed to extreme heat if both a relative indicator based on temperature (Russo et al 2015, 2017) and an absolute indicator based on temperature and relative humidity (Masterton & Richardson, 1979) exceed their respective threshold value.
     """
     data_citation = """
-Arderne, Christopher, Nicolas, Claire, Zorn, Conrad, & Koks, Elco E. (2020).
-Data from: Predictive mapping of the global power system using open data [Data
-set]. In Nature Scientific Data (1.1.1, Vol. 7, Number Article 19). Zenodo.
-https://doi.org/10.5281/zenodo.3628142    
-"""
+        Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616   
+    """
     data_license = DataPackageLicense(
-        name="CC-BY-4.0",
-        title="Creative Commons Attribution 4.0",
-        path="https://creativecommons.org/licenses/by/4.0/",
+        name="CC0",
+        title="CC0",
+        path="https://creativecommons.org/share-your-work/public-domain/cc0/",
     )
-    data_origin_url = "https://doi.org/10.5281/zenodo.3628142"
-    data_formats = ["Geopackage", "GeoTIFF"]
+    data_origin_url = "https://doi.org/10.5281/zenodo.7732393"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
-    """A Processor for Gridfinder"""
+    """A Processor for ISIMP Drought V1"""
 
-    zenodo_doi = "10.5281/zenodo.3628142"
-    source_files = ["grid.gpkg", "targets.tif", "lv.tif"]
+    zenodo_doi = "10.5281/zenodo.7732393"
+    source_files = VERSION_1_SOURCE_FILES
     total_expected_files = len(source_files)
     index_filename = "index.html"
     license_filename = "license.html"
@@ -129,29 +120,17 @@ class Processor(BaseProcessorABC):
             file_format = os.path.splitext(os.path.basename(source_fpath))[1]
 
             output_fpath = os.path.join(
-                self.tmp_processing_folder, 
+                self.tmp_processing_folder,
                 output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
                     file_format,
-                    dataset_subfilename=subfilename
-                )
+                    dataset_subfilename=subfilename,
+                ),
             )
-            if file_format == ".tif":
-                crop_success = crop_raster(
-                    source_fpath, output_fpath, self.boundary
-                )
-            elif file_format == ".gpkg":
-                crop_success = fiona_crop_file_to_geopkg(
-                    source_fpath,
-                    self.boundary,
-                    output_fpath,
-                    output_schema = {'properties': {'source': 'str'}, 'geometry': 'LineString'},
-                    output_crs=4326
-                )
-            else:
-                continue
+            crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
+
             self.log.debug(
                 "%s crop %s - success: %s",
                 self.metadata.name,
@@ -197,7 +176,7 @@ class Processor(BaseProcessorABC):
         datapkg = generate_datapackage(
             self.metadata,
             result_uris,
-            "mixed",
+            "GeoTIFF",
             [i["size"] for i in results_fpaths],
             [i["hash"] for i in results_fpaths],
         )
@@ -255,7 +234,34 @@ class Processor(BaseProcessorABC):
                 os.path.join(self.source_folder, _file) for _file in self.source_files
             ]
         else:
-            _ = fetch_zenodo_doi(self.zenodo_doi, self.source_folder)
+            downloaded_files = fetch_zenodo_doi(
+                self.zenodo_doi, self.source_folder, return_only_tifs=False
+            )
+            # Should be only one zip
+            try:
+                downloaded_zip = [
+                    i
+                    for i in downloaded_files
+                    if os.path.basename(i) == "lange2020_expected_occurrence.zip"
+                ][0]
+            except IndexError:
+                self.log.error(
+                    "after %s download - required zip file lange2020_expected_occurrence.zip was not present",
+                    self.metadata.name,
+                )
+                raise Exception(f"{self.metadata.name} download failed")
+            # Unpack zip
+            unpack_zip(downloaded_zip, self.source_folder)
+            # Moved nested tiffs up to source folder
+            for tiff_fpath in tiffs_in_folder(
+                os.path.join(self.source_folder, "lange2020_expected_occurrence"),
+                full_paths=True,
+            ):
+                shutil.move(tiff_fpath, self.source_folder)
+            shutil.rmtree(
+                os.path.join(self.source_folder, "lange2020_expected_occurrence"),
+                ignore_errors=True,
+            )
             # Count the Tiffs
             self.log.debug("%s - Download Complete", self.metadata.name)
             assert (
@@ -274,36 +280,18 @@ class Processor(BaseProcessorABC):
         source_valid = [True for _ in range(len(self.source_files))]
         for idx, _file in enumerate(self.source_files):
             fpath = os.path.join(self.source_folder, _file)
-            if os.path.splitext(_file)[1] == ".gpkg":
-                try:
-                    assert_vector_file(fpath)
-                except Exception as err:
-                    # remove the file and flag we should need to re-fetch, then move on
-                    self.log.warning(
-                        "%s source file %s appears to be invalid due to %s",
-                        self.metadata.name,
-                        fpath,
-                        err,
-                    )
-                    if remove_invalid:
-                        if os.path.exists(fpath):
-                            os.remove(fpath)
-                    source_valid[idx] = False
-            elif os.path.splitext(_file)[1] == ".tif":
-                try:
-                    assert_geotiff(fpath, check_compression=False, check_crs=None)
-                except Exception as err:
-                    # remove the file and flag we should need to re-fetch, then move on
-                    self.log.warning(
-                        "%s source file %s appears to be invalid due to %s",
-                        self.metadata.name,
-                        fpath,
-                        err,
-                    )
-                    if remove_invalid:
-                        if os.path.exists(fpath):
-                            os.remove(fpath)
-                    source_valid[idx] = False
-            else:
-                continue
+            try:
+                assert_geotiff(fpath, check_compression=False, check_crs=None)
+            except Exception as err:
+                # remove the file and flag we should need to re-fetch, then move on
+                self.log.warning(
+                    "%s source file %s appears to be invalid due to %s",
+                    self.metadata.name,
+                    fpath,
+                    err,
+                )
+                if remove_invalid:
+                    if os.path.exists(fpath):
+                        os.remove(fpath)
+                source_valid[idx] = False
         return all(source_valid)

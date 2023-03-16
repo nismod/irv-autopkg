@@ -488,6 +488,9 @@ def assert_geotiff(
         if check_pixel_coords is not None and check_pixel_expected_samples is not None:
             src_samples = sample.sample_gen(src, check_pixel_coords)
             for idx, src_sample in enumerate(src_samples):
+                # Special case for nan comparison
+                if all(np.isnan(src_sample)) and all(np.isnan(check_pixel_expected_samples[idx])):
+                    continue
                 assert np.array_equal(src_sample, check_pixel_expected_samples[idx]) is True, \
                     f"source pixels did not match expected pixel samples at coords: {check_pixel_coords[idx]}, {src_sample} != {check_pixel_expected_samples[idx]}"
 
