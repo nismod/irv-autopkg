@@ -44,20 +44,20 @@ class Metadata(BaseMetadataABC):
     data_title = "ISIMP Drought"
     data_title_long = "Annual probability of extreme heat and drought events, derived from Lange et al 2020"
     data_summary = """
-        The time series of extreme events given by Lange et al has been processed into an annual probability of occurrence by researchers at the University of Oxford, using the pipeline available online at https://github.com/nismod/infra-risk-vis/blob/45d8974c311067141ee6fcaa1321c7ecdaa59752/etl/pipelines/isimip/Snakefile - this is a draft dataset, used for visualisation in https://global.infrastructureresilience.org/ but not otherwise reviewed or published.
+The time series of extreme events given by Lange et al has been processed into an annual probability of occurrence by researchers at the University of Oxford, using the pipeline available online at https://github.com/nismod/infra-risk-vis/blob/45d8974c311067141ee6fcaa1321c7ecdaa59752/etl/pipelines/isimip/Snakefile - this is a draft dataset, used for visualisation in https://global.infrastructureresilience.org/ but not otherwise reviewed or published.
 
-        If you use this, please cite: Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616
+If you use this, please cite: Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616
 
-        This is shared under a CC0 1.0 Universal Public Domain Dedication (CC0 1.0) When using ISIMIP data for your research, please appropriately credit the data providers, e.g. either by citing the DOI for the dataset, or by appropriate acknowledgment.
+This is shared under a CC0 1.0 Universal Public Domain Dedication (CC0 1.0) When using ISIMIP data for your research, please appropriately credit the data providers, e.g. either by citing the DOI for the dataset, or by appropriate acknowledgment.
 
-        Annual probability of drought (soil moisture below a baseline threshold) or extreme heat (temperature and humidity-based indicators over a threshold) events on a 0.5° grid. 8 hydrological models forced by 4 GCMs under baseline, RCP 2.6 & 6.0 emission scenarios. Current and future maps in 2030, 2050 and 2080.
+Annual probability of drought (soil moisture below a baseline threshold) or extreme heat (temperature and humidity-based indicators over a threshold) events on a 0.5° grid. 8 hydrological models forced by 4 GCMs under baseline, RCP 2.6 & 6.0 emission scenarios. Current and future maps in 2030, 2050 and 2080.
 
-        The ISIMIP2b climate input data and impact model output data analyzed in this study are available in the ISIMIP data repository at ESGF, see https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=input and https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=output, respectively. More information about the GHM, GGCM, and GVM output data is provided by Gosling et al. (2020), Arneth et al. (2020), and Reyer et al. (2019), respectively.
+The ISIMIP2b climate input data and impact model output data analyzed in this study are available in the ISIMIP data repository at ESGF, see https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=input and https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=output, respectively. More information about the GHM, GGCM, and GVM output data is provided by Gosling et al. (2020), Arneth et al. (2020), and Reyer et al. (2019), respectively.
 
-        Event definitions are given in Lange et al, table 1. Land area is exposed to drought if monthly soil moisture falls below the 2.5th percentile of the preindustrial baseline distribution for at least seven consecutive months. Land area is exposed to extreme heat if both a relative indicator based on temperature (Russo et al 2015, 2017) and an absolute indicator based on temperature and relative humidity (Masterton & Richardson, 1979) exceed their respective threshold value.
+Event definitions are given in Lange et al, table 1. Land area is exposed to drought if monthly soil moisture falls below the 2.5th percentile of the preindustrial baseline distribution for at least seven consecutive months. Land area is exposed to extreme heat if both a relative indicator based on temperature (Russo et al 2015, 2017) and an absolute indicator based on temperature and relative humidity (Masterton & Richardson, 1979) exceed their respective threshold value.
     """
     data_citation = """
-        Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616   
+Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616   
     """
     data_license = DataPackageLicense(
         name="CC0",
