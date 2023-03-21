@@ -64,7 +64,7 @@ class Queries:
         """
         Get summary information about all available boundaries
         """
-        stmt = select(models.Boundary.id, models.Boundary.name, models.Boundary.name_long)
+        stmt = select(models.Boundary.id, models.Boundary.name, models.Boundary.name_long).order_by(models.Boundary.name)
         res = await self.database.fetch_all(stmt)
         if not res:
             return []
@@ -78,7 +78,7 @@ class Queries:
         """
         stmt = select(models.Boundary).where(
             func.like(func.lower(models.Boundary.name_long), f"%{name.lower()}%")
-        )
+        ).order_by(models.Boundary.name)
         res = await self.database.fetch_all(stmt)
         if not res:
             return []
