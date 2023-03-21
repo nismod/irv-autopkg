@@ -69,7 +69,7 @@ async def get_processors():
 async def get_processor(name: str):
     """Metadata for all versions of a single processor"""
     try:
-        for proc_name, proc_versions in list_processors().items():
+        for proc_name, proc_versions in list_processors(include_test_processors=INCLUDE_TEST_PROCESSORS).items():
             output_versions = []
             if proc_name == name:
                 for version in proc_versions:

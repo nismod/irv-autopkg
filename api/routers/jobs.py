@@ -80,7 +80,7 @@ def get_status(job_id: str):
             [[result.state, result.info, result.args, result.name] for result in group_result.results],
         )
         # Create response object
-        response = extract_group_state_info(group_result)
+        response = extract_group_state_info(group_result, missing_proc_name_msg=schemas.MISSING_PROC_MSG)
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], response)
         return response
     except JobNotFoundException as err:

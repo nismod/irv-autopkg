@@ -125,7 +125,7 @@ def processor_meta(
 
 
 # Celery Queue Interactions
-def extract_group_state_info(group_result: GroupResult, missing_task_msg: str = "task details not available") -> schemas.JobGroupStatus:
+def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: str = "processor details not available") -> schemas.JobGroupStatus:
     """
     Generate job status info from a GroupStatus object
 
@@ -188,7 +188,7 @@ def extract_group_state_info(group_result: GroupResult, missing_task_msg: str = 
             except Exception:
                 # Sometimes Celery fails to return a result object - when under heavy load
                 processors.append(schemas.JobStatus(
-                    processor_name=missing_task_msg,
+                    processor_name=missing_proc_name_msg,
                     job_id=result.id,
                     job_status=result.state,
                     job_progress=None,

@@ -10,6 +10,9 @@ from pydantic import BaseModel, validator
 from dataproc.helpers import processors_as_enum
 from config import INCLUDE_TEST_PROCESSORS
 
+MISSING_PROC_MSG = "processor details not available"
+
+
 class Polygon(BaseModel):
     """Reference to the external GeoJSON Polygon JSON Schema"""
 
@@ -72,11 +75,12 @@ class Boundary(BoundarySummary):
 
 class ProcessorVersionMetadata(BaseModel):
     """Detail about a Data Processor"""
+
     name: str
     description: str
     version: str
-    status: Optional[str] = "" # Used while executing
-    uri: Optional[str] = "" # Used when package is available
+    status: Optional[str] = ""  # Used while executing
+    uri: Optional[str] = ""  # Used when package is available
     data_author: str
     data_title: str
     data_title_long: str
@@ -86,8 +90,10 @@ class ProcessorVersionMetadata(BaseModel):
     data_origin_url: str
     data_formats: List[str]
 
+
 class Processor(BaseModel):
     """Summary information about a Processor"""
+
     name: str  # Name of the processor
     versions: List[
         ProcessorVersionMetadata
@@ -133,28 +139,34 @@ class JobProgress(BaseModel):
     """
     Specifics about the progress of an individual Processors Job
     """
+
     percent_complete: Optional[int] = 0
     current_task: Optional[str]
 
-class JobStatusEnum(str, Enum):
+
+class JobStateEnum(str, Enum):
     """Possible Job States"""
-    PENDING='PENDING'
-    SUCCESS='SUCCESS'
-    FAILURE='FAILURE'
-    EXECUTING='EXECUTING'
-    RETRY='RETRY'
-    SKIPPED='SKIPPED'
-    REVOKED='REVOKED'
+
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    EXECUTING = "EXECUTING"
+    RETRY = "RETRY"
+    SKIPPED = "SKIPPED"
+    REVOKED = "REVOKED"
+
 
 class JobStatus(SubmittedJob):
     """Status of a Submitted Job"""
 
-    processor_name: processors_as_enum(include_test_processors=INCLUDE_TEST_PROCESSORS)
-    job_status: JobStatusEnum
+    processor_name: processors_as_enum(
+        include_test_processors=INCLUDE_TEST_PROCESSORS, additions=[MISSING_PROC_MSG]
+    )
+    job_status: JobStateEnum
     job_progress: Optional[JobProgress]
     job_result: Optional[dict]
 
-    class Config:  
+    class Config:
         use_enum_values = True
 
 
