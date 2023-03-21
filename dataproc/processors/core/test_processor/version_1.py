@@ -7,6 +7,7 @@ import os
 import inspect
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
@@ -58,8 +59,7 @@ class Processor(BaseProcessorABC):
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
         if self.exists() is True:
-            self.update_progress(100,"waiting")
-            self.provenance_log[f"{self.metadata.name}"] = "exists"
+            raise ProcessorDatasetExists()
         else:
             # Generate a blank tests dataset
             create_test_file(output_fpath)

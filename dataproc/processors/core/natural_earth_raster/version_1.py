@@ -6,6 +6,7 @@ import os
 import inspect
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     processor_name_from_file,
@@ -74,8 +75,7 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10,"fetching and verifying source")
         geotiff_fpath = self._fetch_source()

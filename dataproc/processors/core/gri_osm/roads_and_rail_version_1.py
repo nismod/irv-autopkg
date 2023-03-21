@@ -18,6 +18,7 @@ from dataproc.helpers import (
     generate_datapackage,
     output_filename
 )
+from dataproc.exceptions import ProcessorDatasetExists
 from config import (
     get_db_uri_ogr
 )
@@ -92,8 +93,7 @@ class Processor(BaseProcessorABC):
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         # Setup output path in the processing backend
         output_fpath = os.path.join(
             self.tmp_processing_folder, 
