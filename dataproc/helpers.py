@@ -73,15 +73,18 @@ def build_processor_name_version(processor_base_name: str, version: str) -> str:
     return f"{processor_base_name}.{version}"
 
 
-def list_processors() -> List[BaseProcessorABC]:
+def list_processors(include_test_processors: bool=False) -> List[BaseProcessorABC]:
     """Retrieve a list of available processors and their versions"""
     # Iterate through Core processors and collect metadata
     import dataproc.processors.core as available_processors
 
     valid_processors = {}  # {name: [versions]}
     for name, processor in inspect.getmembers(available_processors):
+        if include_test_processors is False:
+            if "test" in name:
+                continue
         # Check validity
-        if not valid_processor(name, processor):
+        if valid_processor(name, processor) is False:
             continue
         # Split name and version
         proc_name, proc_version = name.split(".")
