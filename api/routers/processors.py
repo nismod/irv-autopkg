@@ -6,7 +6,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 
-from config import LOG_LEVEL
+from config import LOG_LEVEL, INCLUDE_TEST_PROCESSORS
 from dataproc.helpers import (
     list_processors,
     build_processor_name_version,
@@ -34,7 +34,7 @@ async def get_processors():
     """Metadata for all available data processors"""
     try:
         results = []
-        for proc_name, proc_versions in list_processors().items():
+        for proc_name, proc_versions in list_processors(include_test_processors=INCLUDE_TEST_PROCESSORS).items():
             output_versions = []
             for version in proc_versions:
                 name_version = build_processor_name_version(proc_name, version)
