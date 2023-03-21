@@ -23,7 +23,7 @@ from dataproc.processors.internal import (
     BoundaryProcessor,
     ProvenanceProcessor,
 )
-from dataproc.exceptions import ProcessorAlreadyExecutingException, ProcessorExecutionFailed
+from dataproc.exceptions import ProcessorAlreadyExecutingException, ProcessorDatasetExists, ProcessorExecutionFailed
 from dataproc.backends.storage import init_storage_backend
 
 # Setup Configured Storage Backend
@@ -151,6 +151,9 @@ def processor_task(
                     # Update sink for this processor
                     sink[processor_name_version] = result
                     return sink
+                except ProcessorDatasetExists:
+                    sink[processor_name_version] = {"skipped": f"{task_sig} exists"}
+                    return sink
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
@@ -187,7 +190,7 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                     if isinstance(sink, dict):
                         sink = [sink]
                     proc = ProvenanceProcessor(boundary, storage_backend)
-                    res = proc.generate(sink)
+                    return proc.generate(sink)
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
@@ -204,4 +207,3 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
             "task with signature %s skipped because it was already executing", task_sig
         )
         raise self.retry(exc=err, countdown=5)
-    return res

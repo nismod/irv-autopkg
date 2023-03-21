@@ -229,7 +229,7 @@ class TestProcessingJobs(unittest.TestCase):
                 self.fail("max await reached")
         self.assertEqual(response.json()["job_group_status"], "COMPLETE")
         # Job Statuses show failed
-        self.assertEqual(response.json()["job_group_processors"][0]['job_status'], "FAILED")
+        self.assertEqual(response.json()["job_group_processors"][0]['job_status'], "FAILURE")
 
 
     def test_submit_job_already_executing_using_test_processor(self):
@@ -275,9 +275,11 @@ class TestProcessingJobs(unittest.TestCase):
         # Jobs completed successfully
         self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
         # Job Statuses show skipped and success
+        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit-1)]
+        expected_msgs.append("SUCCESS")
         self.assertCountEqual(
             [i['job_status'] for i in results],
-            ["SKIPPED" for _ in range(dup_processors_to_submit)].append("SUCCESS")
+            expected_msgs
         )
         test_proc_results = []
         for result in results:
@@ -363,9 +365,11 @@ class TestProcessingJobs(unittest.TestCase):
         # Jobs completed successfully
         self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
         # Job Statuses show skipped and success
+        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit-1)]
+        expected_msgs.append("SUCCESS")
         self.assertCountEqual(
             [i['job_status'] for i in results],
-            ["SKIPPED" for _ in range(dup_processors_to_submit)].append("SUCCESS")
+            expected_msgs
         )
         # Between the two sets of results there should be success for
         # both boundaries and test_processor

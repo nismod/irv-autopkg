@@ -32,13 +32,17 @@ from dataproc.exceptions import (
 
 # DAGs and Processing
 
-def processors_as_enum(include_test_processors: str = False) -> Enum:
+def processors_as_enum(include_test_processors: str = False, additions: List[str] = []) -> Enum:
     """Generate an Enum of the currently available processors"""
     procs = {}
     for proc_name, proc_versions in list_processors(include_test_processors=include_test_processors).items():
         for version in proc_versions:
             name_version = build_processor_name_version(proc_name, version)
             procs[name_version] = name_version
+    # Add in any additional fields 
+    for addition in additions:
+        if not addition in procs.keys():
+            procs[addition] = addition
     return Enum("ProcessorsEnum", procs)
 
 def processor_name(dataset: str, version: str) -> str:

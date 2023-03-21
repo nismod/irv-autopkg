@@ -14,6 +14,9 @@ class ProcessorExecutionFailed(DataProcException):
 class ProcessorExecutionSkipped(DataProcException):
     """A Processor was skipped during execution"""
 
+class ProcessorDatasetExists(DataProcException):
+    """Processor output for a given boundary already exists"""
+
 class ProcessorAlreadyExecutingException(DataProcException):
     """A Given processor, boundary combination is already executing"""
 
