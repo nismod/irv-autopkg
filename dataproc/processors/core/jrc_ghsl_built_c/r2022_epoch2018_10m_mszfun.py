@@ -40,8 +40,8 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # this must follow snakecase formatting, without special chars
     description = """
-        A Processor for JRC GHSL Built-Up Characteristics - 
-        R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
+A Processor for JRC GHSL Built-Up Characteristics - 
+R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
     """  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
