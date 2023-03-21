@@ -132,7 +132,7 @@ class AWSS3StorageBackend(StorageBackend):
             chk = s3_fs.get_file_info(absolute_s3_path)
             return chk.type != fs.FileType.NotFound
 
-    def tree(self) -> dict:
+    def tree(self, summary: bool = False) -> dict:
         """
         Generate a source-of-truth tree for the
         FS showing Packages and Processors
@@ -145,12 +145,17 @@ class AWSS3StorageBackend(StorageBackend):
                 "processor_name": ["version_id", ...]
             }
         }
+
+        ::kwarg summary bool Return only boundary names (packages), not included dataset_versions
         """
         tree = {}
-        for package in self._list_directories(self._build_absolute_path("")):
-            # First level packages
-            tree[package] = {}
-        # Descend into datasets
+        if summary is True:
+            for package in self._list_directories(self._build_absolute_path("")):
+                # First level packages
+                tree[package] = {}
+            return tree
+        # Descend into datasets and versions
+        # Single call to S3
         for package, _ in tree.items():
             for dataset in self._list_directories(
                 self._build_absolute_path(package, self.datasets_folder_name)
@@ -167,9 +172,9 @@ class AWSS3StorageBackend(StorageBackend):
                     tree[package][dataset].append(version)
         return tree
 
-    def packages(self) -> List[str]:
+    def packages(self, summary: bool = False) -> List[str]:
         """List of Packages that currently exist under the top-level storage backend"""
-        tree = self.tree()
+        tree = self.tree(summary=summary)
         return list(tree.keys())
 
     def package_datasets(self, package: str) -> List[str]:
@@ -179,10 +184,11 @@ class AWSS3StorageBackend(StorageBackend):
         ::param package str The name of the package
             (which maps directly to a Boundary name)
         """
-        tree = self.tree()
         try:
-            return list(tree[package].keys())
-        except KeyError:
+            return self._list_directories(
+                self._build_absolute_path(package, self.datasets_folder_name)
+            )
+        except:
             # The package does not exist
             raise PackageNotFoundException(f"{package}")
 
@@ -195,10 +201,11 @@ class AWSS3StorageBackend(StorageBackend):
 
         ::param dataset str the name of the dataset for which to retrieve versions
         """
-        tree = self.tree()
         try:
-            return tree[package][dataset]
-        except KeyError:
+            return self._list_directories(
+                self._build_absolute_path(package, self.datasets_folder_name, dataset)
+            )
+        except:
             # The dataset does not exist
             raise DatasetNotFoundException(f"{dataset}")
 

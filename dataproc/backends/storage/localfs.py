@@ -38,7 +38,7 @@ class LocalFSStorageBackend(StorageBackend):
         """Build the internet-accessible URI from a given localFS absolute fpath"""
         return absolute_fpath.replace(self.top_level_folder_path, PACKAGES_HOST_URL)
 
-    def tree(self) -> dict:
+    def tree(self, summary: bool = False) -> dict:
         """
         Generate a source-of-truth tree for the
         FS showing Packages and Processors
@@ -51,6 +51,7 @@ class LocalFSStorageBackend(StorageBackend):
                 "processor_name": ["version_id", ...]
             }
         }
+        ::kwarg summary bool Return only boundary names (packages), not included dataset_versions
         """
         tree = {}
         for _, dirs, _ in os.walk(os.path.join(self.top_level_folder_path)):
@@ -59,6 +60,8 @@ class LocalFSStorageBackend(StorageBackend):
                 tree[package] = {}
             # Dont recurse further
             break
+        if summary is True:
+            return tree
         # Descend into datasets
         for package, _ in tree.items():
             for _, dataset_dirs, _ in os.walk(
@@ -89,9 +92,9 @@ class LocalFSStorageBackend(StorageBackend):
                     break
         return tree
 
-    def packages(self) -> List[str]:
+    def packages(self, summary: bool = False) -> List[str]:
         """List of Packages that currently exist under the top-level storage backend"""
-        tree = self.tree()
+        tree = self.tree(summary=summary)
         return list(tree.keys())
 
     def package_datasets(self, package: str) -> List[str]:

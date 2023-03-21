@@ -56,7 +56,7 @@ async def get_packages():
     """Retrieve information on available top-level packages (which are created from boundaries)"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        packages = storage_backend.packages()
+        packages = storage_backend.packages(summary=True)
         logger.debug("found packages in backend: %s", packages)
         result = []
         for boundary_name in packages:
