@@ -3,9 +3,12 @@ Pydantic Schemas
 """
 
 from typing import List, Optional
+from enum import Enum
 
 from pydantic import BaseModel, validator
 
+from dataproc.helpers import processors_as_enum
+from config import INCLUDE_TEST_PROCESSORS
 
 class Polygon(BaseModel):
     """Reference to the external GeoJSON Polygon JSON Schema"""
@@ -130,18 +133,29 @@ class JobProgress(BaseModel):
     """
     Specifics about the progress of an individual Processors Job
     """
-
     percent_complete: Optional[int] = 0
     current_task: Optional[str]
 
+class JobStatusEnum(str, Enum):
+    """Possible Job States"""
+    PENDING='PENDING'
+    SUCCESS='SUCCESS'
+    FAILURE='FAILURE'
+    EXECUTING='EXECUTING'
+    RETRY='RETRY'
+    SKIPPED='SKIPPED'
+    REVOKED='REVOKED'
 
 class JobStatus(SubmittedJob):
     """Status of a Submitted Job"""
 
-    processor_name: str
-    job_status: str
+    processor_name: processors_as_enum(include_test_processors=INCLUDE_TEST_PROCESSORS)
+    job_status: JobStatusEnum
     job_progress: Optional[JobProgress]
     job_result: Optional[dict]
+
+    class Config:  
+        use_enum_values = True
 
 
 class JobGroupStatus(BaseModel):

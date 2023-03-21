@@ -2,6 +2,7 @@
 API Helpers
 """
 
+from enum import Enum
 import traceback
 from typing import Any, List
 
@@ -14,13 +15,15 @@ from dataproc import tasks, Boundary
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import (
     get_processor_meta_by_name,
+    list_processors,
+    build_processor_name_version
 )
 from dataproc.exceptions import InvalidProcessorException
 from api.exceptions import (
     CannotGetCeleryTasksInfoException,
 )
 
-from config import CELERY_APP, PACKAGES_HOST_URL
+from config import CELERY_APP, INCLUDE_TEST_PROCESSORS
 
 # API
 
@@ -59,7 +62,6 @@ def handle_exception(logger, err: Exception):
 
 
 # DAGs and Processing
-
 
 def get_processor_task(name: str) -> Any:
     """Get task related to a processor task by its name"""
@@ -123,9 +125,14 @@ def processor_meta(
 
 
 # Celery Queue Interactions
-def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatus:
+def extract_group_state_info(group_result: GroupResult, missing_task_msg: str = "task details not available") -> schemas.JobGroupStatus:
     """
     Generate job status info from a GroupStatus object
+
+    Internally we ensure the Chord (DAG) succeeds so we can generate provenance at the end of each run.
+    As a result DAG internal Processor tasks that fail are reported as SUCCESS in Celery because the errors are caught / handled,
+        so we can use the sink (log) in the next DAG (Chord) stage.
+    NOTE: The API will report tasks as FAILED or SKIPPED depending on the contents of the job result.
 
     state=PENDING - info = None
     state=EXECUTING - info = {'progress': int, 'current_task': str} 
@@ -145,17 +152,24 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
                     continue
                 if not isinstance(task_meta, dict):
                     continue
+                # check if task_meta contains tips about failure or skip
+                if "failed" in task_meta.keys():
+                    _state = "FAILURE"
+                elif "skipped" in task_meta.keys():
+                    _state = "SKIPPED"
+                else:
+                    _state = result.state
                 # While its progressing we report the progress, otherwise we show the result
                 processors.append(
                     schemas.JobStatus(
                         processor_name=proc_name,
                         job_id=result.id,
-                        job_status=result.state,
+                        job_status=_state,
                         job_progress=schemas.JobProgress(
                             percent_complete=task_meta['progress'] if isinstance(task_meta, dict) and 'progress' in task_meta.keys() else 0,
                             current_task=task_meta['current_task'] if isinstance(task_meta, dict) and 'current_task' in task_meta.keys() else "UNKNOWN",
-                        ) if result.state not in ["SUCCESS", "FAILURE"] else None,
-                        job_result=task_meta if result.state in ["SUCCESS", "FAILURE"] else None,
+                        ) if _state not in ["SUCCESS", "FAILURE", "SKIPPED"] else None, # Progressing if not successful, failed or skipped
+                        job_result=task_meta if _state in ["SUCCESS", "FAILURE", "SKIPPED"] else None,
                     )
                 )
         else:
@@ -174,7 +188,7 @@ def extract_group_state_info(group_result: GroupResult) -> schemas.JobGroupStatu
             except Exception:
                 # Sometimes Celery fails to return a result object - when under heavy load
                 processors.append(schemas.JobStatus(
-                    processor_name="task details not available",
+                    processor_name=missing_task_msg,
                     job_id=result.id,
                     job_status=result.state,
                     job_progress=None,

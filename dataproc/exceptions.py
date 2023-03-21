@@ -8,6 +8,12 @@ class DataProcException(Exception):
 class ConfigException(DataProcException):
     """Error with configuration """
 
+class ProcessorExecutionFailed(DataProcException):
+    """A Processor failed during execution"""
+
+class ProcessorExecutionSkipped(DataProcException):
+    """A Processor was skipped during execution"""
+
 class ProcessorAlreadyExecutingException(DataProcException):
     """A Given processor, boundary combination is already executing"""
 

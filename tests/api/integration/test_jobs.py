@@ -59,6 +59,11 @@ JOB_SUBMIT_DATA_GAMBIA_TEST_PROC = {
     "processors": ["test_processor.version_1"],
 }
 
+JOB_SUBMIT_DATA_ZIMBABWE_TEST_PROC = {
+    "boundary_name": "zimbabwe",
+    "processors": ["test_fail_processor.version_1"],
+}
+
 JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC = {
     "boundary_name": "zambia",
     "processors": ["test_processor.version_1"],
@@ -74,7 +79,7 @@ JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
     "processors": ["natural_earth_vector.version_1"],
 }
 
-PACAKGES_USED = ["gambia", "zambia", "ssudan"]
+PACAKGES_USED = ["gambia", "zambia", "ssudan", "zimbabwe"]
 
 class TestProcessingJobs(unittest.TestCase):
 
@@ -197,7 +202,37 @@ class TestProcessingJobs(unittest.TestCase):
                 expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
             )
 
-    def test_submit_job_already_processing_using_test_processor(self):
+    def test_submit_failing_job(self):
+        """Submission of a job that fals"""
+        # Ensure the package tree is clean
+        expected_code = 202
+        route = build_route(JOBS_BASE_ROUTE)
+        response = requests.post(route, json=JOB_SUBMIT_DATA_ZIMBABWE_TEST_PROC)
+        self.assertEqual(response.status_code, expected_code)
+        self.assertIn("job_id", response.json().keys())
+        job_id = response.json()["job_id"]
+        # Await job completion
+        start = time()
+        while True:
+            route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
+            response = requests.get(route)
+            if response.json()["job_group_processors"]:
+                self.assertEqual(
+                    response.json()["job_group_processors"][0]["job_id"], job_id
+                )
+            if not response.json()["job_group_status"] == "PENDING":
+                # Final await for any S3 refreshing backend
+                sleep(1.0)
+                break
+            sleep(1.0)
+            if (time() - start) > self.max_job_await:
+                self.fail("max await reached")
+        self.assertEqual(response.json()["job_group_status"], "COMPLETE")
+        # Job Statuses show failed
+        self.assertEqual(response.json()["job_group_processors"][0]['job_status'], "FAILED")
+
+
+    def test_submit_job_already_executing_using_test_processor(self):
         """
         Submission of a multiple jobs containing the same boundary and
             processor while one is already executing (test processor)
@@ -239,6 +274,11 @@ class TestProcessingJobs(unittest.TestCase):
             sleep(0.5)
         # Jobs completed successfully
         self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
+        # Job Statuses show skipped and success
+        self.assertCountEqual(
+            [i['job_status'] for i in results],
+            ["SKIPPED" for _ in range(dup_processors_to_submit)].append("SUCCESS")
+        )
         test_proc_results = []
         for result in results:
             test_proc_results.append(result["job_result"])
@@ -322,6 +362,11 @@ class TestProcessingJobs(unittest.TestCase):
             sleep(0.5)
         # Jobs completed successfully
         self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
+        # Job Statuses show skipped and success
+        self.assertCountEqual(
+            [i['job_status'] for i in results],
+            ["SKIPPED" for _ in range(dup_processors_to_submit)].append("SUCCESS")
+        )
         # Between the two sets of results there should be success for
         # both boundaries and test_processor
         test_proc_results = []
