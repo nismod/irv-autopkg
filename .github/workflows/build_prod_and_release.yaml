@@ -8,35 +8,24 @@ on:
       - master
 
 env:
-  VERSION: 0.2.7
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  TEST_IMAGE_TAG: test
 
 jobs:
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          draft: false
-          prerelease: false
 
-  build-and-push-image:
+  build-and-push-image-release:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
+      - name: Set variables
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION=$VER" >> $GITHUB_ENV
+          
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -50,6 +39,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build Test Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
+
+      - name: Run Test Suite
+        env:
+          AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
+        run: docker-compose -f ".github/workflows/test/docker-compose-ci-test.yaml" run test
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
@@ -58,3 +61,14 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.VERSION }}
+          release_name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false

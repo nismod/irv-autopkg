@@ -23,8 +23,7 @@ USER root
 COPY config.py .
 COPY api ./api
 COPY dataproc ./dataproc
-COPY tests/dataproc/unit ./tests/dataproc/unit
-COPY tests/helpers.py ./tests/helpers.py
+COPY tests ./tests
 RUN chown -R autopkg:autopkg /usr/src/app
 
 USER autopkg

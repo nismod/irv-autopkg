@@ -34,11 +34,13 @@ db_uri = get_db_uri_sync(API_POSTGRES_DB)
 engine = sa.create_engine(db_uri, pool_pre_ping=True)
 
 
-def wipe_db():
+def wipe_db(setup_tables=True):
     """Wipe all SQLA Tables in the DB"""
     db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
+    if setup_tables:
+        db.Base.metadata.create_all(engine)
     for tbl in reversed(db.Base.metadata.sorted_tables):
         engine.execute(tbl.delete())
 

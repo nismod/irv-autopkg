@@ -8,18 +8,22 @@ on:
       - develop
 
 env:
-  VERSION: 0.2.7
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
+  build-test-push-dev-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
+      - name: Set variables
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION=$VER" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -33,7 +37,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build Test Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}-dev-${{ env.TEST_IMAGE_TAG }}
+
+      - name: Run Test Suite
+        env:
+          AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
+        run: docker-compose -f ".github/workflows/test/docker-compose-ci-test.yaml" run test
+
+      - name: Build and test Docker image
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -41,3 +59,4 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}-dev
+

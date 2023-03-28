@@ -3,6 +3,5 @@ tests/data/packages
 tests/data/processing
 tests/data/tmp
 tests/data/global
-tests/data/gridfinder
 tests/data/countries_all.geojson
 .git
