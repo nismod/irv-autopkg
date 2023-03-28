@@ -112,7 +112,7 @@ if DEPLOYMENT_ENV == "test":
         path.join(path.dirname(path.abspath(__file__)), "tests", "data", "processing"),
     )
     # Integration tests which require access to the GRIOSM Postgres instance will be run if this is set-True (1)
-    TEST_GRI_OSM = bool(int(getenv("TEST_GRI_OSM", "0")))
+    TEST_GRI_OSM = True if getenv("AUTOPKG_TEST_GRI_OSM", "True") == "True" else False
     # AWSS3 Storage Backend
     S3_ACCESS_KEY = getenv("AUTOPKG_S3_TEST_ACCESS_KEY")
     S3_SECRET_KEY = getenv("AUTOPKG_S3_TEST_SECRET_KEY")
