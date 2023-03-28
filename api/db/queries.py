@@ -48,13 +48,11 @@ class Queries:
         Get detailed information about a specific boundary
             This includes a GeoJSON repr of the geometry under field ST_AsGeoJSON
         """
-        stmt = (
-            select(
-                models.Boundary,
-                func.ST_AsGeoJSON(models.Boundary.geometry),
-                func.ST_AsGeoJSON(func.ST_Envelope(models.Boundary.geometry)))
-                .where(models.Boundary.name == name)
-        )
+        stmt = select(
+            models.Boundary,
+            func.ST_AsGeoJSON(models.Boundary.geometry),
+            func.ST_AsGeoJSON(func.ST_Envelope(models.Boundary.geometry)),
+        ).where(models.Boundary.name == name)
         res = await self.database.fetch_one(stmt)
         if not res:
             raise BoundaryNotFoundException()
@@ -64,20 +62,24 @@ class Queries:
         """
         Get summary information about all available boundaries
         """
-        stmt = select(models.Boundary.id, models.Boundary.name, models.Boundary.name_long)
+        stmt = select(
+            models.Boundary.id, models.Boundary.name, models.Boundary.name_long
+        ).order_by(models.Boundary.name_long)
         res = await self.database.fetch_all(stmt)
         if not res:
             return []
         return res
 
-    async def search_boundaries_by_name(
-        self, name: str, distance: int
-    ) -> List[models.Boundary]:
+    async def search_boundaries_by_name(self, name: str) -> List[models.Boundary]:
         """
         Search for boundaries by fuzzy matching matching name
         """
-        stmt = select(models.Boundary).where(
-            func.difference(name, models.Boundary.name) > distance
+        stmt = (
+            select(models.Boundary)
+            .where(
+                func.like(func.lower(models.Boundary.name_long), f"%{name.lower()}%")
+            )
+            .order_by(models.Boundary.name_long)
         )
         res = await self.database.fetch_all(stmt)
         if not res:

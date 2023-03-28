@@ -58,7 +58,7 @@ def extract_job_id(node):
     return proc_id
 
 
-@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus)
+@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus, response_model_exclude_none=True)
 def get_status(job_id: str):
     """Get status of a DAG associated with a given package"""
     try:
@@ -77,10 +77,10 @@ def get_status(job_id: str):
         # Remove Boundary processor from each jobs info
         logger.debug(
             "Group Status: %s",
-            [[result.state, result.info] for result in group_result.results],
+            [[result.state, result.info, result.args, result.name] for result in group_result.results],
         )
         # Create response object
-        response = extract_group_state_info(group_result)
+        response = extract_group_state_info(group_result, missing_proc_name_msg=schemas.MISSING_PROC_MSG)
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], response)
         return response
     except JobNotFoundException as err:
@@ -99,7 +99,11 @@ async def submit_processing_job(job: schemas.Job, status_code=status.HTTP_202_AC
         # Collect boundary geojson
         boundary_db = await DBController().get_boundary_by_name(job.boundary_name)
         boundary_dataproc = DataProcBoundary(
-            job.boundary_name, boundary_db.geometry, boundary_db.envelope
+            job.boundary_name,
+            boundary_db.geometry.dict()["__root__"],
+            boundary_db.envelope.dict()[
+                "__root__"
+            ],  # Due to GeoJSON dynamic type in external schema
         )
         # Check processors are all valid
         for processor_name_version in job.processors:

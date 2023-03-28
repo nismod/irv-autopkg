@@ -15,8 +15,10 @@ from dataproc.helpers import (
     processor_name_from_file,
     generate_index_file,
     generate_license_file,
-    generate_datapackage
+    generate_datapackage,
+    output_filename
 )
+from dataproc.exceptions import ProcessorDatasetExists
 from config import (
     get_db_uri_ogr
 )
@@ -35,7 +37,23 @@ class Metadata(BaseMetadataABC):
     dataset_name = (
         "gri_osm_road_and_rail"  # The dataset this processor targets
     )
-    data_author = "GRI/OSM"
+    data_author = "nismod/open-gira contributors and OpenStreetMap contributors"
+    data_title = "Road and Rail networks derived from OpenStreetMap"
+    data_title_long = "Road and Rail networks derived from OpenStreetMap"
+    data_summary = """
+OpenStreetMap provides map data, including on road and railway networks.
+This dataset is a derived, processed extract from the global OpenStreetMap
+database, produced by researchers at the University of Oxford to support
+infrastructure systems analysis and climate risk and resilience assessments.
+
+The data is produced from a snapshot of OpenStreetMap (the current version is 
+taken from November 2022) by a reproducible pipeline which is under development
+and made freely available at https://github.com/nismod/open-gira.
+    """
+    data_citation = """
+Russell T., Thomas F., nismod/open-gira contributors and OpenStreetMap contributors (2022)
+Global Road and Rail networks derived from OpenStreetMap. [Dataset] Available at https://global.infrastructureresilience.org
+    """
     data_license = DataPackageLicense(
         name="ODbL-1.0",
         title="Open Data Commons Open Database License 1.0",
@@ -44,6 +62,7 @@ class Metadata(BaseMetadataABC):
     data_origin_url = (
         "https://global.infrastructureresilience.org"
     )
+    data_formats = ["Geopackage"]
 
 
 class Processor(BaseProcessorABC):
@@ -68,20 +87,18 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.gpkg",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         # Setup output path in the processing backend
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], self.metadata.name, self.metadata.version, "outputs"
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
-        os.makedirs(output_folder, exist_ok=True)
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
 
         # Crop to given boundary
         self.update_progress(10, "cropping source")

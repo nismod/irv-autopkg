@@ -15,7 +15,11 @@ class Metadata(BaseMetadataABC):
     description="A test processor for nightlights" # Logner processor description
     version="1" # Version of the Processor
     dataset_name="nightlights" # The dataset this processor targets
+    data_title="Night-time lights"
+    data_title_long="Night-time lights annual composite from VIIRS 2022"
     data_author="Nightlights Author"
+    data_summary = "A few paragraphs about night-time lights"
+    data_citation = "Author, N. (2020) Night-time lights. Available at: https://example.com"
     data_license="Nightlights License"
     data_origin_url="http://url"
 

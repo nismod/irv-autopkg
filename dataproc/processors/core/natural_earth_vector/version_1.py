@@ -8,6 +8,7 @@ import inspect
 import sqlalchemy as sa
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     processor_name_from_file,
@@ -20,7 +21,8 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_index_file,
     data_file_hash,
-    data_file_size
+    data_file_size,
+    output_filename
 )
 from config import (
     get_db_uri_ogr,
@@ -45,7 +47,10 @@ class Metadata(BaseMetadataABC):
         "natural_earth_vector_roads"  # The dataset this processor targets
     )
     data_author = "Natural Earth Data"
-    data_license = ""
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="Natural Earth",
         title="Natural Earth",
@@ -54,6 +59,7 @@ class Metadata(BaseMetadataABC):
     data_origin_url = (
         "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/roads/"
     )
+    data_formats = ["Geopackage"]
 
 
 class Processor(BaseProcessorABC):
@@ -81,23 +87,21 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.gpkg",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg'),
         )
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         # Check if the source exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
         pg_table_name = self._fetch_source()
         # Crop to given boundary
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"], self.metadata.name, self.metadata.version, "outputs"
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
         )
-        os.makedirs(output_folder, exist_ok=True)
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.gpkg")
         
         self.update_progress(20, "cropping source")
         self.log.debug("Natural earth vector - cropping Roads to geopkg")

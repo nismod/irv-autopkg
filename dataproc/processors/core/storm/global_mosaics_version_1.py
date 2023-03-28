@@ -5,6 +5,7 @@ STORM (Global Mosaics Version 1) Processor
 import os
 import inspect
 from typing import List
+from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -23,8 +24,8 @@ from dataproc.helpers import (
     generate_license_file,
     fetch_zenodo_doi,
     tiffs_in_folder,
+    output_filename
 )
-from dataproc.exceptions import FolderNotFoundException
 
 
 class Metadata(BaseMetadataABC):
@@ -41,12 +42,72 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "STORM Global Mosaics 10.5281/zenodo.7438145"  # The dataset this processor targets
     data_author = "University of Oxford"
+    data_title = "STORM tropical cyclone wind speed maps"
+    data_title_long = "STORM tropical cyclone wind speed return period maps as global GeoTIFFs"
+    data_summary = """
+Global tropical cyclone wind speed return period maps.
+
+This dataset is derived with minimal processing from the following datasets
+created by Bloemendaal et al, which are released with a CC0 license:
+
+[1] Bloemendaal, Nadia; de Moel, H. (Hans); Muis, S; Haigh, I.D. (Ivan); Aerts,
+J.C.J.H. (Jeroen) (2020): STORM tropical cyclone wind speed return periods.
+4TU.ResearchData. Dataset. https://doi.org/10.4121/12705164.v3
+
+[2] Bloemendaal, Nadia; de Moel, Hans; Dullaart, Job; Haarsma, R.J. (Reindert);
+Haigh, I.D. (Ivan); Martinez, Andrew B.; et al. (2022): STORM climate change
+tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset.
+https://doi.org/10.4121/14510817.v3
+
+Datasets containing tropical cyclone maximum wind speed (in m/s) return periods,
+generated using the STORM datasets (see
+https://www.nature.com/articles/s41597-020-0381-2) and STORM climate change
+datasets (see https://figshare.com/s/397aff8631a7da2843fc). Return periods were
+empirically calculated using Weibull's plotting formula. The
+STORM_FIXED_RETURN_PERIOD dataset contains maximum wind speeds for a fixed set
+of return periods at 10 km resolution in every basin and for every climate model
+used here (see below).
+
+The GeoTIFFs provided in the datasets linked above have been mosaicked into
+single files with global extent for each climate model/return period using the
+following code:
+
+https://github.com/nismod/open-gira/blob/219315e57cba54bb18f033844cff5e48dd5979d7/workflow/rules/download/storm-ibtracs.smk#L126-L151
+
+Files are named on the pattern:
+STORM_FIXED_RETURN_PERIODS_{STORM_MODEL}_{STORM_RP}_YR_RP.tif
+
+STORM_MODEL is be one of constant, CMCC-CM2-VHR4, CNRM-CM6-1-HR, EC-Earth3P-HR
+or HadGEM3-GC31-HM. The "constant" files are for the present day, baseline
+climate scenario as explained in dataset [1]. The other files are for 2050,
+RCP8.5 under different models as explained in the paper linked from dataset [2].
+
+STORM_RP is one of 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500,
+600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000 or
+10000.
+"""
+    data_citation = """
+Russell, Tom. (2022). STORM tropical cyclone wind speed return periods as global
+GeoTIFFs (1.0.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7438145
+    
+Derived from:
+    
+[1] Bloemendaal, Nadia; de Moel, H. (Hans); Muis, S; Haigh, I.D. (Ivan); Aerts,
+J.C.J.H. (Jeroen) (2020): STORM tropical cyclone wind speed return periods.
+4TU.ResearchData. Dataset. https://doi.org/10.4121/12705164.v3
+
+[2] Bloemendaal, Nadia; de Moel, Hans; Dullaart, Job; Haarsma, R.J. (Reindert);
+Haigh, I.D. (Ivan); Martinez, Andrew B.; et al. (2022): STORM climate change
+tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset.
+https://doi.org/10.4121/14510817.v3
+    """
     data_license = DataPackageLicense(
         name="CC0",
         title="CC0",
         path="https://creativecommons.org/share-your-work/public-domain/cc0/",
     )
-    data_origin_url = "https://zenodo.org/record/7438145#.Y-S6cS-l30o"
+    data_origin_url = "https://doi.org/10.5281/zenodo.7438145"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -66,15 +127,14 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
@@ -83,7 +143,7 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
@@ -95,8 +155,16 @@ class Processor(BaseProcessorABC):
             self.update_progress(
                 10 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
+            subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
             output_fpath = os.path.join(
-                self.tmp_processing_folder, os.path.basename(source_fpath)
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=subfilename
+                )
             )
             crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(

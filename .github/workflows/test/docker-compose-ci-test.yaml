@@ -1,0 +1,56 @@
+version: '3'
+services:
+  db:
+    image: postgis/postgis:13-3.1-alpine
+    ports:
+      - 5432:5432
+    env_file:
+      - .citest.env
+
+  redis:
+    image: redis:6.2-alpine
+    command: redis-server --save 20 1 --loglevel debug
+
+  dataproc:
+    image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - .citest.env
+    volumes:
+      - packages:/usr/src/app/tests/data/packages
+      - processing:/usr/src/app/tests/data/processing
+    command: celery --app dataproc.tasks worker
+
+  api:
+    image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    restart: always
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .citest.env
+    volumes:
+      - ./wait-for-it.sh:/opt/wait-for-it.sh
+      - packages:/usr/src/app/tests/data/packages
+      - processing:/usr/src/app/tests/data/processing
+    command: /opt/wait-for-it.sh db:5432 --timeout=20 -- uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  test:
+    image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    depends_on:
+      - api
+      - dataproc
+    env_file:
+      - .citest.env
+    volumes:
+      - ./wait-for-it.sh:/opt/wait-for-it.sh
+      - ./run_tests.sh:/opt/run_tests.sh
+      - packages:/usr/src/app/tests/data/packages
+      - processing:/usr/src/app/tests/data/processing
+    command: /opt/wait-for-it.sh api:8000 --timeout=20 -- /opt/wait-for-it.sh redis:6379 --timeout=20 -- sh /opt/run_tests.sh
+
+volumes:
+  packages:
+  processing:

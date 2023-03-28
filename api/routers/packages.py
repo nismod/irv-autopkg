@@ -48,7 +48,7 @@ logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
 # Initialise the storage backend helpers
-storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
+storage_backend = init_storage_backend(STORAGE_BACKEND)
 
 
 @router.get(PACKAGES_BASE_ROUTE, response_model=List[PackageSummary])
@@ -56,9 +56,10 @@ async def get_packages():
     """Retrieve information on available top-level packages (which are created from boundaries)"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        logger.debug("found packages in backend: %s", storage_backend.packages())
+        packages = storage_backend.packages(summary=True)
+        logger.debug("found packages in backend: %s", packages)
         result = []
-        for boundary_name in storage_backend.packages():
+        for boundary_name in packages:
             result.append(
                 PackageSummary(
                     boundary_name=boundary_name,

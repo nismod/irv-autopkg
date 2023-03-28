@@ -8,6 +8,7 @@ import shutil
 from typing import List
 
 from celery.app import task
+from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -25,8 +26,8 @@ from dataproc.helpers import (
     generate_index_file,
     generate_license_file,
     generate_datapackage,
+    output_filename
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
 
@@ -39,20 +40,58 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # this must follow snakecase formatting, without special chars
     description = """
-        A Processor for JRC GHSL Built-Up Characteristics - 
-        R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
+A Processor for JRC GHSL Built-Up Characteristics - 
+R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
     """  # Longer processor description
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = "r2022_epoch2018_10m_mszfun"  # The dataset this processor targets
     data_author = "Joint Research Centre"
+    data_title = "GHS-BUILT-C MSZ and FC, R2022 E2018 10m"
+    data_title_long = "JRC Global Human Settlement Layer - Built-Up Characteristics (GHS-BUILT-C - MSZ & FC) - Release 2022 - Epoch 2018 - 10m resolution - Morphological Settlement Zone & Functional Classification"
+    data_summary = """
+The spatial raster dataset delineates the boundaries of the human settlements at
+10m resolution, and describe their inner characteristics in terms of the
+morphology of the built environment and the functional use. The Morphological
+Settlement Zone (MSZ) delineates the spatial domain of all the human settlements
+at the neighboring scale of approx. 100m, based on the spatial generalization of
+the built-up surface fraction (BUFRAC) function. The objective is to fill the
+open spaces that are surrounded by large patches of built space. MSZ, open
+spaces, and built spaces basic class abstractions are derived by mathematical
+morphology spatial filtering (opening, closing, regional maxima) from the BUFRAC
+function. They are further classified according to the information regarding
+vegetation intensity (GHS-BUILT-C_VEG_GLOBE_R2022A), water surfaces
+(GHS_LAND_GLOBE_R2022A), road surfaces (OSM highways), functional use
+(GHS-BUILT-C_FUN_GLOBE_R2022A), and building height (GHS-BUILT-H_GLOBE_R2022A).
+
+The main characteristics of this dataset are listed below. The complete
+information about the GHSL main products can be found in the GHSL Data Package
+2022 report (10.33 MB):
+https://ghsl.jrc.ec.europa.eu/documents/GHSL_Data_Package_2022.pdf
+    """
+    data_citation = """
+Dataset:
+
+Pesaresi M., P. Panagiotis (2022): GHS-BUILT-C R2022A - GHS Settlement
+Characteristics, derived from Sentinel2 composite (2018) and other GHS R2022A
+data.European Commission, Joint Research Centre (JRC) PID:
+http://data.europa.eu/89h/dde11594-2a66-4c1b-9a19-821382aed36e,
+doi:10.2905/DDE11594-2A66-4C1B-9A19-821382AED36E
+
+Concept & Methodology:
+
+Schiavina M., Melchiorri M., Pesaresi M., Politis P., Freire S., Maffenini L.,
+Florio P., Ehrlich D., Goch K., Tommasi P., Kemper T. GHSL Data Package 2022,
+JRC 129516, ISBN 978-92-76-53071-8 doi:10.2760/19817 
+    """
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=builtC"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -88,15 +127,14 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
@@ -105,10 +143,8 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
-            # Cleanup anything in tmp processing
-            self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",
@@ -122,20 +158,36 @@ class Processor(BaseProcessorABC):
         results_fpaths = []
         for idx, source_fpath in enumerate(source_fpaths):
             self.update_progress(
-                10 + int(idx * (80 / len(source_fpaths))), "cropping source"
+                20 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
             output_fpath = os.path.join(
                 self.tmp_processing_folder, os.path.basename(source_fpath)
             )
-            # Crop Source - preserve Molleweide
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=os.path.splitext(os.path.basename(source_fpath))[0]
+                )
+            )
+            # Crop Source - preserve Molleweide, assume we'll need BIGTIFF for this dataset
             crop_success = crop_raster(
-                source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+                source_fpath,
+                output_fpath,
+                self.boundary,
+                creation_options=["COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "BIGTIFF=YES"],
             )
             self.log.debug(
                 "%s %s - success: %s",
                 self.metadata.name,
                 os.path.basename(source_fpath),
                 crop_success,
+            )
+            self.update_progress(
+                20 + int(idx * (80 / len(source_fpaths))), "generating hash"
             )
             if crop_success:
                 results_fpaths.append(
@@ -220,14 +272,6 @@ class Processor(BaseProcessorABC):
             f"{self.metadata.name} - created license documentation"
         ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
-
-    def _clean_tmp_processing(self):
-        """Remove the tmp processing folder and recreate"""
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def _fetch_source(self) -> List[str]:
         """

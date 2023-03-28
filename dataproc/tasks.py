@@ -5,7 +5,7 @@ from typing import Any, List
 from contextlib import contextmanager
 import logging
 
-from celery import signals
+from celery import signals, states
 from celery.utils.log import get_task_logger
 from redis import Redis
 
@@ -14,7 +14,6 @@ from config import (
     CELERY_APP,
     TASK_LOCK_TIMEOUT,
     STORAGE_BACKEND,
-    LOCALFS_STORAGE_BACKEND_ROOT,
     LOCALFS_PROCESSING_BACKEND_ROOT,
     REDIS_HOST,
 )
@@ -24,22 +23,25 @@ from dataproc.processors.internal import (
     BoundaryProcessor,
     ProvenanceProcessor,
 )
-from dataproc.exceptions import ProcessorAlreadyExecutingException
+from dataproc.exceptions import ProcessorAlreadyExecutingException, ProcessorDatasetExists, ProcessorExecutionFailed
 from dataproc.backends.storage import init_storage_backend
 
 # Setup Configured Storage Backend
-storage_backend = init_storage_backend(STORAGE_BACKEND)(LOCALFS_STORAGE_BACKEND_ROOT)
+storage_backend = init_storage_backend(STORAGE_BACKEND)
 
 # Used for guarding against parallel execution of duplicate tasks
 redis_client = Redis(host=REDIS_HOST)
 
+def task_sig_exists(task_sig) -> bool:
+    """Check a task signature in Redis"""
+    return redis_client.exists(task_sig) != 0
 
 @contextmanager
 def redis_lock(task_sig: str):
     """
     Manage Task execution lock within redis
     """
-    if redis_client.exists(task_sig):
+    if task_sig_exists(task_sig) is True:
         raise ProcessorAlreadyExecutingException()
     yield redis_client.setex(task_sig, TASK_LOCK_TIMEOUT, value="")
 
@@ -114,8 +116,24 @@ def processor_task(
 
     ::param sink Any Sink for result of previous processor in the group
     """
+    retry_countdown = 5
     logger = get_task_logger(__name__)
     task_sig = task_signature(boundary["name"], processor_name_version)
+    # There can be cases where two dup tasks are submitted - one runs the boundary processors and the other ends up running the actual processing
+    # In this case there is a chance the boundary processor does not complete before the processor runs (as it ends up running in parallel).
+    # So here we ensure the boundary step is complete for external tasks before continuing
+    # NOTE: This is the ONLY retry condition for a Dataset Processor
+    boundary_task_sig = task_signature(boundary["name"], "boundary_setup")
+    try:
+        if task_sig_exists(boundary_task_sig) is True:
+            raise ProcessorAlreadyExecutingException("boundary setup for this processor executing")
+    except ProcessorAlreadyExecutingException as err:
+        logger.warning(
+            "boundary task with signature %s is currently executing for processor %s - will retry processor in %s secs", 
+            boundary_task_sig, task_sig, retry_countdown
+        )
+        raise self.retry(exc=err, countdown=retry_countdown)
+    # Run the processor
     try:
         with redis_lock(task_sig) as acquired:
             if acquired:
@@ -132,13 +150,17 @@ def processor_task(
                         result = proc.generate()
                     # Update sink for this processor
                     sink[processor_name_version] = result
+                    return sink
+                except ProcessorDatasetExists:
+                    sink[processor_name_version] = {"skipped": f"{task_sig} exists"}
+                    return sink
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    sink[processor_name_version] = {"failed": type(err).__name__}
+                    sink[processor_name_version] = {"failed": f"{type(err).__name__} - {err}"}
+                    return sink
                 finally:
                     _ = redis_client.getdel(task_sig)
-                return sink
             else:
                 raise ProcessorAlreadyExecutingException()
     except ProcessorAlreadyExecutingException:
@@ -168,18 +190,20 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                     if isinstance(sink, dict):
                         sink = [sink]
                     proc = ProvenanceProcessor(boundary, storage_backend)
-                    res = proc.generate(sink)
+                    return proc.generate(sink)
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    sink["generate_provenance"] = {"failed": type(err).__name__}
+                    if isinstance(sink, dict):
+                        sink["generate_provenance"] = {"failed": type(err).__name__}
+                    else:
+                        sink.append({"generate_provenance failed": type(err).__name__})
                 finally:
                     _ = redis_client.getdel(task_sig)
             else:
                 raise ProcessorAlreadyExecutingException()
-    except ProcessorAlreadyExecutingException:
+    except ProcessorAlreadyExecutingException as err:
         logger.warning(
             "task with signature %s skipped because it was already executing", task_sig
         )
-        self.retry(countdown=5)
-    return res
+        raise self.retry(exc=err, countdown=5)

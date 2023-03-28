@@ -17,7 +17,11 @@ class BaseMetadataABC(ABC):
     description: str = ""  # Longer processor description
     version: str = ""  # Version of the Processor
     dataset_name: str = ""  # The dataset this processor targets
+    data_title: str = ""  # Short one-liner title for dataset, ~30 characters is good
+    data_title_long: str = ""  # Long title for dataset
     data_author: str = ""
+    data_summary: str = ""  # 1-3 paragraph prose summary of the dataset
+    data_citation: str = ""  # Suggested citation, e.g. "Nicholas, C (2023) irv-autopkg. [Software] Available at: https://github.com/nismod/irv-autopkg"
     data_license: DataPackageLicense = None
     data_origin_url: str = ""
 
@@ -45,7 +49,7 @@ class BaseProcessorABC(ABC):
         self.source_folder = self.paths_helper.build_absolute_path("source_data")
         os.makedirs(self.source_folder, exist_ok=True)
         # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp")
+        self.tmp_processing_folder = self.paths_helper.build_absolute_path("tmp", self.boundary['name'])
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def __enter__(self):
@@ -60,7 +64,7 @@ class BaseProcessorABC(ABC):
             exc_tb,
         )
         try:
-            shutil.rmtree(self.tmp_processing_folder)
+            shutil.rmtree(self.tmp_processing_folder, ignore_errors=True)
         except FileNotFoundError:
             pass
 

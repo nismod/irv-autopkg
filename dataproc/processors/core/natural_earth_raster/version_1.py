@@ -6,6 +6,7 @@ import os
 import inspect
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     processor_name_from_file,
@@ -19,6 +20,7 @@ from dataproc.helpers import (
     generate_license_file,
     data_file_hash,
     data_file_size,
+    output_filename
 )
 
 
@@ -38,12 +40,17 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "natural_earth_raster"  # The dataset this processor targets
     data_author = "Natural Earth Data"
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://www.naturalearthdata.com/downloads/50m-natural-earth-2/50m-natural-earth-ii-with-shaded-relief/"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -62,28 +69,22 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}.tif",
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10,"fetching and verifying source")
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
         self.update_progress(50,"cropping source")
-        output_folder = self.paths_helper.build_absolute_path(
-            self.boundary["name"],
-            "natural_earth_raster",
-            self.metadata.version,
-            "outputs",
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
-        os.makedirs(output_folder, exist_ok=True)
-
-        output_fpath = os.path.join(output_folder, f"{self.boundary['name']}.tif")
         self.log.debug("Natural earth raster - cropping geotiff")
         crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
         self.provenance_log[f"{self.metadata.name} - crop success"] = crop_success

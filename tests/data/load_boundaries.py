@@ -65,7 +65,8 @@ def load_boundaries(
     long_name_column="name_long",
     admin_level="0",
     wipe_table=True,
-    skip_names=['-99']
+    skip_names=['-99'],
+    setup_tables=True
 ) -> Tuple[bool, List]:
     """
     Load a geojson file of multipolygons into Boundaries table
@@ -75,6 +76,8 @@ def load_boundaries(
     db_uri = get_db_uri_sync(API_POSTGRES_DB)
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
+    if setup_tables is True:
+        db.Base.metadata.create_all(engine)
     if wipe_table is True:
         for tbl in reversed(db.Base.metadata.sorted_tables):
             engine.execute(tbl.delete())

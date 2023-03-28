@@ -7,6 +7,7 @@ import inspect
 import shutil
 
 from celery.app import task
+from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -24,9 +25,9 @@ from dataproc.helpers import (
     generate_license_file,
     generate_datapackage,
     generate_index_file,
+    output_filename
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
-from dataproc.exceptions import FolderNotFoundException
 
 
 class Metadata(BaseMetadataABC):
@@ -42,7 +43,18 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = "wri_aqueduct"  # The dataset this processor targets
-    data_author = "WRI"
+    data_title = "Aqueduct Flood Hazard Maps"
+    data_title_long = "World Resource Institute - Aqueduct Flood Hazard Maps (Version 2, updated October 20, 2020)"
+    data_author = "Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. Díaz Loaiza, et al."
+    data_summary = """World Resource Institute - Aqueduct Flood Hazard Maps (Version 2 (updated
+October 20, 2020)).  Inundation depth in meters for coastal and riverine
+floods over 1km grid squares. 1 in 2 to 1 in 1000 year return periods.
+Baseline, RCP 4.5 & 8.5 emission scenarios. Current and future maps in 2030,
+2050 and 2080."""
+    data_citation = """
+Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. Díaz Loaiza, et al. 2020.
+Aqueduct Floods Methodology. Technical Note. Washington, D.C.: World Resources Institute. Available online at:
+www.wri.org/publication/aqueduct-floods-methodology."""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
@@ -51,6 +63,7 @@ class Metadata(BaseMetadataABC):
     data_origin_url = (
         "http://wri-projects.s3.amazonaws.com/AqueductFloodTool/download/v2/index.html"
     )
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -73,15 +86,14 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
@@ -90,17 +102,11 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
         self._fetch_source()
-
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
         self.log.debug("WRI Aqueduct - cropping geotiffs")
         results_fpaths = []
@@ -114,7 +120,19 @@ class Processor(BaseProcessorABC):
                 10 + int(idx * (80 / self.total_expected_files)), "cropping source"
             )
             geotiff_fpath = os.path.join(self.source_folder, fileinfo.name)
-            output_fpath = os.path.join(self.tmp_processing_folder, fileinfo.name)
+            
+            subfilename = os.path.splitext(fileinfo.name)[0]
+            output_fpath = os.path.join(
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    'tif',
+                    dataset_subfilename=subfilename
+                )
+            )
+
             assert_geotiff(geotiff_fpath)
             crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
             self.log.debug(

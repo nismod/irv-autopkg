@@ -7,6 +7,7 @@ import os
 import inspect
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
@@ -32,12 +33,17 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "nightlights"  # The dataset this processor targets
     data_author = "Nightlights Author"
+    data_title = ""
+    data_title_long = ""
+    data_summary = ""
+    data_citation = ""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "http://url"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -53,8 +59,7 @@ class Processor(BaseProcessorABC):
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
         if self.exists() is True:
-            self.update_progress(100,"waiting")
-            self.provenance_log[f"{self.metadata.name}"] = "exists"
+            raise ProcessorDatasetExists()
         else:
             # Generate a blank tests dataset
             create_test_file(output_fpath)

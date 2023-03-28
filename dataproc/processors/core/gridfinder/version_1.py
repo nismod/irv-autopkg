@@ -1,5 +1,5 @@
 """
-Test vector Processor
+Gridfinder Processor
 """
 
 import os
@@ -7,8 +7,8 @@ import inspect
 from typing import List
 
 from dataproc import DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.helpers import (
     processor_name_from_file,
     version_name_from_file,
@@ -20,8 +20,9 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_license_file,
     fetch_zenodo_doi,
-    gp_crop_file_to_geopkg,
+    fiona_crop_file_to_geopkg,
     assert_vector_file,
+    output_filename
 )
 
 
@@ -38,13 +39,43 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # Version of the Processor
     dataset_name = "gridfinder"  # The dataset this processor targets
-    data_author = "Arderne, Christopher; NIcolas, Claire; Zorn, Conrad; Koks, Elco E"
+    data_author = "Arderne, Christopher; Nicolas, Claire; Zorn, Conrad; Koks, Elco E"
+    data_title = "Gridfinder"
+    data_title_long = "Gridfinder data from 'Predictive mapping of the global power system using open data'"
+    data_summary = """
+Three primary global data outputs from the research:
+
+grid.gpkg: Vectorized predicted distribution and transmission line network, with existing OpenStreetMap lines tagged in the 'source' column
+targets.tif: Binary raster showing locations predicted to be connected to distribution grid. 
+lv.tif: Raster of predicted low-voltage infrastructure in kilometres per cell.
+
+This data was created with code in the following three repositories:
+
+https://github.com/carderne/gridfinder
+https://github.com/carderne/predictive-mapping-global-power
+https://github.com/carderne/access-estimator
+
+Full steps to reproduce are contained in this file:
+
+https://github.com/carderne/predictive-mapping-global-power/blob/master/README.md
+
+The data can be visualized at the following location:
+
+https://gridfinder.org
+    """
+    data_citation = """
+Arderne, Christopher, Nicolas, Claire, Zorn, Conrad, & Koks, Elco E. (2020).
+Data from: Predictive mapping of the global power system using open data [Data
+set]. In Nature Scientific Data (1.1.1, Vol. 7, Number Article 19). Zenodo.
+https://doi.org/10.5281/zenodo.3628142    
+"""
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://doi.org/10.5281/zenodo.3628142"
+    data_formats = ["Geopackage", "GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -65,15 +96,14 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
@@ -82,7 +112,7 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
@@ -94,18 +124,31 @@ class Processor(BaseProcessorABC):
             self.update_progress(
                 10 + int(idx * (80 / len(source_fpaths))), "cropping source"
             )
+
+            subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
+            file_format = os.path.splitext(os.path.basename(source_fpath))[1]
+
             output_fpath = os.path.join(
-                self.tmp_processing_folder, os.path.basename(source_fpath)
-            )
-            if os.path.splitext(os.path.basename(source_fpath))[1] == ".tif":
-                crop_success = crop_raster(
-                    source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+                self.tmp_processing_folder, 
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    file_format,
+                    dataset_subfilename=subfilename
                 )
-            elif os.path.splitext(os.path.basename(source_fpath))[1] == ".gpkg":
-                crop_success = gp_crop_file_to_geopkg(
+            )
+            if file_format == ".tif":
+                crop_success = crop_raster(
+                    source_fpath, output_fpath, self.boundary
+                )
+            elif file_format == ".gpkg":
+                crop_success = fiona_crop_file_to_geopkg(
                     source_fpath,
                     self.boundary,
                     output_fpath,
+                    output_schema = {'properties': {'source': 'str'}, 'geometry': 'LineString'},
+                    output_crs=4326
                 )
             else:
                 continue

@@ -5,25 +5,27 @@ import os
 import unittest
 import shutil
 
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
-from dataproc import Boundary
-from dataproc.processors.core.natural_earth_vector.version_1 import (
-    Processor,
-    Metadata,
-)
-from config import get_db_uri_sync, API_POSTGRES_DB
 from tests.helpers import (
     load_country_geojson,
     assert_table_in_pg,
     drop_natural_earth_roads_from_pg,
+    assert_exists_awss3,
     assert_datapackage_resource,
+    clean_packages
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
     DummyTaskExecutor
 )
-from config import PACKAGES_HOST_URL
+from dataproc.backends.storage import init_storage_backend
+from dataproc.backends.storage.awss3 import S3Manager
+from dataproc import Boundary
+from dataproc.processors.core.natural_earth_vector.version_1 import (
+    Processor,
+    Metadata,
+)
+from config import get_db_uri_sync, API_POSTGRES_DB, PACKAGES_HOST_URL, S3_REGION, STORAGE_BACKEND, S3_BUCKET
 
 
 class TestNaturalEarthVectorProcessor(unittest.TestCase):
@@ -38,20 +40,32 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         cls.test_data_dir = None
         gambia_geojson, envelope_geojson = load_country_geojson("gambia")
         cls.boundary = Boundary("gambia", gambia_geojson, envelope_geojson)
-        cls.storage_backend = LocalFSStorageBackend(LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+        cls.storage_backend = init_storage_backend(STORAGE_BACKEND)
+        # Ensure clean test-env
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
 
     @classmethod
     def tearDownClass(cls):
         # Cleans processing data
-        try:
-            # Tmp and Source data
-            shutil.rmtree(cls.test_processing_data_dir)
-            # Package data
-            shutil.rmtree(
-                os.path.join(cls.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            print("Skipped removing test data tree for", cls.__name__)
+        # Tmp and Source data
+        shutil.rmtree(cls.test_processing_data_dir)
+        # Package data
+        clean_packages(
+            STORAGE_BACKEND,
+            cls.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
         try:
             drop_natural_earth_roads_from_pg()
         except:
@@ -118,20 +132,29 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
     def test_generate(self):
         """E2E generate test - fetch, crop, push"""
         # Remove the final package artifacts (but keep the test data artifacts if they exist)
-        try:
-            shutil.rmtree(
-                os.path.join(self.storage_backend.top_level_folder_path, "gambia")
-            )
-        except FileNotFoundError:
-            pass
+        clean_packages(
+            STORAGE_BACKEND,
+            self.storage_backend,
+            s3_bucket=S3_BUCKET,
+            s3_region=S3_REGION,
+            packages=["gambia"],
+        )
         prov_log = self.proc.generate()
         # # Assert the log contains a succesful entries
         self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop completed"])
         self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
         # # Collect the URI for the final Raster
         final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
-        # Assert the file exists
-        self.assertTrue(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR))
+        if STORAGE_BACKEND == "localfs":
+            self.assertTrue(os.path.exists(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)))
+        elif STORAGE_BACKEND == "awss3":
+            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                assert_exists_awss3(
+                    s3_fs,
+                    final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                )
+        else:
+            pass
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
         assert_datapackage_resource(prov_log["datapackage"])

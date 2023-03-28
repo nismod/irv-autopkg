@@ -5,6 +5,7 @@ JRC Population Processor
 import os
 import inspect
 import shutil
+from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -21,8 +22,8 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_index_file,
     generate_license_file,
+    output_filename
 )
-from dataproc.exceptions import FolderNotFoundException
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
 
 
@@ -40,12 +41,43 @@ class Metadata(BaseMetadataABC):
     )  # Version of the Processor
     dataset_name = "r2022_epoch2020_1km"  # The dataset this processor targets
     data_author = "Joint Research Centre"
+    data_title = "GHS-POP - R2022A"
+    data_title_long = "GHS-POP R2022A - extract from GHS population grid for 2020, 1km resolution"
+    data_summary = """
+The spatial raster dataset depicts the distribution of residential population,
+expressed as the number of people per cell. Residential population estimates
+between 1975 and 2020 in 5-year intervals and projections to 2025 and 2030
+derived from CIESIN GPWv4.11 were disaggregated from census or administrative
+units to grid cells, informed by the distribution, density, and classification
+of built-up as mapped in the Global Human Settlement Layer (GHSL) global layer
+per corresponding epoch.
+
+The complete information about the GHSL main products can be found in the GHSL
+Data Package 2022 report (10.33 MB):
+https://ghsl.jrc.ec.europa.eu/documents/GHSL_Data_Package_2022.pdf
+    """
+    data_citation = """
+Dataset:
+
+Schiavina M., Freire S., MacManus K. (2022): GHS-POP R2022A - GHS population
+grid multitemporal (1975-2030).European Commission, Joint Research Centre (JRC)
+PID: http://data.europa.eu/89h/d6d86a90-4351-4508-99c1-cb074b022c4a,
+doi:10.2905/D6D86A90-4351-4508-99C1-CB074B022C4A
+
+Concept & Methodology:
+
+Freire S., MacManus K., Pesaresi M., Doxsey-Whitfield E., Mills J. (2016)
+Development of new open and free multi-temporal global population grids at 250 m
+resolution. Geospatial Data in a Changing World; Association of Geographic
+Information Laboratories in Europe (AGILE), AGILE 2016
+    """
     data_license = DataPackageLicense(
         name="CC-BY-4.0",
         title="Creative Commons Attribution 4.0",
         path="https://creativecommons.org/licenses/by/4.0/",
     )
     data_origin_url = "https://ghsl.jrc.ec.europa.eu/download.php?ds=pop"
+    data_formats = ["GeoTIFF"]
 
 
 class Processor(BaseProcessorABC):
@@ -66,15 +98,14 @@ class Processor(BaseProcessorABC):
                 self.metadata.version,
                 datafile_ext=".tif",
             )
-        except FolderNotFoundException:
+        except FileNotFoundError:
             return False
         return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
-            self.provenance_log[self.metadata.name] = "exists"
-            return self.provenance_log
+            raise ProcessorDatasetExists()
         else:
             # Ensure we start with a blank output folder on the storage backend
             try:
@@ -83,10 +114,8 @@ class Processor(BaseProcessorABC):
                     self.metadata.name,
                     self.metadata.version,
                 )
-            except FolderNotFoundException:
+            except FileNotFoundError:
                 pass
-            # Cleanup anything in tmp processing
-            self._clean_tmp_processing()
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",
@@ -96,13 +125,15 @@ class Processor(BaseProcessorABC):
         self.update_progress(10, "fetching and verifying source")
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
-            self.tmp_processing_folder, os.path.basename(source_fpath)
+            self.tmp_processing_folder, 
+            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
         )
         # Crop Source - preserve Molleweide
         self.update_progress(50, "cropping source")
         self.log.debug("%s - cropping source", self.metadata.name)
         crop_success = crop_raster(
-            source_fpath, output_fpath, self.boundary, preserve_raster_crs=True
+            source_fpath, output_fpath, self.boundary,
+            creation_options=["COMPRESS=PACKBITS"] # This fails for jrc pop with higher compression
         )
         self.log.debug(
             "%s %s - success: %s",
@@ -169,14 +200,6 @@ class Processor(BaseProcessorABC):
             f"{self.metadata.name} - created license documentation"
         ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
-
-    def _clean_tmp_processing(self):
-        """Remove the tmp processing folder and recreate"""
-        # Remove partial previous tmp results if they exist
-        if os.path.exists(self.tmp_processing_folder):
-            shutil.rmtree(self.tmp_processing_folder)
-        # Generate the tmp output directory
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def _fetch_source(self) -> str:
         """
