@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Set variables
         run: |
-          VER=$(cat VERSION)
+          VER=$(cat ${{ github.workspace }}/VERSION)
           echo "VERSION=$VER" >> $GITHUB_ENV
 
       - name: Checkout repository
@@ -49,7 +49,7 @@ jobs:
       - name: Run Test Suite
         env:
           AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
-        run: docker-compose -f ".github/workflows/test/docker-compose-ci-test.yaml" run test
+        run: docker-compose -f ${{ github.workspace }}/.github/workflows/test/docker-compose-ci-test.yaml run test
 
       - name: Build and test Docker image
         uses: docker/build-push-action@v3
