@@ -13,6 +13,7 @@ services:
 
   dataproc:
     image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    user: autopkg
     restart: always
     depends_on:
       - redis
@@ -25,6 +26,7 @@ services:
 
   api:
     image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    user: autopkg
     restart: always
     depends_on:
       - db
@@ -39,6 +41,7 @@ services:
 
   test:
     image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
+    user: autopkg
     depends_on:
       - api
       - dataproc
