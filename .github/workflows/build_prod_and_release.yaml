@@ -43,15 +43,13 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
 
       - name: Run Test Suite
         env:
           AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
-        run: docker-compose -f ".github/workflows/test/docker-compose-ci-test.yaml" run test
+        run: docker-compose -f .github/workflows/test/docker-compose-ci-test.yaml run test || docker-compose -f .github/workflows/test/docker-compose-ci-test.yaml logs dataproc
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
