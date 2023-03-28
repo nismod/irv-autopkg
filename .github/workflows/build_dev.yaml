@@ -20,8 +20,9 @@ jobs:
 
     steps:
       - name: Set variables
+        uses: actions/checkout@v3
         run: |
-          VER=$(cat ${{ github.workspace }}/VERSION)
+          VER=$(cat VERSION)
           echo "VERSION=$VER" >> $GITHUB_ENV
 
       - name: Checkout repository
@@ -47,9 +48,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}-dev-${{ env.TEST_IMAGE_TAG }}
 
       - name: Run Test Suite
+        uses: actions/checkout@v3
         env:
           AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
-        run: docker-compose -f ${{ github.workspace }}/.github/workflows/test/docker-compose-ci-test.yaml run test
+        run: docker-compose -f .github/workflows/test/docker-compose-ci-test.yaml run test
 
       - name: Build and test Docker image
         uses: docker/build-push-action@v3
