@@ -10,6 +10,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  TEST_IMAGE_TAG: test
 
 jobs:
   build-test-push-dev-image:
@@ -48,10 +49,10 @@ jobs:
 
       - name: Run Test Suite
         env:
-          AUTOPKG_VERSION: ${{ env.VERSION }}-${{ env.TEST_IMAGE_TAG }}
+          AUTOPKG_VERSION: ${{ env.VERSION }}-dev-${{ env.TEST_IMAGE_TAG }}
         run: docker-compose -f .github/workflows/test/docker-compose-ci-test.yaml run test
 
-      - name: Build and test Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v3
         with:
           context: .
