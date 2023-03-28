@@ -19,8 +19,8 @@ services:
     env_file:
       - .citest.env
     volumes:
-      - .github/workflows/test/packages:/usr/src/app/tests/data/packages:rw
-      - .github/workflows/test/processing:/usr/src/app/tests/data/processing:rw
+      - packages:/usr/src/app/tests/data/packages:rw
+      - processing:/usr/src/app/tests/data/processing:rw
     command: celery --app dataproc.tasks worker
 
   api:
@@ -33,8 +33,8 @@ services:
       - .citest.env
     volumes:
       - ./wait-for-it.sh:/opt/wait-for-it.sh
-      - .github/workflows/test/packages:/usr/src/app/tests/data/packages:rw
-      - .github/workflows/test/processing:/usr/src/app/tests/data/processing:rw
+      - packages:/usr/src/app/tests/data/packages:rw
+      - processing:/usr/src/app/tests/data/processing:rw
     command: /opt/wait-for-it.sh db:5432 --timeout=20 -- uvicorn api.main:app --host 0.0.0.0 --port 8000
 
   test:
@@ -47,7 +47,10 @@ services:
     volumes:
       - ./wait-for-it.sh:/opt/wait-for-it.sh
       - ./run_tests.sh:/opt/run_tests.sh
-      - .github/workflows/test/packages:/usr/src/app/tests/data/packages:rw
-      - .github/workflows/test/processing:/usr/src/app/tests/data/processing:rw
+      - packages:/usr/src/app/tests/data/packages:rw
+      - processing:/usr/src/app/tests/data/processing:rw
     command: /opt/wait-for-it.sh api:8000 --timeout=20 -- /opt/wait-for-it.sh redis:6379 --timeout=20 -- sh /opt/run_tests.sh
 
+volumes:
+  packages:
+  processing:
