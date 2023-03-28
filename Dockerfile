@@ -24,7 +24,7 @@ COPY config.py .
 COPY api ./api
 COPY dataproc ./dataproc
 COPY tests ./tests
-RUN chown -R autopkg:autopkg /usr/src/app
+RUN mkdir -p /usr/src/app/tests/data/processing && mkdir /usr/src/app/tests/data/packages && chown -R autopkg:autopkg /usr/src/app
 
 USER autopkg
 # Make sure scripts in .local are usable:
