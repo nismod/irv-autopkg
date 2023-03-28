@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+    paths: ['api/**', 'dataproc/**', 'tests/**', 'config.py', 'Dockerfile', 'requirements.txt', '.github/**']
 
 env:
   REGISTRY: ghcr.io
