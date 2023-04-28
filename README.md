@@ -362,3 +362,8 @@ class Processor(BaseProcessorABC):
 
 * Write tests against the new Processor (see: `tests/dataproc/integration` for examples)
 * Rebuild image and deploy: The API will expose any valid processor-folder placed under the `dataproc/core` folder.
+
+
+## Acknowledgments
+
+This research received funding from the FCDO Climate Compatible Growth Programme. The views expressed here do not necessarily reflect the UK government's official policies. 
