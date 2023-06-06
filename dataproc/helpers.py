@@ -675,7 +675,14 @@ def crop_osm_to_geopkg(
     try:
         # Generate CSV using COPY command
         tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f"{time()}_tmp.csv")
+
+        # initialise count/index variables
         csv_line_count = copy_from_pg_table(pg_uri, stmt, tmp_csv_fpath)
+        idx = 0
+        lines_skipped = 0
+        lines_failed = 0
+        lines_success = 0
+
         # Load CSV to geopkg
         crs = CRS.from_epsg(4326)
         schema = {
@@ -705,9 +712,6 @@ def crop_osm_to_geopkg(
             with open(tmp_csv_fpath, newline="") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",", quotechar='"')
                 next(reader, None)  # Skip header
-                lines_skipped = 0
-                lines_failed = 0
-                lines_success = 0
                 batch = []
                 for idx, row in enumerate(reader):
                     try:
