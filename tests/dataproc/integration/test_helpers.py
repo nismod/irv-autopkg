@@ -65,8 +65,11 @@ class TestDataprocHelpers(unittest.TestCase):
                 final_progress = progress
                 break
         self.assertListEqual(
-            [(limit, i, i, 0, 0) for i in range(batch_size, limit+batch_size, batch_size)],
-            all_progress[:-1]
+            [
+                (limit, i, i, 0, 0)
+                for i in range(batch_size, limit + batch_size, batch_size)
+            ],
+            all_progress[:-1],
         )
         self.assertTupleEqual(
             (limit, limit, limit, 0, 0),

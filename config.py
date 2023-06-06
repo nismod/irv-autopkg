@@ -140,11 +140,13 @@ CELERY_APP = Celery(
     worker_concurrency=CELERY_CONCURRENCY,
     broker_url=CELERY_BROKER,
     result_backend=CELERY_BACKEND,
-    result_extended=True
+    result_extended=True,
 )
 
 # Seconds before submitted tasks expire
 TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
 
 # Remove Test Processors from the available processors list
-INCLUDE_TEST_PROCESSORS = True if getenv("AUTOPKG_INCLUDE_TEST_PROCESSORS", "True") == "True" else False
+INCLUDE_TEST_PROCESSORS = (
+    True if getenv("AUTOPKG_INCLUDE_TEST_PROCESSORS", "True") == "True" else False
+)

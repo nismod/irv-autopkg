@@ -33,7 +33,10 @@ def clean_name(name: str) -> str:
 
 
 def load_boundaries_json(
-    boundaries_geojson_fpath: str, accepted_crs=["EPSG:4326"], name_column="name", skip_names=['-99']
+    boundaries_geojson_fpath: str,
+    accepted_crs=["EPSG:4326"],
+    name_column="name",
+    skip_names=["-99"],
 ) -> dict:
     """
     Load Boundaries Geojson to PostGIS
@@ -65,8 +68,8 @@ def load_boundaries(
     long_name_column="name_long",
     admin_level="0",
     wipe_table=True,
-    skip_names=['-99'],
-    setup_tables=True
+    skip_names=["-99"],
+    setup_tables=True,
 ) -> Tuple[bool, List]:
     """
     Load a geojson file of multipolygons into Boundaries table
@@ -88,8 +91,8 @@ def load_boundaries(
         try:
             for feature in data["features"]:
                 if feature["properties"][name_column] in skip_names:
-                    print ('skipped boundary:', feature["properties"][name_column])
-                    skipped+=1
+                    print("skipped boundary:", feature["properties"][name_column])
+                    skipped += 1
                     continue
                 boundary = Boundary(
                     name=feature["properties"][name_column],
@@ -113,13 +116,16 @@ def load_boundaries(
             print(f"Boundary insert failed due to {err}, rolling back transaction...")
             session.rollback()
     engine.dispose()
-    success = len(loaded_ids) == (len(data["features"])-skipped)
+    success = len(loaded_ids) == (len(data["features"]) - skipped)
     return success, loaded_ids
 
 
 if __name__ == "__main__":
     if not len(sys.argv) == 5:
-        print("Usage:", "load_boundaries.py <geojson file path> <name_column> <long_name_column> <wipe table true/false>")
+        print(
+            "Usage:",
+            "load_boundaries.py <geojson file path> <name_column> <long_name_column> <wipe table true/false>",
+        )
         sys.exit(1)
     fpath = sys.argv[1]
     name_column = sys.argv[2]
@@ -129,15 +135,20 @@ if __name__ == "__main__":
         print("missing fpath")
         sys.exit(1)
     if not name_column:
-        print ("no name_column supplied - using name")
-        name_column = 'name'
+        print("no name_column supplied - using name")
+        name_column = "name"
     if not long_name_column:
-        print ("no long_name_column supplied - using long_name")
-        name_column = 'long_name'
-    if wipe_table == 'true':
+        print("no long_name_column supplied - using long_name")
+        name_column = "long_name"
+    if wipe_table == "true":
         wipe_table = True
     else:
         wipe_table = False
-    print ('Loading with: ', fpath, name_column, long_name_column, wipe_table)
-    all_loaded, ids = load_boundaries(fpath, name_column=name_column, long_name_column=long_name_column, wipe_table=wipe_table)
+    print("Loading with: ", fpath, name_column, long_name_column, wipe_table)
+    all_loaded, ids = load_boundaries(
+        fpath,
+        name_column=name_column,
+        long_name_column=long_name_column,
+        wipe_table=wipe_table,
+    )
     print(f"Loaded {len(ids)} boundary features, success: {all_loaded}")

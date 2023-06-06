@@ -20,7 +20,12 @@ import numpy as np
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
-from dataproc.helpers import assert_geotiff, assert_vector_file, sample_geotiff, sample_geotiff_coords
+from dataproc.helpers import (
+    assert_geotiff,
+    assert_vector_file,
+    sample_geotiff,
+    sample_geotiff_coords,
+)
 from dataproc.backends.storage.awss3 import S3Manager, AWSS3StorageBackend
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -260,7 +265,7 @@ def clean_packages(
     storage_backend: Any,
     s3_bucket: str = None,
     s3_region="eu-west-2",
-    packages=["gambia"]
+    packages=["gambia"],
 ):
     """Remove packages used in a test"""
     max_wait = 60
@@ -275,7 +280,7 @@ def clean_packages(
                     sleep(0.5)
                 else:
                     break
-                if (time()-start) > max_wait:
+                if (time() - start) > max_wait:
                     raise Exception("timed out waiting for packages to be deleted")
         elif backend_type == "localfs":
             remove_tree(storage_backend.top_level_folder_path, packages=packages)
@@ -284,10 +289,11 @@ def clean_packages(
     except FileNotFoundError:
         pass
 
+
 def assert_vector_output(
     expected_shape: tuple,
     expected_crs: str,
-    local_vector_fpath: str=None,
+    local_vector_fpath: str = None,
     s3_fs: S3FileSystem = None,
     s3_vector_fpath: str = None,
     tmp_folder: str = None,
@@ -319,6 +325,7 @@ def assert_vector_output(
         expected_crs=expected_crs,
     )
 
+
 def assert_raster_output(
     envelope: dict,
     localfs_raster_fpath: str = None,
@@ -328,9 +335,9 @@ def assert_raster_output(
     check_compression=True,
     tolerence: float = 0.1,
     tmp_folder: str = None,
-    check_is_bigtiff: bool=False,
+    check_is_bigtiff: bool = False,
     pixel_check_raster_fpath: str = None,
-    pixel_check_num_samples: int = 100
+    pixel_check_num_samples: int = 100,
 ):
     """
     Wrapper for assert_geotiff and assert_raster_bounds_correct
@@ -340,8 +347,8 @@ def assert_raster_output(
     if s3_fs and s3_raster_fpath are provided then requested source
         will be pulled locally before assertions.
 
-    ::kwarg pixel_check_raster_fpath str 
-        If this kwarg is set then pixels will be sampled from the raster at localfs_raster_fpath    
+    ::kwarg pixel_check_raster_fpath str
+        If this kwarg is set then pixels will be sampled from the raster at localfs_raster_fpath
         and compared to pisels in the raster at pixel_check_raster_fpath
     """
     try:
@@ -365,8 +372,12 @@ def assert_raster_output(
             )
         if pixel_check_raster_fpath is not None:
             # Collect sample and coords from the first raster, then sample second raster
-            src_coords = sample_geotiff_coords(localfs_raster_fpath, pixel_check_num_samples)
-            _, expected_samples = sample_geotiff(pixel_check_raster_fpath, coords=src_coords)
+            src_coords = sample_geotiff_coords(
+                localfs_raster_fpath, pixel_check_num_samples
+            )
+            _, expected_samples = sample_geotiff(
+                pixel_check_raster_fpath, coords=src_coords
+            )
         else:
             src_coords = None
             expected_samples = None
@@ -376,7 +387,7 @@ def assert_raster_output(
             check_compression=check_compression,
             check_is_bigtiff=check_is_bigtiff,
             check_pixel_coords=src_coords,
-            check_pixel_expected_samples=expected_samples
+            check_pixel_expected_samples=expected_samples,
         )
         assert_raster_bounds_correct(
             localfs_raster_fpath, envelope, tolerence=tolerence
@@ -469,7 +480,12 @@ def assert_package(top_level_fpath: str, boundary_name: str):
             os.path.join(top_level_fpath, boundary_name, doc)
         ), f"top-level {doc} missing"
 
-def assert_package_awss3(awss3_backend: AWSS3StorageBackend, boundary_name: str, expected_processor_versions: List=[]):
+
+def assert_package_awss3(
+    awss3_backend: AWSS3StorageBackend,
+    boundary_name: str,
+    expected_processor_versions: List = [],
+):
     """Assert integrity of a package and datasets contained within (on S3)
     This does not assert the integrity of actualy data files (raster/vector);
     just the folder structure
@@ -494,9 +510,12 @@ def assert_package_awss3(awss3_backend: AWSS3StorageBackend, boundary_name: str,
 
     # Check we have folders for the expected processor versions
     for proc_version in expected_processor_versions:
-        proc, version = proc_version.split('.')
+        proc, version = proc_version.split(".")
         s3_versions = awss3_backend.dataset_versions(boundary_name, proc)
-        assert version in s3_versions, f"{version} not found in dataset {s3_versions} for processor {proc}"
+        assert (
+            version in s3_versions
+        ), f"{version} not found in dataset {s3_versions} for processor {proc}"
+
 
 def assert_table_in_pg(db_uri: str, tablename: str):
     """Check a given table exists in PG"""

@@ -10,12 +10,12 @@ from tests.helpers import (
     load_country_geojson,
     assert_datapackage_resource,
     clean_packages,
-    assert_vector_output
+    assert_vector_output,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-    DummyTaskExecutor
+    DummyTaskExecutor,
 )
 from dataproc import Boundary
 from dataproc.processors.core.wri_powerplants.version_130 import (
@@ -29,7 +29,7 @@ from config import (
     S3_REGION,
     STORAGE_BACKEND,
     S3_BUCKET,
-    TEST_GRI_OSM
+    TEST_GRI_OSM,
 )
 
 
@@ -131,28 +131,40 @@ class TestWRIPowerplantsProcessor(unittest.TestCase):
         self.proc.total_expected_files = 1
         prov_log = self.proc.generate()
         # Assert the log contains successful entries
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # Collect the URIs for the final Raster
         # # Assert the log contains a succesful entries
         self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop completed"])
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # # Collect the URI for the final Raster
         final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         # Assert the file exists
         if STORAGE_BACKEND == "localfs":
-            self.assertTrue(os.path.exists(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)))
+            self.assertTrue(
+                os.path.exists(
+                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+                )
+            )
             assert_vector_output(
                 expected_shape=(2, 37),
                 expected_crs="EPSG:4326",
-                local_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                local_vector_fpath=final_uri.replace(
+                    PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR
+                ),
             )
         elif STORAGE_BACKEND == "awss3":
-            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+            with S3Manager(
+                *self.storage_backend._parse_env(), region=S3_REGION
+            ) as s3_fs:
                 assert_vector_output(
                     expected_shape=(2, 37),
                     expected_crs="EPSG:4326",
                     s3_fs=s3_fs,
-                    s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET)
+                    s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                 )
         else:
             pass

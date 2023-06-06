@@ -9,7 +9,7 @@ from tests.helpers import (
     load_country_geojson,
     assert_raster_output,
     assert_datapackage_resource,
-    clean_packages
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -135,7 +135,9 @@ class TestStormV1Processor(unittest.TestCase):
         self.proc.total_expected_files = 1
         prov_log = self.proc.generate()
         # Assert the log contains successful entries
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # Collect the URIs for the final Raster
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
@@ -147,15 +149,17 @@ class TestStormV1Processor(unittest.TestCase):
                 assert_raster_output(
                     self.boundary["envelope_geojson"],
                     final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
-                    pixel_check_raster_fpath=source_fpaths[idx]
+                    pixel_check_raster_fpath=source_fpaths[idx],
                 )
             elif STORAGE_BACKEND == "awss3":
-                with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                with S3Manager(
+                    *self.storage_backend._parse_env(), region=S3_REGION
+                ) as s3_fs:
                     assert_raster_output(
                         self.boundary["envelope_geojson"],
                         s3_fs=s3_fs,
                         s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
-                        pixel_check_raster_fpath=source_fpaths[idx]
+                        pixel_check_raster_fpath=source_fpaths[idx],
                     )
             else:
                 pass

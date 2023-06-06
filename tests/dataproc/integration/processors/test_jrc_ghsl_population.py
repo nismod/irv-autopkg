@@ -9,7 +9,7 @@ from tests.helpers import (
     load_country_geojson,
     assert_raster_output,
     assert_datapackage_resource,
-    clean_packages
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -144,16 +144,18 @@ class TestJRCGHSLPopR2022E20201KMProcessor(unittest.TestCase):
                 self.boundary["envelope_geojson"],
                 final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                 check_crs="ESRI:54009",
-                pixel_check_raster_fpath=self.proc._fetch_source()
+                pixel_check_raster_fpath=self.proc._fetch_source(),
             )
         elif STORAGE_BACKEND == "awss3":
-            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+            with S3Manager(
+                *self.storage_backend._parse_env(), region=S3_REGION
+            ) as s3_fs:
                 assert_raster_output(
                     self.boundary["envelope_geojson"],
                     s3_fs=s3_fs,
                     s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                     check_crs="ESRI:54009",
-                    pixel_check_raster_fpath=self.proc._fetch_source()
+                    pixel_check_raster_fpath=self.proc._fetch_source(),
                 )
         else:
             pass

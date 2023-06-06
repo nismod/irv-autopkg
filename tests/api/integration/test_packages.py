@@ -28,11 +28,7 @@ from tests.dataproc.integration.processors import (
 )
 from dataproc.backends.storage import init_storage_backend
 from dataproc.backends.storage.awss3 import S3Manager
-from config import (
-    STORAGE_BACKEND,
-    S3_BUCKET,
-    S3_REGION
-)
+from config import STORAGE_BACKEND, S3_BUCKET, S3_REGION
 
 
 class TestPackages(unittest.TestCase):

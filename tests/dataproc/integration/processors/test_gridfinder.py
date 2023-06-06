@@ -11,7 +11,7 @@ from tests.helpers import (
     assert_vector_output,
     assert_raster_output,
     assert_datapackage_resource,
-    clean_packages
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
@@ -139,7 +139,7 @@ class TestGridFinderV1Processor(unittest.TestCase):
         }
         result_source_map = {
             "gridfinder-version_1-lv-gambia.tif": "lv.tif",
-            "gridfinder-version_1-targets-gambia.tif": "targets.tif"
+            "gridfinder-version_1-targets-gambia.tif": "targets.tif",
         }
         clean_packages(
             STORAGE_BACKEND,
@@ -171,18 +171,28 @@ class TestGridFinderV1Processor(unittest.TestCase):
                 if STORAGE_BACKEND == "localfs":
                     assert_raster_output(
                         self.boundary["envelope_geojson"],
-                        final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                        final_uri.replace(
+                            PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR
+                        ),
                         check_crs=expected_crs[fname],
-                        pixel_check_raster_fpath=os.path.join(self.proc.source_folder, result_source_map[fname])
+                        pixel_check_raster_fpath=os.path.join(
+                            self.proc.source_folder, result_source_map[fname]
+                        ),
                     )
                 elif STORAGE_BACKEND == "awss3":
-                    with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                    with S3Manager(
+                        *self.storage_backend._parse_env(), region=S3_REGION
+                    ) as s3_fs:
                         assert_raster_output(
                             self.boundary["envelope_geojson"],
                             s3_fs=s3_fs,
-                            s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                            s3_raster_fpath=final_uri.replace(
+                                PACKAGES_HOST_URL, S3_BUCKET
+                            ),
                             check_crs=expected_crs[fname],
-                            pixel_check_raster_fpath=os.path.join(self.proc.source_folder, result_source_map[fname])
+                            pixel_check_raster_fpath=os.path.join(
+                                self.proc.source_folder, result_source_map[fname]
+                            ),
                         )
                 else:
                     pass
@@ -191,15 +201,21 @@ class TestGridFinderV1Processor(unittest.TestCase):
                     assert_vector_output(
                         (84, 2),
                         expected_crs[fname],
-                        local_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
+                        local_vector_fpath=final_uri.replace(
+                            PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR
+                        ),
                     )
                 elif STORAGE_BACKEND == "awss3":
-                    with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                    with S3Manager(
+                        *self.storage_backend._parse_env(), region=S3_REGION
+                    ) as s3_fs:
                         assert_vector_output(
                             (84, 2),
                             expected_crs[fname],
                             s3_fs=s3_fs,
-                            s3_vector_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
+                            s3_vector_fpath=final_uri.replace(
+                                PACKAGES_HOST_URL, S3_BUCKET
+                            ),
                         )
                 else:
                     pass

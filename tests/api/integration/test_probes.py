@@ -25,7 +25,7 @@ class TestProbes(unittest.TestCase):
     """
 
     def build_probes_route(self, probe_type):
-        if probe_type == 'liveness':
+        if probe_type == "liveness":
             _route = LIVENESS_ROUTE
         else:
             _route = READINESS_ROUTE

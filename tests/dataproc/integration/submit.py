@@ -13,6 +13,7 @@ from dataproc import tasks
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.tasks import app
 
+
 def get_processor_task(name: str) -> Any:
     """Get task related to a processor task by its name"""
     return getattr(tasks, name)
@@ -53,7 +54,7 @@ if __name__ == "__main__":
 
     # # Do some collection of status during execution
     # from time import sleep
-    
+
     # while dag.state != 'SUCCESS':
     #     print (dag.state)
     #     print (dag.parent.completed_count()) # Number of completed tasks in the GROUP
@@ -66,4 +67,4 @@ if __name__ == "__main__":
     # print ('PROCESSOR GROUP RESULTS: ', dag.parent.get())
     # print ('WERE ALL GROUP RESULTS SUCCESSFUL?: ', dag.parent.successful())
     # print ('Boundary result:', dag.parent.parent.get())
-    
+    pass

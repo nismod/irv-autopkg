@@ -35,7 +35,7 @@ EXPECTED_PROCESSOR_VERSION = {
         "title": "Creative Commons Attribution 4.0",
     },
     "data_origin_url": "http://url",
-    "data_formats" : ["GeoTIFF"]
+    "data_formats": ["GeoTIFF"],
 }
 
 
@@ -61,7 +61,7 @@ class TestProcessors(unittest.TestCase):
         response = requests.get(route)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(len(response.json()) > 0)
-        self.assertIn("test_processor", [proc['name'] for proc in response.json()])
+        self.assertIn("test_processor", [proc["name"] for proc in response.json()])
 
     def test_get_processor_name_noexist(self):
         """

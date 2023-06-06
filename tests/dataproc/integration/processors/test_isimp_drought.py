@@ -10,12 +10,12 @@ from tests.helpers import (
     assert_raster_bounds_correct,
     assert_datapackage_resource,
     clean_packages,
-    assert_raster_output
+    assert_raster_output,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-    DummyTaskExecutor
+    DummyTaskExecutor,
 )
 from dataproc import Boundary
 from dataproc.processors.core.isimp_drought.version_1 import (
@@ -34,7 +34,7 @@ from config import (
 TEST_VERSION_1_SOURCE_FILES = [
     "lange2020_clm45_miroc5_ewembi_rcp60_2005soc_co2_led_global_annual_2006_2099_2080_occurrence.tif",
     "lange2020_lpjml_miroc5_ewembi_rcp60_2005soc_co2_led_global_annual_2006_2099_2080_occurrence.tif",
-    "lange2020_clm45_gfdl-esm2m_ewembi_rcp60_2005soc_co2_led_global_annual_2006_2099_2030_occurrence.tif"
+    "lange2020_clm45_gfdl-esm2m_ewembi_rcp60_2005soc_co2_led_global_annual_2006_2099_2030_occurrence.tif",
 ]
 
 TEST_DATA_DIR = os.path.join(
@@ -45,9 +45,9 @@ TEST_DATA_DIR = os.path.join(
     "isimp_drought_v1",
 )
 
+
 class TestISIMPDroughtV1Processor(unittest.TestCase):
-    """
-    """
+    """ """
 
     @classmethod
     def setUpClass(cls):
@@ -144,7 +144,9 @@ class TestISIMPDroughtV1Processor(unittest.TestCase):
         self.proc.total_expected_files = len(TEST_VERSION_1_SOURCE_FILES)
         prov_log = self.proc.generate()
         # Assert the log contains successful entries
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # Collect the URIs for the final Rasters
         final_uris = prov_log[f"{self.proc.metadata.name} - result URIs"]
         self.assertEqual(len(final_uris.split(",")), self.proc.total_expected_files)
@@ -157,20 +159,22 @@ class TestISIMPDroughtV1Processor(unittest.TestCase):
                     final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR),
                     check_crs="EPSG:4326",
                     tolerence=0.5,
-                    pixel_check_raster_fpath=source_fpaths[idx]
+                    pixel_check_raster_fpath=source_fpaths[idx],
                 )
             elif STORAGE_BACKEND == "awss3":
-                with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+                with S3Manager(
+                    *self.storage_backend._parse_env(), region=S3_REGION
+                ) as s3_fs:
                     assert_raster_output(
                         self.boundary["envelope_geojson"],
                         s3_fs=s3_fs,
                         s3_raster_fpath=final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),
                         check_crs="EPSG:4326",
                         tolerence=0.5,
-                        pixel_check_raster_fpath=source_fpaths[idx]
+                        pixel_check_raster_fpath=source_fpaths[idx],
                     )
             else:
                 pass
         # Check the datapackage thats included in the prov log
         self.assertIn("datapackage", prov_log.keys())
-        assert_datapackage_resource(prov_log['datapackage'])
+        assert_datapackage_resource(prov_log["datapackage"])

@@ -11,12 +11,12 @@ from tests.helpers import (
     drop_natural_earth_roads_from_pg,
     assert_exists_awss3,
     assert_datapackage_resource,
-    clean_packages
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-    DummyTaskExecutor
+    DummyTaskExecutor,
 )
 from dataproc.backends.storage import init_storage_backend
 from dataproc.backends.storage.awss3 import S3Manager
@@ -25,7 +25,14 @@ from dataproc.processors.core.natural_earth_vector.version_1 import (
     Processor,
     Metadata,
 )
-from config import get_db_uri_sync, API_POSTGRES_DB, PACKAGES_HOST_URL, S3_REGION, STORAGE_BACKEND, S3_BUCKET
+from config import (
+    get_db_uri_sync,
+    API_POSTGRES_DB,
+    PACKAGES_HOST_URL,
+    S3_REGION,
+    STORAGE_BACKEND,
+    S3_BUCKET,
+)
 
 
 class TestNaturalEarthVectorProcessor(unittest.TestCase):
@@ -142,13 +149,21 @@ class TestNaturalEarthVectorProcessor(unittest.TestCase):
         prov_log = self.proc.generate()
         # # Assert the log contains a succesful entries
         self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop completed"])
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # # Collect the URI for the final Raster
         final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         if STORAGE_BACKEND == "localfs":
-            self.assertTrue(os.path.exists(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)))
+            self.assertTrue(
+                os.path.exists(
+                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+                )
+            )
         elif STORAGE_BACKEND == "awss3":
-            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+            with S3Manager(
+                *self.storage_backend._parse_env(), region=S3_REGION
+            ) as s3_fs:
                 assert_exists_awss3(
                     s3_fs,
                     final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),

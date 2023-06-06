@@ -6,7 +6,11 @@ import unittest
 
 from datapackage import Package, Resource
 
-from dataproc.helpers import add_license_to_datapackage, add_dataset_to_datapackage, datapackage_resource
+from dataproc.helpers import (
+    add_license_to_datapackage,
+    add_dataset_to_datapackage,
+    datapackage_resource,
+)
 from dataproc.backends.storage.localfs import LocalFSStorageBackend
 from dataproc.processors.core.test_processor.version_1 import (
     Metadata as TestProcMetadata,
@@ -65,6 +69,6 @@ class TestDataPackage(unittest.TestCase):
         # Test parsing the datapackage
         package = Package(datapackage)
         if not package.valid:
-            print (package.errors)
-            print (datapackage)
+            print(package.errors)
+            print(datapackage)
         self.assertTrue(package.valid)

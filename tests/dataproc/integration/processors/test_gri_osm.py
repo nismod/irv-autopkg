@@ -9,12 +9,12 @@ from tests.helpers import (
     assert_exists_awss3,
     load_country_geojson,
     assert_datapackage_resource,
-    clean_packages
+    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PROCESSING_DATA_TOP_DIR,
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
-    DummyTaskExecutor
+    DummyTaskExecutor,
 )
 from dataproc import Boundary
 from dataproc.processors.core.gri_osm.roads_and_rail_version_1 import (
@@ -28,7 +28,7 @@ from config import (
     S3_REGION,
     STORAGE_BACKEND,
     S3_BUCKET,
-    TEST_GRI_OSM
+    TEST_GRI_OSM,
 )
 
 
@@ -132,13 +132,21 @@ class TestGRIOSMProcessor(unittest.TestCase):
         prov_log = self.proc.generate()
         # # Assert the log contains a succesful entries
         self.assertTrue(prov_log[f"{self.proc.metadata.name} - crop completed"])
-        self.assertTrue(prov_log[f"{self.proc.metadata.name} - move to storage success"])
+        self.assertTrue(
+            prov_log[f"{self.proc.metadata.name} - move to storage success"]
+        )
         # # Collect the URI for the final Raster
         final_uri = prov_log[f"{self.proc.metadata.name} - result URI"]
         if STORAGE_BACKEND == "localfs":
-            self.assertTrue(os.path.exists(final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)))
+            self.assertTrue(
+                os.path.exists(
+                    final_uri.replace(PACKAGES_HOST_URL, LOCAL_FS_PACKAGE_DATA_TOP_DIR)
+                )
+            )
         elif STORAGE_BACKEND == "awss3":
-            with S3Manager(*self.storage_backend._parse_env(), region=S3_REGION) as s3_fs:
+            with S3Manager(
+                *self.storage_backend._parse_env(), region=S3_REGION
+            ) as s3_fs:
                 assert_exists_awss3(
                     s3_fs,
                     final_uri.replace(PACKAGES_HOST_URL, S3_BUCKET),

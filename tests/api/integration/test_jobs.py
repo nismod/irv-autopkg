@@ -81,6 +81,7 @@ JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC = {
 
 PACAKGES_USED = ["gambia", "zambia", "ssudan", "zimbabwe"]
 
+
 class TestProcessingJobs(unittest.TestCase):
 
     """
@@ -199,7 +200,9 @@ class TestProcessingJobs(unittest.TestCase):
             assert_package_awss3(
                 self.storage_backend,
                 "gambia",
-                expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC["processors"],
+                expected_processor_versions=JOB_SUBMIT_DATA_GAMBIA_TEST_PROC[
+                    "processors"
+                ],
             )
 
     def test_submit_failing_job(self):
@@ -229,8 +232,9 @@ class TestProcessingJobs(unittest.TestCase):
                 self.fail("max await reached")
         self.assertEqual(response.json()["job_group_status"], "COMPLETE")
         # Job Statuses show failed
-        self.assertEqual(response.json()["job_group_processors"][0]['job_status'], "FAILURE")
-
+        self.assertEqual(
+            response.json()["job_group_processors"][0]["job_status"], "FAILURE"
+        )
 
     def test_submit_job_already_executing_using_test_processor(self):
         """
@@ -261,9 +265,7 @@ class TestProcessingJobs(unittest.TestCase):
                 route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
                 response = requests.get(route)
                 completed[idx] = (
-                    True
-                    if response.json()["job_group_status"] == "COMPLETE"
-                    else False
+                    True if response.json()["job_group_status"] == "COMPLETE" else False
                 )
                 if len(response.json()["job_group_processors"]) > 0:
                     results[idx] = response.json()["job_group_processors"][0]
@@ -273,14 +275,13 @@ class TestProcessingJobs(unittest.TestCase):
                 self.fail("max await time exceeded")
             sleep(0.5)
         # Jobs completed successfully
-        self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
-        # Job Statuses show skipped and success
-        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit-1)]
-        expected_msgs.append("SUCCESS")
-        self.assertCountEqual(
-            [i['job_status'] for i in results],
-            expected_msgs
+        self.assertEqual(
+            statuses, ["COMPLETE" for i in range(dup_processors_to_submit)]
         )
+        # Job Statuses show skipped and success
+        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit - 1)]
+        expected_msgs.append("SUCCESS")
+        self.assertCountEqual([i["job_status"] for i in results], expected_msgs)
         test_proc_results = []
         for result in results:
             test_proc_results.append(result["job_result"])
@@ -292,7 +293,9 @@ class TestProcessingJobs(unittest.TestCase):
                 "datapackage": {
                     "name": "test_processor",
                     "version": "version_1",
-                    "path": [f"{PACKAGES_HOST_URL}/zambia/datasets/test_processor/version_1/data/zambia_test.tif"],
+                    "path": [
+                        f"{PACKAGES_HOST_URL}/zambia/datasets/test_processor/version_1/data/zambia_test.tif"
+                    ],
                     "description": "A test processor for nightlights",
                     "format": "GEOPKG",
                     "bytes": 5,
@@ -302,7 +305,7 @@ class TestProcessingJobs(unittest.TestCase):
                         "path": "https://creativecommons.org/licenses/by/4.0/",
                         "title": "Creative Commons Attribution 4.0",
                     },
-                    "sources": [{'title': 'nightlights', 'path': 'http://url'}],
+                    "sources": [{"title": "nightlights", "path": "http://url"}],
                 },
             },
             test_proc_results,
@@ -320,7 +323,9 @@ class TestProcessingJobs(unittest.TestCase):
             assert_package_awss3(
                 self.storage_backend,
                 "zambia",
-                expected_processor_versions=JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC["processors"],
+                expected_processor_versions=JOB_SUBMIT_DATA_ZAMBIA_TEST_PROC[
+                    "processors"
+                ],
             )
 
     def test_submit_job_already_processing_using_ne_vector_processor(self):
@@ -353,9 +358,7 @@ class TestProcessingJobs(unittest.TestCase):
                 route = build_route(JOB_STATUS_ROUTE.format(job_id=job_id))
                 response = requests.get(route)
                 completed[idx] = (
-                    True
-                    if response.json()["job_group_status"] == "COMPLETE"
-                    else False
+                    True if response.json()["job_group_status"] == "COMPLETE" else False
                 )
                 if len(response.json()["job_group_processors"]) > 0:
                     results[idx] = response.json()["job_group_processors"][0]
@@ -363,14 +366,13 @@ class TestProcessingJobs(unittest.TestCase):
                 sleep(0.01)
             sleep(0.5)
         # Jobs completed successfully
-        self.assertEqual(statuses, ["COMPLETE" for i in range(dup_processors_to_submit)])
-        # Job Statuses show skipped and success
-        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit-1)]
-        expected_msgs.append("SUCCESS")
-        self.assertCountEqual(
-            [i['job_status'] for i in results],
-            expected_msgs
+        self.assertEqual(
+            statuses, ["COMPLETE" for i in range(dup_processors_to_submit)]
         )
+        # Job Statuses show skipped and success
+        expected_msgs = ["SKIPPED" for _ in range(dup_processors_to_submit - 1)]
+        expected_msgs.append("SUCCESS")
+        self.assertCountEqual([i["job_status"] for i in results], expected_msgs)
         # Between the two sets of results there should be success for
         # both boundaries and test_processor
         test_proc_results = []
@@ -383,20 +385,22 @@ class TestProcessingJobs(unittest.TestCase):
         count_processed_e2e_key = "natural_earth_vector - loaded NE Roads to PG"
         for i in test_proc_results:
             if count_processed_e2e_key in i.keys():
-                count_processed_e2e+=1
+                count_processed_e2e += 1
         self.assertEqual(count_processed_e2e, 1)
         # Test Processor Success keys all exist
         self.assertIn(
-            sorted([
-                "natural_earth_vector - zip download path",
-                "natural_earth_vector - loaded NE Roads to PG",
-                "natural_earth_vector - crop completed",
-                "natural_earth_vector - move to storage success",
-                "natural_earth_vector - result URI",
-                "natural_earth_vector - created index documentation",
-                "natural_earth_vector - created license documentation",
-                "datapackage"
-            ]),
+            sorted(
+                [
+                    "natural_earth_vector - zip download path",
+                    "natural_earth_vector - loaded NE Roads to PG",
+                    "natural_earth_vector - crop completed",
+                    "natural_earth_vector - move to storage success",
+                    "natural_earth_vector - result URI",
+                    "natural_earth_vector - created index documentation",
+                    "natural_earth_vector - created license documentation",
+                    "datapackage",
+                ]
+            ),
             [sorted(list(i.keys())) for i in test_proc_results],
         )
         # Processor success only reported once
@@ -411,5 +415,7 @@ class TestProcessingJobs(unittest.TestCase):
             assert_package_awss3(
                 self.storage_backend,
                 "ssudan",
-                expected_processor_versions=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC["processors"],
+                expected_processor_versions=JOB_SUBMIT_DATA_SSUDAN_NE_VECTOR_PROC[
+                    "processors"
+                ],
             )
