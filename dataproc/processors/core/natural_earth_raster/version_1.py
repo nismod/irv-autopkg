@@ -20,7 +20,7 @@ from dataproc.helpers import (
     generate_license_file,
     data_file_hash,
     data_file_size,
-    output_filename
+    output_filename,
 )
 
 
@@ -69,7 +69,9 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
+            ),
         )
 
     def generate(self):
@@ -77,19 +79,21 @@ class Processor(BaseProcessorABC):
         if self.exists() is True:
             raise ProcessorDatasetExists()
         # Check if the source TIFF exists and fetch it if not
-        self.update_progress(10,"fetching and verifying source")
+        self.update_progress(10, "fetching and verifying source")
         geotiff_fpath = self._fetch_source()
         # Crop to given boundary
-        self.update_progress(50,"cropping source")
+        self.update_progress(50, "cropping source")
         output_fpath = os.path.join(
-            self.tmp_processing_folder, 
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
+            self.tmp_processing_folder,
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
+            ),
         )
         self.log.debug("Natural earth raster - cropping geotiff")
         crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
         self.provenance_log[f"{self.metadata.name} - crop success"] = crop_success
         # Move cropped data to backend
-        self.update_progress(80,"moving result")
+        self.update_progress(80, "moving result")
         self.log.debug("Natural earth raster - moving cropped data to backend")
         result_uri = self.storage_backend.put_processor_data(
             output_fpath,
@@ -101,17 +105,19 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
 
         # Generate Datapackage
-        self.update_progress(90,"generate datapackage")
+        self.update_progress(90, "generate datapackage")
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
         datapkg = generate_datapackage(
             self.metadata, [result_uri], "GeoTIFF", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
 
         # Generate Docs
-        self.update_progress(100,"generate documentation")
+        self.update_progress(100, "generate documentation")
         self.generate_documentation()
 
         return self.provenance_log
@@ -167,7 +173,9 @@ class Processor(BaseProcessorABC):
         self.log.debug("Natural earth raster - fetching zip")
         local_zip_fpath = self._fetch_zip()
         self.log.debug("Natural earth raster - fetched zip to %s", local_zip_fpath)
-        self.provenance_log[f"{self.metadata.name} - zip download path"] = local_zip_fpath
+        self.provenance_log[
+            f"{self.metadata.name} - zip download path"
+        ] = local_zip_fpath
         # Unpack
         self.log.debug("Natural earth raster - unpacking zip")
         unpack_zip(local_zip_fpath, self.source_folder)

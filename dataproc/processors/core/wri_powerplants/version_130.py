@@ -21,7 +21,7 @@ from dataproc.helpers import (
     csv_to_gpkg,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
-    output_filename
+    output_filename,
 )
 
 
@@ -113,7 +113,9 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
+            ),
         )
 
     def generate(self):
@@ -122,8 +124,10 @@ class Processor(BaseProcessorABC):
             raise ProcessorDatasetExists()
 
         output_fpath = os.path.join(
-            self.tmp_processing_folder, 
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
+            self.tmp_processing_folder,
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
+            ),
         )
 
         # Fetch source as required
@@ -134,10 +138,7 @@ class Processor(BaseProcessorABC):
         self.update_progress(50, "cropping source")
         self.log.debug("%s - cropping to geopkg", self.metadata.name)
         crop_result = fiona_crop_file_to_geopkg(
-            source_gpkg_fpath,
-            self.boundary,
-            output_fpath,
-            self.output_schema
+            source_gpkg_fpath, self.boundary, output_fpath, self.output_schema
         )
 
         self.provenance_log[f"{self.metadata.name} - crop completed"] = crop_result

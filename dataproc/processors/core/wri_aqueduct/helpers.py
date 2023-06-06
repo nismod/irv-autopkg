@@ -17,6 +17,7 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
+
 def download_file(file_url: str, output_filepath: str) -> int:
     """
     Download the given file to given path
@@ -24,6 +25,7 @@ def download_file(file_url: str, output_filepath: str) -> int:
     """
     urlretrieve(file_url, output_filepath)
     return os.path.getsize(output_filepath)
+
 
 def get_logger(name: str = __name__, level=logging.INFO):
     # Create a custom logger
@@ -34,7 +36,9 @@ def get_logger(name: str = __name__, level=logging.INFO):
     logger = logging.getLogger(name)
     return logger
 
+
 LOG = get_logger(__name__)
+
 
 class ListHTMLParser(HTMLParser):
     files = []
@@ -46,6 +50,7 @@ class ListHTMLParser(HTMLParser):
                 self.files.append(data)
         except Exception as err:
             pass
+
 
 class HazardAqueduct:
     """
@@ -341,8 +346,10 @@ class HazardAqueduct:
                 file_meta["path"] = target_fpath
                 LOG.info(
                     "Downloaded %s of %s, filesize (mb): %s",
-                        idx + 1, len(files_meta), file_meta["filesize"] / 1000000
-                    )
+                    idx + 1,
+                    len(files_meta),
+                    file_meta["filesize"] / 1000000,
+                )
             except Exception as err:
                 LOG.error("failed to download %s, %s", file_meta["filename"], err)
         return files_meta

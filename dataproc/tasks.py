@@ -23,7 +23,11 @@ from dataproc.processors.internal import (
     BoundaryProcessor,
     ProvenanceProcessor,
 )
-from dataproc.exceptions import ProcessorAlreadyExecutingException, ProcessorDatasetExists, ProcessorExecutionFailed
+from dataproc.exceptions import (
+    ProcessorAlreadyExecutingException,
+    ProcessorDatasetExists,
+    ProcessorExecutionFailed,
+)
 from dataproc.backends.storage import init_storage_backend
 
 # Setup Configured Storage Backend
@@ -32,9 +36,11 @@ storage_backend = init_storage_backend(STORAGE_BACKEND)
 # Used for guarding against parallel execution of duplicate tasks
 redis_client = Redis(host=REDIS_HOST)
 
+
 def task_sig_exists(task_sig) -> bool:
     """Check a task signature in Redis"""
     return redis_client.exists(task_sig) != 0
+
 
 @contextmanager
 def redis_lock(task_sig: str):
@@ -62,6 +68,7 @@ def quieter_fiona_logging(logger, *args, **kwargs):
         so we turn it down here
     """
     logging.getLogger("fiona").propagate = False
+
 
 @signals.after_setup_logger.connect
 def config_logging(logger, *args, **kwargs):
@@ -126,11 +133,15 @@ def processor_task(
     boundary_task_sig = task_signature(boundary["name"], "boundary_setup")
     try:
         if task_sig_exists(boundary_task_sig) is True:
-            raise ProcessorAlreadyExecutingException("boundary setup for this processor executing")
+            raise ProcessorAlreadyExecutingException(
+                "boundary setup for this processor executing"
+            )
     except ProcessorAlreadyExecutingException as err:
         logger.warning(
-            "boundary task with signature %s is currently executing for processor %s - will retry processor in %s secs", 
-            boundary_task_sig, task_sig, retry_countdown
+            "boundary task with signature %s is currently executing for processor %s - will retry processor in %s secs",
+            boundary_task_sig,
+            task_sig,
+            retry_countdown,
         )
         raise self.retry(exc=err, countdown=retry_countdown)
     # Run the processor
@@ -157,7 +168,9 @@ def processor_task(
                 except Exception as err:
                     logger.exception("")
                     # Update sink for this processor
-                    sink[processor_name_version] = {"failed": f"{type(err).__name__} - {err}"}
+                    sink[processor_name_version] = {
+                        "failed": f"{type(err).__name__} - {err}"
+                    }
                     return sink
                 finally:
                     _ = redis_client.getdel(task_sig)

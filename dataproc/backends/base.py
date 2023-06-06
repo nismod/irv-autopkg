@@ -1,12 +1,13 @@
-
 import os
 
+
 class StorageBackend(dict):
-    """StorageBackend must inherit from dict 
+    """StorageBackend must inherit from dict
     to enable json serialisation by kombu"""
 
     datasets_folder_name = "datasets"
     dataset_data_folder_name = "data"
+
 
 class PathsHelper:
     """Helpers for management of paths on the processing backend"""

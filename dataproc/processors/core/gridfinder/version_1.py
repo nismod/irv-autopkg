@@ -22,7 +22,7 @@ from dataproc.helpers import (
     fetch_zenodo_doi,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
-    output_filename
+    output_filename,
 )
 
 
@@ -129,26 +129,27 @@ class Processor(BaseProcessorABC):
             file_format = os.path.splitext(os.path.basename(source_fpath))[1]
 
             output_fpath = os.path.join(
-                self.tmp_processing_folder, 
+                self.tmp_processing_folder,
                 output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
                     file_format,
-                    dataset_subfilename=subfilename
-                )
+                    dataset_subfilename=subfilename,
+                ),
             )
             if file_format == ".tif":
-                crop_success = crop_raster(
-                    source_fpath, output_fpath, self.boundary
-                )
+                crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             elif file_format == ".gpkg":
                 crop_success = fiona_crop_file_to_geopkg(
                     source_fpath,
                     self.boundary,
                     output_fpath,
-                    output_schema = {'properties': {'source': 'str'}, 'geometry': 'LineString'},
-                    output_crs=4326
+                    output_schema={
+                        "properties": {"source": "str"},
+                        "geometry": "LineString",
+                    },
+                    output_crs=4326,
                 )
             else:
                 continue

@@ -24,7 +24,7 @@ from dataproc.helpers import (
     generate_license_file,
     fetch_zenodo_doi,
     tiffs_in_folder,
-    output_filename
+    output_filename,
 )
 
 
@@ -43,7 +43,9 @@ class Metadata(BaseMetadataABC):
     dataset_name = "STORM Global Mosaics 10.5281/zenodo.7438145"  # The dataset this processor targets
     data_author = "University of Oxford"
     data_title = "STORM tropical cyclone wind speed maps"
-    data_title_long = "STORM tropical cyclone wind speed return period maps as global GeoTIFFs"
+    data_title_long = (
+        "STORM tropical cyclone wind speed return period maps as global GeoTIFFs"
+    )
     data_summary = """
 Global tropical cyclone wind speed return period maps.
 
@@ -157,14 +159,14 @@ class Processor(BaseProcessorABC):
             )
             subfilename = os.path.splitext(os.path.basename(source_fpath))[0]
             output_fpath = os.path.join(
-                self.tmp_processing_folder, 
+                self.tmp_processing_folder,
                 output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
-                    'tif',
-                    dataset_subfilename=subfilename
-                )
+                    "tif",
+                    dataset_subfilename=subfilename,
+                ),
             )
             crop_success = crop_raster(source_fpath, output_fpath, self.boundary)
             self.log.debug(
@@ -200,7 +202,9 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{self.metadata.name} - move to storage success"] = (
             len(result_uris) == self.total_expected_files
         )
-        self.provenance_log[f"{self.metadata.name} - result URIs"] = ",".join(result_uris)
+        self.provenance_log[f"{self.metadata.name} - result URIs"] = ",".join(
+            result_uris
+        )
 
         # Generate documentation on backend
         self.update_progress(90, "generate documentation & datapackage")
@@ -215,7 +219,9 @@ class Processor(BaseProcessorABC):
             [i["hash"] for i in results_fpaths],
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
 
         return self.provenance_log
 
@@ -259,7 +265,8 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", self.metadata.name
+                "%s - all source files appear to exist and are valid",
+                self.metadata.name,
             )
             return tiffs_in_folder(self.source_folder, full_paths=True)
         else:

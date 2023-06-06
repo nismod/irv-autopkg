@@ -32,18 +32,24 @@ from dataproc.exceptions import (
 
 # DAGs and Processing
 
-def processors_as_enum(include_test_processors: str = False, additions: List[str] = []) -> Enum:
+
+def processors_as_enum(
+    include_test_processors: str = False, additions: List[str] = []
+) -> Enum:
     """Generate an Enum of the currently available processors"""
     procs = {}
-    for proc_name, proc_versions in list_processors(include_test_processors=include_test_processors).items():
+    for proc_name, proc_versions in list_processors(
+        include_test_processors=include_test_processors
+    ).items():
         for version in proc_versions:
             name_version = build_processor_name_version(proc_name, version)
             procs[name_version] = name_version
-    # Add in any additional fields 
+    # Add in any additional fields
     for addition in additions:
         if not addition in procs.keys():
             procs[addition] = addition
     return Enum("ProcessorsEnum", procs)
+
 
 def processor_name(dataset: str, version: str) -> str:
     """Generate a processor name from a dataset and version"""
@@ -86,7 +92,7 @@ def build_processor_name_version(processor_base_name: str, version: str) -> str:
     return f"{processor_base_name}.{version}"
 
 
-def list_processors(include_test_processors: bool=False) -> List[BaseProcessorABC]:
+def list_processors(include_test_processors: bool = False) -> List[BaseProcessorABC]:
     """Retrieve a list of available processors and their versions"""
     # Iterate through Core processors and collect metadata
     import dataproc.processors.core as available_processors
@@ -281,7 +287,14 @@ def generate_datapackage(
 
 # FILE OPERATIONS
 
-def output_filename(dataset_name: str, dataset_version: str, boundary_name: str, file_format: str, dataset_subfilename: str = None) -> str:
+
+def output_filename(
+    dataset_name: str,
+    dataset_version: str,
+    boundary_name: str,
+    file_format: str,
+    dataset_subfilename: str = None,
+) -> str:
     """
     Generate a standardized output filename
     """
@@ -290,6 +303,7 @@ def output_filename(dataset_name: str, dataset_version: str, boundary_name: str,
         return f"{base}-{boundary_name}.{file_format.replace('.', '')}"
     else:
         return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
+
 
 def unpack_zip(zip_fpath: str, target_folder: str):
     """
@@ -442,23 +456,34 @@ def is_bigtiff(filename):
     https://stackoverflow.com/questions/60427572/how-to-determine-if-a-tiff-was-written-in-bigtiff-format
     """
     import struct
-    with open(filename, 'rb') as f:
+
+    with open(filename, "rb") as f:
         header = f.read(4)
-    byteorder = {b'II': '<', b'MM': '>', b'EP': '<'}[header[:2]]
+    byteorder = {b"II": "<", b"MM": ">", b"EP": "<"}[header[:2]]
     version = struct.unpack(byteorder + "H", header[2:4])[0]
     return version == 43
+
 
 def sample_geotiff_coords(fpath: str, num_coords: int = 10) -> np.ndarray:
     """
     Retrieve a set of coordinates within the bounds of the given raster
     """
-    with rasterio.open(fpath, 'r') as src:
-        return np.column_stack((
-            np.random.uniform(low=src.bounds.left, high=src.bounds.right, size=(num_coords,)),
-            np.random.uniform(low=src.bounds.bottom, high=src.bounds.top, size=(num_coords,))
-        ))
+    with rasterio.open(fpath, "r") as src:
+        return np.column_stack(
+            (
+                np.random.uniform(
+                    low=src.bounds.left, high=src.bounds.right, size=(num_coords,)
+                ),
+                np.random.uniform(
+                    low=src.bounds.bottom, high=src.bounds.top, size=(num_coords,)
+                ),
+            )
+        )
 
-def sample_geotiff(fpath: str, coords: np.ndarray = None, num_samples: int = 10) -> Tuple[np.ndarray, List[np.ndarray]]:
+
+def sample_geotiff(
+    fpath: str, coords: np.ndarray = None, num_samples: int = 10
+) -> Tuple[np.ndarray, List[np.ndarray]]:
     """
     Retrieve a sample of given GeoTIFF file.
 
@@ -471,18 +496,19 @@ def sample_geotiff(fpath: str, coords: np.ndarray = None, num_samples: int = 10)
     if coords is None:
         # Take a random sample of coords within bounds
         coords = sample_geotiff_coords(fpath, num_samples)
-    with rasterio.open(fpath, 'r') as src:
+    with rasterio.open(fpath, "r") as src:
         samples = sample.sample_gen(src, coords)
         return coords, [sample for sample in samples]
 
+
 def assert_geotiff(
-        fpath: str,
-        check_crs: str = "EPSG:4326",
-        check_compression=True,
-        check_is_bigtiff=False,
-        check_pixel_coords: np.ndarray=None,
-        check_pixel_expected_samples: List[np.ndarray]=None
-    ):
+    fpath: str,
+    check_crs: str = "EPSG:4326",
+    check_compression=True,
+    check_is_bigtiff=False,
+    check_pixel_coords: np.ndarray = None,
+    check_pixel_expected_samples: List[np.ndarray] = None,
+):
     """
     Check a given file is a valid geotiff, optionally checking:
         Coordinate Reference System Match
@@ -492,12 +518,12 @@ def assert_geotiff(
 
     ::param fpath str Absolute filepath
     """
-    with rasterio.open(fpath, 'r') as src:
+    with rasterio.open(fpath, "r") as src:
         if check_crs is not None:
             assert (
                 src.meta["crs"] == check_crs
             ), f"raster CRS {src.meta['crs']} doesnt not match expected {check_crs}"
-        
+
         if check_compression is True:
             assert src.compression is not None, "raster did not have any compression"
 
@@ -505,20 +531,27 @@ def assert_geotiff(
             src_samples = sample.sample_gen(src, check_pixel_coords)
             for idx, src_sample in enumerate(src_samples):
                 # Special case for nan comparison
-                if all(np.isnan(src_sample)) and all(np.isnan(check_pixel_expected_samples[idx])):
+                if all(np.isnan(src_sample)) and all(
+                    np.isnan(check_pixel_expected_samples[idx])
+                ):
                     continue
-                assert np.array_equal(src_sample, check_pixel_expected_samples[idx]) is True, \
-                    f"source pixels did not match expected pixel samples at coords: {check_pixel_coords[idx]}, {src_sample} != {check_pixel_expected_samples[idx]}"
+                assert (
+                    np.array_equal(src_sample, check_pixel_expected_samples[idx])
+                    is True
+                ), f"source pixels did not match expected pixel samples at coords: {check_pixel_coords[idx]}, {src_sample} != {check_pixel_expected_samples[idx]}"
 
     if check_is_bigtiff is True:
-        assert is_bigtiff(fpath) is True, f"raster is not a bigtiff when it was expected to be: {fpath}"
+        assert (
+            is_bigtiff(fpath) is True
+        ), f"raster is not a bigtiff when it was expected to be: {fpath}"
+
 
 def crop_raster(
     raster_input_fpath: str,
     raster_output_fpath: str,
     boundary: Boundary,
     creation_options=["COMPRESS=PACKBITS"],
-    debug=False
+    debug=False,
 ) -> bool:
     """
     Crop a raster using GDAL translate
@@ -529,7 +562,7 @@ def crop_raster(
     from shapely.ops import transform
     import shlex
     import subprocess
-    
+
     # # Gather the resolution
     inds = gdal.Open(raster_input_fpath)
 
@@ -547,19 +580,19 @@ def crop_raster(
         shape = shapely.from_geojson(json.dumps(boundary["envelope_geojson"]))
         bounds = shape.bounds
 
-    gdal_translate = shutil.which('gdal_translate')
+    gdal_translate = shutil.which("gdal_translate")
     if not gdal_translate:
         raise Exception("gdal_translate not found")
-    cmd = f'{gdal_translate} -projwin {bounds[0]} {bounds[3]} {bounds[2]} {bounds[1]} {raster_input_fpath} {raster_output_fpath}'
+    cmd = f"{gdal_translate} -projwin {bounds[0]} {bounds[3]} {bounds[2]} {bounds[1]} {raster_input_fpath} {raster_output_fpath}"
     # Add Creation Options
     for creation_option in creation_options:
-        cmd = cmd + f' -co {creation_option}'
+        cmd = cmd + f" -co {creation_option}"
     if debug is True:
-        print ("Raster Crop Command:", cmd)
+        print("Raster Crop Command:", cmd)
 
     result = subprocess.run(shlex.split(cmd), capture_output=True)
     if debug is True:
-        print ("Raster Crop Result:", result)
+        print("Raster Crop Result:", result)
     return os.path.exists(raster_output_fpath)
 
 
@@ -579,15 +612,20 @@ def assert_vector_file(
     """
     import fiona
 
-    with fiona.open(fpath, 'r') as fptr:
+    with fiona.open(fpath, "r") as fptr:
         if expected_shape is not None:
-            shape = (len(fptr), len(fptr.schema['properties'].keys()) + 1) # Add geom col to count of cols
+            shape = (
+                len(fptr),
+                len(fptr.schema["properties"].keys()) + 1,
+            )  # Add geom col to count of cols
             assert (
                 shape == expected_shape
             ), f"shape did not match expected: {shape}, {expected_shape}"
         if expected_crs is not None:
             crs = ":".join(fptr.crs.to_authority())
-            assert crs == expected_crs, f"crs did not match expected: {crs}, {expected_crs}"
+            assert (
+                crs == expected_crs
+            ), f"crs did not match expected: {crs}, {expected_crs}"
 
 
 def ogr2ogr_load_shapefile_to_pg(shapefile_fpath: str, pg_uri: str):
@@ -796,7 +834,7 @@ def gdal_crop_pg_table_to_geopkg(
             WITH clip_geom AS (
                 SELECT st_geomfromgeojson(\'{geojson}\') AS geometry
             )
-            SELECT (ST_Dump(ST_Intersection(clip_geom.geometry, {pg_table}.{geometry_column}))).geom AS {clipped_geometry_column_name}, * 
+            SELECT (ST_Dump(ST_Intersection(clip_geom.geometry, {pg_table}.{geometry_column}))).geom AS {clipped_geometry_column_name}, *
             FROM {pg_table}, clip_geom
             WHERE ST_Intersects({pg_table}.{geometry_column}, clip_geom.geometry)
         """
@@ -819,7 +857,7 @@ def fiona_crop_file_to_geopkg(
     boundary: Boundary,
     output_fpath: str,
     output_schema: dict,
-    output_crs: int = 4326
+    output_crs: int = 4326,
 ) -> bool:
     """
     Crop file by given boundary mask, streaming data from the given input to output GPKG.
@@ -843,15 +881,20 @@ def fiona_crop_file_to_geopkg(
     from fiona.crs import CRS
     import shapely
 
-    clip_geom = shapely.from_geojson(json.dumps(boundary['geojson']))
+    clip_geom = shapely.from_geojson(json.dumps(boundary["geojson"]))
     with fiona.open(
-            output_fpath, "w", driver="GPKG", crs=CRS.from_epsg(output_crs), schema=output_schema
-        ) as fptr_output:
+        output_fpath,
+        "w",
+        driver="GPKG",
+        crs=CRS.from_epsg(output_crs),
+        schema=output_schema,
+    ) as fptr_output:
         with fiona.open(input_fpath) as fptr_input:
             for input_row in fptr_input:
                 if shapely.geometry.shape(input_row.geometry).intersects(clip_geom):
                     fptr_output.write(input_row)
     return os.path.exists(output_fpath)
+
 
 def csv_to_gpkg(
     input_csv_fpath: str,

@@ -80,11 +80,12 @@ class ProvenanceProcessor:
                     dp_license=dp_license,
                 )
                 self.storage_backend.update_datapackage(
-                    self.boundary["name"],
-                    dp_resource
+                    self.boundary["name"], dp_resource
                 )
             except Exception as err:
                 self.log.error(
                     "Failed to update datapackage.json for %s with resource: %s, due to: %s",
-                    self.boundary['name'], resource, err
+                    self.boundary["name"],
+                    resource,
+                    err,
                 )

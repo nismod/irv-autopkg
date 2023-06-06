@@ -25,7 +25,7 @@ from dataproc.helpers import (
     generate_license_file,
     generate_datapackage,
     generate_index_file,
-    output_filename
+    output_filename,
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 
@@ -73,8 +73,17 @@ class Processor(BaseProcessorABC):
     index_filename = "index.html"
     license_filename = "license.html"
 
-    def __init__(self, metadata: BaseMetadataABC, boundary: Boundary, storage_backend: StorageBackend, task_executor: task, processing_root_folder: str) -> None:
-        super().__init__(metadata, boundary, storage_backend, task_executor, processing_root_folder)
+    def __init__(
+        self,
+        metadata: BaseMetadataABC,
+        boundary: Boundary,
+        storage_backend: StorageBackend,
+        task_executor: task,
+        processing_root_folder: str,
+    ) -> None:
+        super().__init__(
+            metadata, boundary, storage_backend, task_executor, processing_root_folder
+        )
         self.aqueduct_fetcher = HazardAqueduct()
 
     def exists(self):
@@ -120,23 +129,26 @@ class Processor(BaseProcessorABC):
                 10 + int(idx * (80 / self.total_expected_files)), "cropping source"
             )
             geotiff_fpath = os.path.join(self.source_folder, fileinfo.name)
-            
+
             subfilename = os.path.splitext(fileinfo.name)[0]
             output_fpath = os.path.join(
-                self.tmp_processing_folder, 
+                self.tmp_processing_folder,
                 output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
-                    'tif',
-                    dataset_subfilename=subfilename
-                )
+                    "tif",
+                    dataset_subfilename=subfilename,
+                ),
             )
 
             assert_geotiff(geotiff_fpath)
             crop_success = crop_raster(geotiff_fpath, output_fpath, self.boundary)
             self.log.debug(
-                "%s crop %s - success: %s", self.metadata.name, fileinfo.name, crop_success
+                "%s crop %s - success: %s",
+                self.metadata.name,
+                fileinfo.name,
+                crop_success,
             )
             if crop_success:
                 results_fpaths.append(
@@ -166,7 +178,9 @@ class Processor(BaseProcessorABC):
         self.provenance_log[f"{self.metadata.name} - move to storage success"] = (
             len(result_uris) == self.total_expected_files
         )
-        self.provenance_log[f"{self.metadata.name} - result URIs"] = ",".join(result_uris)
+        self.provenance_log[f"{self.metadata.name} - result URIs"] = ",".join(
+            result_uris
+        )
 
         # Generate documentation on backend
         self.update_progress(90, "generate documentation & datapackage")
@@ -181,7 +195,9 @@ class Processor(BaseProcessorABC):
             [i["hash"] for i in results_fpaths],
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
 
         return self.provenance_log
 
@@ -223,7 +239,8 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", self.metadata.name
+                "%s - all source files appear to exist and are valid",
+                self.metadata.name,
             )
             return
         else:

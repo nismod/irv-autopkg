@@ -22,7 +22,7 @@ from dataproc.helpers import (
     generate_datapackage,
     generate_index_file,
     generate_license_file,
-    output_filename
+    output_filename,
 )
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
 
@@ -42,7 +42,9 @@ class Metadata(BaseMetadataABC):
     dataset_name = "r2022_epoch2020_1km"  # The dataset this processor targets
     data_author = "Joint Research Centre"
     data_title = "GHS-POP - R2022A"
-    data_title_long = "GHS-POP R2022A - extract from GHS population grid for 2020, 1km resolution"
+    data_title_long = (
+        "GHS-POP R2022A - extract from GHS population grid for 2020, 1km resolution"
+    )
     data_summary = """
 The spatial raster dataset depicts the distribution of residential population,
 expressed as the number of people per cell. Residential population estimates
@@ -125,15 +127,21 @@ class Processor(BaseProcessorABC):
         self.update_progress(10, "fetching and verifying source")
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
-            self.tmp_processing_folder, 
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'tif')
+            self.tmp_processing_folder,
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
+            ),
         )
         # Crop Source - preserve Molleweide
         self.update_progress(50, "cropping source")
         self.log.debug("%s - cropping source", self.metadata.name)
         crop_success = crop_raster(
-            source_fpath, output_fpath, self.boundary,
-            creation_options=["COMPRESS=PACKBITS"] # This fails for jrc pop with higher compression
+            source_fpath,
+            output_fpath,
+            self.boundary,
+            creation_options=[
+                "COMPRESS=PACKBITS"
+            ],  # This fails for jrc pop with higher compression
         )
         self.log.debug(
             "%s %s - success: %s",
@@ -167,7 +175,9 @@ class Processor(BaseProcessorABC):
             self.metadata, [result_uri], "GeoTIFF", [output_size], [output_hash]
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
 
         return self.provenance_log
 
@@ -212,7 +222,8 @@ class Processor(BaseProcessorABC):
         os.makedirs(self.source_folder, exist_ok=True)
         if self._all_source_exists():
             self.log.debug(
-                "%s - all source files appear to exist and are valid", self.metadata.name
+                "%s - all source files appear to exist and are valid",
+                self.metadata.name,
             )
             return os.path.join(self.source_folder, self.source_fnames[0])
         else:

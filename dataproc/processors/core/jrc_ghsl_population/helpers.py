@@ -8,17 +8,18 @@ import shutil
 from dataproc.helpers import download_file, unpack_zip, assert_geotiff
 from dataproc.exceptions import DataProcException
 
+
 class UnexpectedFilesException(DataProcException):
     """Unexpected files encountered during execution"""
 
-class JRCPopFetcher:
 
-    def __init__(
-        self
-    ):
+class JRCPopFetcher:
+    def __init__(self):
         """"""
 
-    def fetch_source(self, source_zip_url, target_folder: str, expected_crs: str="ESRI:54009") -> str:
+    def fetch_source(
+        self, source_zip_url, target_folder: str, expected_crs: str = "ESRI:54009"
+    ) -> str:
         """
         Fetch source zip file for a given release / resolution.
 
@@ -41,12 +42,21 @@ class JRCPopFetcher:
             )
             unpack_zip(local_zip_fpath, target_folder)
             # We expect a single raster in the source zip file
-            unpacked_files = [i for i in os.listdir(target_folder) if os.path.splitext(i)[1] == '.tif']
-            if len([i for i in unpacked_files if os.path.splitext(i)[1] == '.tif']) != 1:
-                raise UnexpectedFilesException(f"Source zip contained more than a single tif: {unpacked_files}")
+            unpacked_files = [
+                i for i in os.listdir(target_folder) if os.path.splitext(i)[1] == ".tif"
+            ]
+            if (
+                len([i for i in unpacked_files if os.path.splitext(i)[1] == ".tif"])
+                != 1
+            ):
+                raise UnexpectedFilesException(
+                    f"Source zip contained more than a single tif: {unpacked_files}"
+                )
             source_tif_fpath = os.path.join(target_folder, unpacked_files[0])
             # Ensure the tif is valid
-            assert_geotiff(source_tif_fpath, check_crs=expected_crs, check_compression=False)
+            assert_geotiff(
+                source_tif_fpath, check_crs=expected_crs, check_compression=False
+            )
             return source_tif_fpath
         except Exception as err:
             if os.path.exists(target_folder):
@@ -56,4 +66,3 @@ class JRCPopFetcher:
             # Cleanup zip
             if local_zip_fpath and os.path.exists(local_zip_fpath):
                 os.remove(local_zip_fpath)
-            

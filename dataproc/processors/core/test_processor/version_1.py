@@ -53,7 +53,7 @@ class Processor(BaseProcessorABC):
         """Generate files for a given processor"""
         # Pause to allow inspection
         sleep(1)
-        self.update_progress(30,"waiting")
+        self.update_progress(30, "waiting")
         output_folder = self.paths_helper.build_absolute_path(
             "test_processor", self.metadata.version, "outputs"
         )
@@ -69,7 +69,9 @@ class Processor(BaseProcessorABC):
                 self.metadata.name,
                 self.metadata.version,
             )
-            self.provenance_log[f"{self.metadata.name} - move to storage success"] = True
+            self.provenance_log[
+                f"{self.metadata.name} - move to storage success"
+            ] = True
             self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
             # Generate the datapackage and add it to the output log
             datapkg = datapackage_resource(

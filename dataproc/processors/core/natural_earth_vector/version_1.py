@@ -22,7 +22,7 @@ from dataproc.helpers import (
     generate_index_file,
     data_file_hash,
     data_file_size,
-    output_filename
+    output_filename,
 )
 from config import (
     get_db_uri_ogr,
@@ -36,16 +36,16 @@ class Metadata(BaseMetadataABC):
     Processor metadata
     """
 
-    name = processor_name_from_file(inspect.stack()[1].filename)  # this must follow snakecase formatting, without special chars
+    name = processor_name_from_file(
+        inspect.stack()[1].filename
+    )  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth vector"  # Longer processor description
     )
     version = version_name_from_file(
         inspect.stack()[1].filename
     )  # Version of the Processor
-    dataset_name = (
-        "natural_earth_vector_roads"  # The dataset this processor targets
-    )
+    dataset_name = "natural_earth_vector_roads"  # The dataset this processor targets
     data_author = "Natural Earth Data"
     data_title = ""
     data_title_long = ""
@@ -75,11 +75,11 @@ class Processor(BaseProcessorABC):
     output_geometry_operation = "clip"  # Clip or intersect
     output_geometry_column = "clipped_geometry"
 
-    pg_dbname_env="AUTOPKG_POSTGRES_DB"
-    pg_user_env="AUTOPKG_POSTGRES_USER"
-    pg_password_env="AUTOPKG_POSTGRES_PASSWORD"
-    pg_host_env="AUTOPKG_POSTGRES_HOST"
-    pg_port_env="AUTOPKG_POSTGRES_PORT"
+    pg_dbname_env = "AUTOPKG_POSTGRES_DB"
+    pg_user_env = "AUTOPKG_POSTGRES_USER"
+    pg_password_env = "AUTOPKG_POSTGRES_PASSWORD"
+    pg_host_env = "AUTOPKG_POSTGRES_HOST"
+    pg_port_env = "AUTOPKG_POSTGRES_PORT"
 
     def exists(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
@@ -87,7 +87,9 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg'),
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
+            ),
         )
 
     def generate(self):
@@ -99,21 +101,25 @@ class Processor(BaseProcessorABC):
         pg_table_name = self._fetch_source()
         # Crop to given boundary
         output_fpath = os.path.join(
-            self.tmp_processing_folder, 
-            output_filename(self.metadata.name, self.metadata.version, self.boundary["name"], 'gpkg')
+            self.tmp_processing_folder,
+            output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
+            ),
         )
-        
+
         self.update_progress(20, "cropping source")
         self.log.debug("Natural earth vector - cropping Roads to geopkg")
         gdal_crop_pg_table_to_geopkg(
             self.boundary,
-            str(get_db_uri_ogr(
-                dbname=os.getenv(self.pg_dbname_env),
-                username_env=self.pg_user_env,
-                password_env=self.pg_password_env,
-                host_env=self.pg_host_env,
-                port_env=self.pg_port_env
-            )),
+            str(
+                get_db_uri_ogr(
+                    dbname=os.getenv(self.pg_dbname_env),
+                    username_env=self.pg_user_env,
+                    password_env=self.pg_password_env,
+                    host_env=self.pg_host_env,
+                    port_env=self.pg_port_env,
+                )
+            ),
             pg_table_name,
             output_fpath,
             geometry_column=self.input_geometry_column,
@@ -136,7 +142,7 @@ class Processor(BaseProcessorABC):
         # Generate Docs
         self.update_progress(80, "generate documentation & datapackage")
         self.generate_documentation()
-        
+
         # Generate Datapackage
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
@@ -144,7 +150,9 @@ class Processor(BaseProcessorABC):
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg
-        self.log.debug("%s generated datapackage in log: %s", self.metadata.name, datapkg)
+        self.log.debug(
+            "%s generated datapackage in log: %s", self.metadata.name, datapkg
+        )
 
         # Cleanup as required
         return self.provenance_log
@@ -154,27 +162,30 @@ class Processor(BaseProcessorABC):
         on the result backend"""
         # Generate Documentation
         index_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.metadata.version, self.index_filename
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.metadata.version,
+            self.index_filename,
         )
         index_create = generate_index_file(
-            self.storage_backend,
-            index_fpath, 
-            self.boundary["name"],
-            self.metadata
+            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
         )
-        self.provenance_log[f"{self.metadata.name} - created index documentation"] = index_create
+        self.provenance_log[
+            f"{self.metadata.name} - created index documentation"
+        ] = index_create
         license_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "templates", self.metadata.version, self.license_filename
+            os.path.dirname(os.path.abspath(__file__)),
+            "templates",
+            self.metadata.version,
+            self.license_filename,
         )
         license_create = generate_license_file(
-            self.storage_backend,
-            license_fpath, 
-            self.boundary["name"],
-            self.metadata
+            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
         )
-        self.provenance_log[f"{self.metadata.name} - created license documentation"] = license_create
+        self.provenance_log[
+            f"{self.metadata.name} - created license documentation"
+        ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
-
 
     def _fetch_source(self) -> str:
         """
@@ -189,13 +200,13 @@ class Processor(BaseProcessorABC):
         self.log.debug("Natural earth vector - fetching zip")
         local_zip_fpath = self._fetch_zip()
         self.log.debug("Natural earth vector - fetched zip to %s", local_zip_fpath)
-        self.provenance_log[f"{self.metadata.name} - zip download path"] = local_zip_fpath
+        self.provenance_log[
+            f"{self.metadata.name} - zip download path"
+        ] = local_zip_fpath
         # Unpack
         self.log.debug("Natural earth vector - unpacking zip")
         unpack_zip(local_zip_fpath, self.source_folder)
-        shp_fpath = os.path.join(
-            self.source_folder, "ne_10m_roads.shp"
-        )
+        shp_fpath = os.path.join(self.source_folder, "ne_10m_roads.shp")
         assert os.path.exists(
             shp_fpath
         ), f"extracted SHP did not exist at expected path {shp_fpath}"

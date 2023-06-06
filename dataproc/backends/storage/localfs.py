@@ -174,7 +174,9 @@ class LocalFSStorageBackend(StorageBackend):
         full_path = self._build_absolute_path(boundary_name)
         os.mkdir(full_path)
         if not self.boundary_folder_exists(boundary_name):
-            raise FolderCreationException(f"boundary folder path {boundary_name} not found")
+            raise FolderCreationException(
+                f"boundary folder path {boundary_name} not found"
+            )
 
     def create_boundary_data_folder(self, boundary_name: str):
         """
@@ -183,7 +185,9 @@ class LocalFSStorageBackend(StorageBackend):
         full_path = self._build_absolute_path(boundary_name, self.datasets_folder_name)
         os.mkdir(full_path)
         if not self.boundary_data_folder_exists(boundary_name):
-            raise FolderCreationException(f"boundary data-folder path {boundary_name} not found")
+            raise FolderCreationException(
+                f"boundary data-folder path {boundary_name} not found"
+            )
 
     def put_boundary_data(
         self,
@@ -234,13 +238,13 @@ class LocalFSStorageBackend(StorageBackend):
         boundary_name: str,
         dataset_name: str,
         version: str,
-        remove_local_source=False
+        remove_local_source=False,
     ) -> str:
         """
         Put data output from a processor for a particular dataset and
         version onto the backend
 
-        ::kwarg remove_local_source bool Whether to delete the local source file 
+        ::kwarg remove_local_source bool Whether to delete the local source file
             after a successful move
 
         ::returns dest_abs_path str URI of the moved file
@@ -271,13 +275,13 @@ class LocalFSStorageBackend(StorageBackend):
         boundary_name: str,
         dataset_name: str,
         version: str,
-        remove_local_source=False
+        remove_local_source=False,
     ) -> str:
         """
         Put an a processor metadata file for a particular dataset and
         version onto the backend
 
-        ::kwarg remove_local_source bool Whether to delete the local source file 
+        ::kwarg remove_local_source bool Whether to delete the local source file
             after a successful move
 
         ::returns dest_abs_path str URI of the moved file
@@ -380,10 +384,7 @@ class LocalFSStorageBackend(StorageBackend):
 
     def load_datapackage(self, boundary_name: str) -> dict:
         """Load the datapackage.json file from backend and return"""
-        datapackage_fpath = self._build_absolute_path(
-            boundary_name,
-            "datapackage.json"
-        )
+        datapackage_fpath = self._build_absolute_path(boundary_name, "datapackage.json")
         with open(datapackage_fpath, "r") as fptr:
             datapackage = json.load(fptr)
             return datapackage

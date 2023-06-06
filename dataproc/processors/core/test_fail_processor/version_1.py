@@ -52,8 +52,8 @@ class Processor(BaseProcessorABC):
         """Generate files for a given processor"""
         # Pause to allow inspection
         sleep(1)
-        self.update_progress(30,"waiting")
-        assert(0==1), "test-fail-processor failed as expected"
+        self.update_progress(30, "waiting")
+        assert 0 == 1, "test-fail-processor failed as expected"
         return self.provenance_log
 
     def exists(self):
