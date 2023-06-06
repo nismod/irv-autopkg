@@ -8,6 +8,7 @@ from . import Base
 
 class Boundary(Base):
     """Boundaries table"""
+
     __tablename__ = "boundaries"
 
     id = Column(Integer, primary_key=True, index=True)

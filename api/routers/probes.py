@@ -19,10 +19,12 @@ router = APIRouter(
 logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
+
 @router.get(LIVENESS_ROUTE, tags=["probes"])
 async def get_liveness():
     """API Liveness Route"""
     return {"status": "alive"}
+
 
 @router.get(READINESS_ROUTE, tags=["probes"])
 async def get_readiness():
@@ -38,6 +40,6 @@ async def get_readiness():
     else:
         readiness.append(False)
     if all(readiness):
-        return {'status': 'ready'}
+        return {"status": "ready"}
     else:
         raise HTTPException(500, detail="not_ready")

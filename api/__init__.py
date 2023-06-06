@@ -1,2 +1,1 @@
-
-__all__ = ['config']
+__all__ = ["config"]

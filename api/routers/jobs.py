@@ -58,7 +58,11 @@ def extract_job_id(node):
     return proc_id
 
 
-@router.get(JOB_STATUS_ROUTE, response_model=schemas.JobGroupStatus, response_model_exclude_none=True)
+@router.get(
+    JOB_STATUS_ROUTE,
+    response_model=schemas.JobGroupStatus,
+    response_model_exclude_none=True,
+)
 def get_status(job_id: str):
     """Get status of a DAG associated with a given package"""
     try:
@@ -77,10 +81,15 @@ def get_status(job_id: str):
         # Remove Boundary processor from each jobs info
         logger.debug(
             "Group Status: %s",
-            [[result.state, result.info, result.args, result.name] for result in group_result.results],
+            [
+                [result.state, result.info, result.args, result.name]
+                for result in group_result.results
+            ],
         )
         # Create response object
-        response = extract_group_state_info(group_result, missing_proc_name_msg=schemas.MISSING_PROC_MSG)
+        response = extract_group_state_info(
+            group_result, missing_proc_name_msg=schemas.MISSING_PROC_MSG
+        )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], response)
         return response
     except JobNotFoundException as err:

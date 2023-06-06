@@ -9,7 +9,9 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import Config and Helpers
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 from api import db
 from config import DBURI_API, get_db_uri_sync, API_POSTGRES_DB
 

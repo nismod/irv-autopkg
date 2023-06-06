@@ -34,7 +34,9 @@ async def get_processors():
     """Metadata for all available data processors"""
     try:
         results = []
-        for proc_name, proc_versions in list_processors(include_test_processors=INCLUDE_TEST_PROCESSORS).items():
+        for proc_name, proc_versions in list_processors(
+            include_test_processors=INCLUDE_TEST_PROCESSORS
+        ).items():
             output_versions = []
             for version in proc_versions:
                 name_version = build_processor_name_version(proc_name, version)
@@ -50,7 +52,7 @@ async def get_processors():
                     data_citation=meta.data_citation,
                     data_license=meta.data_license.asdict(),
                     data_origin_url=meta.data_origin_url,
-                    data_formats=meta.data_formats
+                    data_formats=meta.data_formats,
                 )
                 output_versions.append(version)
             results.append(schemas.Processor(name=proc_name, versions=output_versions))
@@ -69,7 +71,9 @@ async def get_processors():
 async def get_processor(name: str):
     """Metadata for all versions of a single processor"""
     try:
-        for proc_name, proc_versions in list_processors(include_test_processors=INCLUDE_TEST_PROCESSORS).items():
+        for proc_name, proc_versions in list_processors(
+            include_test_processors=INCLUDE_TEST_PROCESSORS
+        ).items():
             output_versions = []
             if proc_name == name:
                 for version in proc_versions:
@@ -86,7 +90,7 @@ async def get_processor(name: str):
                         data_citation=meta.data_citation,
                         data_license=meta.data_license.asdict(),
                         data_origin_url=meta.data_origin_url,
-                        data_formats=meta.data_formats
+                        data_formats=meta.data_formats,
                     )
                     output_versions.append(version)
                 return schemas.Processor(name=proc_name, versions=output_versions)
@@ -125,7 +129,7 @@ async def get_processor_version(name: str, version: str):
             data_citation=meta.data_citation,
             data_license=meta.data_license.asdict(),
             data_origin_url=meta.data_origin_url,
-            data_formats=meta.data_formats
+            data_formats=meta.data_formats,
         )
     except HTTPException:
         raise

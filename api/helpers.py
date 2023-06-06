@@ -16,7 +16,7 @@ from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import (
     get_processor_meta_by_name,
     list_processors,
-    build_processor_name_version
+    build_processor_name_version,
 )
 from dataproc.exceptions import InvalidProcessorException
 from api.exceptions import (
@@ -62,6 +62,7 @@ def handle_exception(logger, err: Exception):
 
 
 # DAGs and Processing
+
 
 def get_processor_task(name: str) -> Any:
     """Get task related to a processor task by its name"""
@@ -120,12 +121,15 @@ def processor_meta(
             data_citation=meta.data_citation,
             data_license=meta.data_license.asdict(),
             data_origin_url=meta.data_origin_url,
-            data_formats=meta.data_formats
+            data_formats=meta.data_formats,
         )
 
 
 # Celery Queue Interactions
-def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: str = "processor details not available") -> schemas.JobGroupStatus:
+def extract_group_state_info(
+    group_result: GroupResult,
+    missing_proc_name_msg: str = "processor details not available",
+) -> schemas.JobGroupStatus:
     """
     Generate job status info from a GroupStatus object
 
@@ -135,7 +139,7 @@ def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: s
     NOTE: The API will report tasks as FAILED or SKIPPED depending on the contents of the job result.
 
     state=PENDING - info = None
-    state=EXECUTING - info = {'progress': int, 'current_task': str} 
+    state=EXECUTING - info = {'progress': int, 'current_task': str}
         Comes from the processor updating its states
     state=SUCCESS/FAILURE - info = {output of prov log in processor}
 
@@ -144,7 +148,11 @@ def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: s
     global_status = []
     processors = []
     for result in group_result.results:
-        global_perc_complete.append(100/len(group_result.results) if result.state in ["SUCCESS", "FAILURE"] else 0)
+        global_perc_complete.append(
+            100 / len(group_result.results)
+            if result.state in ["SUCCESS", "FAILURE"]
+            else 0
+        )
         global_status.append(True if result.state in ["SUCCESS", "FAILURE"] else False)
         if result.info is not None and isinstance(result.info, dict):
             for proc_name, task_meta in result.info.items():
@@ -166,10 +174,20 @@ def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: s
                         job_id=result.id,
                         job_status=_state,
                         job_progress=schemas.JobProgress(
-                            percent_complete=task_meta['progress'] if isinstance(task_meta, dict) and 'progress' in task_meta.keys() else 0,
-                            current_task=task_meta['current_task'] if isinstance(task_meta, dict) and 'current_task' in task_meta.keys() else "UNKNOWN",
-                        ) if _state not in ["SUCCESS", "FAILURE", "SKIPPED"] else None, # Progressing if not successful, failed or skipped
-                        job_result=task_meta if _state in ["SUCCESS", "FAILURE", "SKIPPED"] else None,
+                            percent_complete=task_meta["progress"]
+                            if isinstance(task_meta, dict)
+                            and "progress" in task_meta.keys()
+                            else 0,
+                            current_task=task_meta["current_task"]
+                            if isinstance(task_meta, dict)
+                            and "current_task" in task_meta.keys()
+                            else "UNKNOWN",
+                        )
+                        if _state not in ["SUCCESS", "FAILURE", "SKIPPED"]
+                        else None,  # Progressing if not successful, failed or skipped
+                        job_result=task_meta
+                        if _state in ["SUCCESS", "FAILURE", "SKIPPED"]
+                        else None,
                     )
                 )
         else:
@@ -177,28 +195,33 @@ def extract_group_state_info(group_result: GroupResult, missing_proc_name_msg: s
             try:
                 _result = get_celery_task_info(result.id)
                 host = list(_result.keys())[0]
-                proc_name = (_result[host][result.id][1]['args'][2])
-                processors.append(schemas.JobStatus(
-                    processor_name=proc_name,
-                    job_id=result.id,
-                    job_status=result.state,
-                    job_progress=None,
-                    job_result=None,
-                ))
+                proc_name = _result[host][result.id][1]["args"][2]
+                processors.append(
+                    schemas.JobStatus(
+                        processor_name=proc_name,
+                        job_id=result.id,
+                        job_status=result.state,
+                        job_progress=None,
+                        job_result=None,
+                    )
+                )
             except Exception:
                 # Sometimes Celery fails to return a result object - when under heavy load
-                processors.append(schemas.JobStatus(
-                    processor_name=missing_proc_name_msg,
-                    job_id=result.id,
-                    job_status=result.state,
-                    job_progress=None,
-                    job_result=None,
-                ))
+                processors.append(
+                    schemas.JobStatus(
+                        processor_name=missing_proc_name_msg,
+                        job_id=result.id,
+                        job_status=result.state,
+                        job_progress=None,
+                        job_result=None,
+                    )
+                )
     return schemas.JobGroupStatus(
         job_group_status="COMPLETE" if all(global_status) else "PENDING",
         job_group_percent_complete=sum(global_perc_complete),
-        job_group_processors=processors
+        job_group_processors=processors,
     )
+
 
 def get_celery_active_tasks() -> dict:
     """Return list of tasks currently executed by Celery workers"""
