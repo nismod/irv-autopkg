@@ -16,8 +16,6 @@ from dataproc.helpers import (
     assert_geotiff,
     download_file,
     generate_datapackage,
-    data_file_hash,
-    data_file_size,
     output_filename,
 )
 
@@ -104,8 +102,7 @@ class Processor(BaseProcessorABC):
 
         # Generate Datapackage
         self.update_progress(90, "generate datapackage")
-        hashes = [data_file_hash(output_fpath)]
-        sizes = [data_file_size(output_fpath)]
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         datapkg = generate_datapackage(
             self.metadata, [result_uri], "GeoTIFF", sizes, hashes
         )

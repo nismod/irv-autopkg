@@ -18,8 +18,6 @@ from dataproc.helpers import (
     ogr2ogr_load_shapefile_to_pg,
     gdal_crop_pg_table_to_geopkg,
     generate_datapackage,
-    data_file_hash,
-    data_file_size,
     output_filename,
 )
 from config import (
@@ -142,8 +140,7 @@ class Processor(BaseProcessorABC):
         self.generate_documentation()
 
         # Generate Datapackage
-        hashes = [data_file_hash(output_fpath)]
-        sizes = [data_file_size(output_fpath)]
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         datapkg = generate_datapackage(
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )

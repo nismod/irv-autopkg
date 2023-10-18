@@ -17,8 +17,6 @@ from dataproc.helpers import (
     version_name_from_file,
     crop_raster,
     assert_geotiff,
-    data_file_hash,
-    data_file_size,
     generate_datapackage,
     output_filename,
 )
@@ -167,10 +165,9 @@ class Processor(BaseProcessorABC):
 
         # Generate datapackage in log (using directory for URI)
         self.log.debug("%s - generating datapackage meta", self.metadata.name)
-        output_hash = data_file_hash(output_fpath)
-        output_size = data_file_size(output_fpath)
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         datapkg = generate_datapackage(
-            self.metadata, [result_uri], "GeoTIFF", [output_size], [output_hash]
+            self.metadata, [result_uri], "GeoTIFF", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg
         self.log.debug(

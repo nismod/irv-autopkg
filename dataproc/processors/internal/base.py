@@ -6,8 +6,9 @@ from typing import Dict, Optional
 
 from celery.app import task
 
-from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
+from dataproc.helpers import data_file_hash
+from dataproc.storage import StorageBackend
 
 
 class BaseMetadataABC(ABC):
@@ -135,6 +136,13 @@ class BaseProcessorABC(ABC):
     @abstractmethod
     def generate_datapackage_resource(self):
         """Generate datapackage resource for a given processor"""
+
+    @staticmethod
+    def calculate_files_metadata(fpaths: List[str]) -> Tuple[List[str], List[int]]:
+        return (
+            [data_file_hash(fpath) for fpath in fpaths],
+            [os.path.getsize(fpath) for fpath in fpaths],
+        )
 
     def generate_documentation(self):
         """Generate documentation for the processor on the result backend"""

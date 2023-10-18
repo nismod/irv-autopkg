@@ -9,10 +9,9 @@ from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
+    data_file_hash,
     version_name_from_file,
     download_file,
-    data_file_hash,
-    data_file_size,
     processor_name_from_file,
     generate_datapackage,
     unpack_zip,
@@ -156,8 +155,7 @@ class Processor(BaseProcessorABC):
         self.generate_documentation()
 
         # Generate Datapackage
-        hashes = [data_file_hash(output_fpath)]
-        sizes = [data_file_size(output_fpath)]
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         datapkg = generate_datapackage(
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )

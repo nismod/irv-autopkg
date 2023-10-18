@@ -77,12 +77,14 @@ class Processor(BaseProcessorABC):
             ] = True
             self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
             # Generate the datapackage and add it to the output log
+
+            hashes, sizes = self.calculate_files_metadata([output_fpath])
             datapkg = datapackage_resource(
                 self.metadata,
                 [result_uri],
                 "GEOPKG",
-                [os.path.getsize(output_fpath)],
-                [data_file_hash(output_fpath)],
+                sizes,
+                hashes,
             )
             self.provenance_log["datapackage"] = datapkg.asdict()
         return self.provenance_log

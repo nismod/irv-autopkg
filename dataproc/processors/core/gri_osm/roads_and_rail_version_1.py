@@ -150,8 +150,7 @@ class Processor(BaseProcessorABC):
             self.tmp_processing_folder, self.output_filenames()[0]
         )
         ## TODO write helpers for files produced (local path) and resulting URIs
-        hashes = [data_file_hash(output_fpath)]
-        sizes = [data_file_size(output_fpath)]
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         result_uri = output_fpath.replace(self.tmp_processing_folder, PACKAGES_HOST_URL)
         uris = [result_uri]
         return datapackage_resource(self.metadata, uris, "GPKG", sizes, hashes)

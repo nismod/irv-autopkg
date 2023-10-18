@@ -209,9 +209,7 @@ def datapackage_resource(
 
 
 def data_file_hash(fpath: str) -> str:
-    """
-    Generate a sha256 hash of a single datafile
-    """
+    """Generate the SHA-1 hash of a single file"""
     _hash = (
         check_output(f"openssl sha1 {fpath}".split(" "))
         .decode()
@@ -219,11 +217,6 @@ def data_file_hash(fpath: str) -> str:
         .split("= ")[1]
     )
     return _hash
-
-
-def data_file_size(fpath: str) -> int:
-    """Filesize in bytes"""
-    return os.path.getsize(fpath)
 
 
 # FILE OPERATIONS

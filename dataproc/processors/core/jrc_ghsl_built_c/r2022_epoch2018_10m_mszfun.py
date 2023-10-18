@@ -21,8 +21,6 @@ from dataproc.helpers import (
     version_name_from_file,
     crop_raster,
     assert_geotiff,
-    data_file_hash,
-    data_file_size,
     generate_datapackage,
     output_filename,
 )
@@ -195,13 +193,7 @@ class Processor(BaseProcessorABC):
                 20 + int(idx * (80 / len(source_fpaths))), "generating hash"
             )
             if crop_success:
-                results_fpaths.append(
-                    {
-                        "fpath": output_fpath,
-                        "hash": data_file_hash(output_fpath),
-                        "size": data_file_size(output_fpath),
-                    }
-                )
+                results_fpaths.append(output_fpath)
         # Check results look sensible
         assert (
             len(results_fpaths) == self.total_expected_files
@@ -210,9 +202,9 @@ class Processor(BaseProcessorABC):
         self.update_progress(85, "moving result")
         # Move to Backend
         result_uris = []
-        for result in results_fpaths:
+        for fpath in results_fpaths:
             result_uri = self.storage_backend.put_processor_data(
-                result["fpath"],
+                fpath,
                 self.boundary["name"],
                 self.metadata.name,
                 self.metadata.version,
@@ -234,12 +226,13 @@ class Processor(BaseProcessorABC):
         self.log.debug("%s - generating datapackage meta", self.metadata.name)
 
         # Generate datapackage in log (using directory for URI)
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
         datapkg = generate_datapackage(
             self.metadata,
             result_uris,
             "GeoTIFF",
-            [i["size"] for i in results_fpaths],
-            [i["hash"] for i in results_fpaths],
+            sizes,
+            hashes,
         )
         self.provenance_log["datapackage"] = datapkg
         self.log.debug(
