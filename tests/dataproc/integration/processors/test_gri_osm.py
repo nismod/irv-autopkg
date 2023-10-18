@@ -21,8 +21,8 @@ from dataproc.processors.core.gri_osm.roads_and_rail_version_1 import (
     Processor,
     Metadata,
 )
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from config import (
     PACKAGES_HOST_URL,
     S3_REGION,

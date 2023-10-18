@@ -18,7 +18,7 @@ from dataproc.exceptions import (
     DatasetNotFoundException,
     InvalidProcessorException,
 )
-from dataproc.backends.storage import init_storage_backend
+from dataproc.storage import init_storage_backend
 from api.routes import PACKAGES_BASE_ROUTE, PACKAGE_ROUTE
 from api.helpers import (
     handle_exception,

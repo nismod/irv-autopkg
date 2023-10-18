@@ -5,8 +5,7 @@ from abc import ABC, abstractmethod
 
 from celery.app import task
 
-from dataproc.backends.base import PathsHelper
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
 
 
@@ -42,15 +41,15 @@ class BaseProcessorABC(ABC):
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.executor = task_executor
-        self.paths_helper = self.setup_paths_helper(processing_root_folder)
         self.provenance_log = {}
         self.log = logging.getLogger(__name__)
         # Source folder will persist between processor runs
-        self.source_folder = self.paths_helper.build_absolute_path("source_data")
+        self.processing_root_folder = processing_root_folder
+        self.source_folder = os.path.join(self.processing_root_folder, "source_data")
         os.makedirs(self.source_folder, exist_ok=True)
         # Tmp Processing data will be cleaned between processor runs
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path(
-            "tmp", self.boundary["name"]
+        self.tmp_processing_folder = os.path.join(
+            self.processing_root_folder, "tmp", self.boundary["name"]
         )
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
@@ -95,14 +94,36 @@ class BaseProcessorABC(ABC):
                     err,
                 )
 
-    def setup_paths_helper(self, processing_backend_root_folder: str):
-        """Setup internal path helper"""
-        return PathsHelper(
-            os.path.join(
-                processing_backend_root_folder,
-                self.metadata.name,
-                self.metadata.version,
-            )
+    @staticmethod
+    def output_filename(
+        dataset_name: str,
+        dataset_version: str,
+        boundary_name: str,
+        file_format: str,
+        dataset_subfilename: str = None,
+    ) -> str:
+        """
+        Generate a standardized output filename
+        """
+        base = f"{dataset_name}-{dataset_version}"
+        if not dataset_subfilename:
+            return f"{base}-{boundary_name}.{file_format.replace('.', '')}"
+        else:
+            return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
+
+    @abstractmethod
+    def output_fpaths(self) -> list[str]:
+        """List all expected files for a given processor"""
+
+    def exists(self):
+        """Whether all output files for a given processor and boundary exist"""
+        return self.storage_backend.processor_file_exists(
+            self.boundary["name"],
+            self.metadata.name,
+            self.metadata.version,
+            self.output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
+            ),
         )
 
     @abstractmethod
@@ -110,5 +131,5 @@ class BaseProcessorABC(ABC):
         """Generate files for a given processor"""
 
     @abstractmethod
-    def exists(self):
-        """Whether all files for a given processor exist on the FS on not"""
+    def generate_datapackage_resource(self):
+        """Generate datapackage resource for a given processor"""

@@ -24,8 +24,8 @@ from dataproc.processors.core.wri_aqueduct.version_2 import (
     Processor,
     Metadata,
 )
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from config import (
     PACKAGES_HOST_URL,
     S3_REGION,

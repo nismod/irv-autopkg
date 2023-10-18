@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 
 from dataproc.processors.internal import base
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageResource
 
 

@@ -26,7 +26,7 @@ from dataproc.helpers import (
     sample_geotiff,
     sample_geotiff_coords,
 )
-from dataproc.backends.storage.awss3 import S3Manager, AWSS3StorageBackend
+from dataproc.storage.awss3 import S3Manager, AWSS3StorageBackend
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
@@ -530,9 +530,13 @@ def setup_test_data_paths(processor: Any, test_processing_data_dir: str):
     """
     Reset the processing paths on an instantiated processor module to reflect the test environment
     """
-    processor.paths_helper.top_level_folder_path = test_processing_data_dir
-    processor.source_folder = processor.paths_helper.build_absolute_path("source_data")
-    processor.tmp_processing_folder = processor.paths_helper.build_absolute_path("tmp")
+    processor.processing_root_folder = test_processing_data_dir
+    processor.source_folder = os.path.join(
+        processor.processing_root_folder, "source_data"
+    )
+    processor.tmp_processing_folder = os.path.join(
+        processor.processing_root_folder, "tmp"
+    )
 
 
 def assert_datapackage_resource(dp_resource: dict):

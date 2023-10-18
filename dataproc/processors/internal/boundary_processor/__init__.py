@@ -5,7 +5,6 @@ import json
 import os
 import logging
 
-from dataproc.backends.base import PathsHelper
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
 
 
@@ -29,11 +28,13 @@ class BoundaryProcessor:
         """
         self.boundary = boundary
         self.storage_backend = storage_backend
-        self.paths_helper = PathsHelper(LOCALFS_PROCESSING_BACKEND_ROOT)
         self.log = logging.getLogger(__name__)
         self.provenance_log = {}
-        self.tmp_processing_folder = self.paths_helper.build_absolute_path(
-            "boundary_processor", self.boundary["name"], "tmp"
+        self.tmp_processing_folder = os.path.join(
+            LOCALFS_PROCESSING_BACKEND_ROOT,
+            "boundary_processor",
+            self.boundary["name"],
+            "tmp",
         )
         os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
@@ -162,6 +163,7 @@ class BoundaryProcessor:
 
         ::returns dest_fpath str Destination filepath on the processing backend
         """
+        ## TODO extract template - live with storage backend?? or processing root/base?
         template_fpath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "templates",

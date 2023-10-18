@@ -18,8 +18,8 @@ from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
     DummyTaskExecutor,
 )
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from dataproc import Boundary
 from dataproc.processors.core.natural_earth_vector.version_1 import (
     Processor,

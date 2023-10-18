@@ -223,8 +223,8 @@ class Processor(BaseProcessorABC):
         ::returns filepath str Result local filepath
         """
         # Pull the zip file to the configured processing backend
-        zip_fpath = self.paths_helper.build_absolute_path(
-            "natural_earth_vector", "ne_10m_roads.zip"
+        zip_fpath = os.path.join(
+            self.processing_root_folder, "natural_earth_vector", "ne_10m_roads.zip"
         )
         if not os.path.exists(zip_fpath):
             zip_fpath = download_file(

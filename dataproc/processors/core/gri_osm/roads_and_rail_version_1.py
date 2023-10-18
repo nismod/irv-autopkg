@@ -75,28 +75,25 @@ class Processor(BaseProcessorABC):
     output_geometry_operation = "clip"  # Clip or intersect
     osm_crop_batch_size = 1000
 
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        return self.storage_backend.processor_file_exists(
-            self.boundary["name"],
-            self.metadata.name,
-            self.metadata.version,
-            output_filename(
-                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
-            ),
-        )
+    def output_fpaths(self) -> list[str]:
+        return [
+            os.path.join(
+                self.tmp_processing_folder,
+                output_filename(
+                    self.metadata.name,
+                    self.metadata.version,
+                    self.boundary["name"],
+                    "gpkg",
+                ),
+            )
+        ]
 
     def generate(self):
         """Generate files for a given processor"""
         if self.exists() is True:
             raise ProcessorDatasetExists()
         # Setup output path in the processing backend
-        output_fpath = os.path.join(
-            self.tmp_processing_folder,
-            output_filename(
-                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
-            ),
-        )
+        output_fpath = self.output_fpaths()[0]
 
         # Crop to given boundary
         self.update_progress(10, "cropping source")
@@ -142,12 +139,7 @@ class Processor(BaseProcessorABC):
         self.update_progress(80, "generate documentation & datapackage")
         self.generate_documentation()
 
-        # Generate Datapackage
-        hashes = [data_file_hash(output_fpath)]
-        sizes = [data_file_size(output_fpath)]
-        datapkg = generate_datapackage(
-            self.metadata, [result_uri], "GEOPKG", sizes, hashes
-        )
+        datapkg = self.generate_datapackage()
         self.provenance_log["datapackage"] = datapkg
         self.log.debug(
             "%s generated datapackage in log: %s", self.metadata.name, datapkg
@@ -155,6 +147,15 @@ class Processor(BaseProcessorABC):
         # Cleanup as required
         os.remove(output_fpath)
         return self.provenance_log
+
+    def generate_datapackage_resource(self):
+        output_fpath = self.output_fpaths()[0]
+        ## TODO write helpers for files produced (local path) and resulting URIs
+        hashes = [data_file_hash(output_fpath)]
+        sizes = [data_file_size(output_fpath)]
+        result_uri = output_fpath.replace(self.tmp_processing_folder, PACKAGES_HOST_URL)
+        uris = [result_uri]
+        return generate_datapackage(self.metadata, uris, "GPKG", sizes, hashes)
 
     def generate_documentation(self):
         """Generate documentation for the processor

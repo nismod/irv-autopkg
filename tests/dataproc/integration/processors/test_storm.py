@@ -21,9 +21,9 @@ from dataproc.processors.core.storm.global_mosaics_version_1 import (
     Processor,
     Metadata,
 )
-from dataproc.helpers import assert_geotiff, download_file
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.helpers import download_file
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from config import (
     PACKAGES_HOST_URL,
     S3_REGION,

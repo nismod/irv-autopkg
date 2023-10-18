@@ -26,8 +26,8 @@ from tests.helpers import (
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from config import STORAGE_BACKEND, S3_BUCKET, S3_REGION
 
 

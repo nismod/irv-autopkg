@@ -4,7 +4,6 @@ WRI Aqueduct Processor
 
 import os
 import inspect
-import shutil
 
 from celery.app import task
 from dataproc.exceptions import ProcessorDatasetExists
@@ -13,7 +12,7 @@ from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
 from dataproc.helpers import (
     processor_name_from_file,

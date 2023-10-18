@@ -14,7 +14,7 @@ from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
 from dataproc.helpers import (
     processor_name_from_file,
@@ -40,7 +40,7 @@ class Metadata(BaseMetadataABC):
         inspect.stack()[1].filename
     )  # this must follow snakecase formatting, without special chars
     description = """
-A Processor for JRC GHSL Built-Up Characteristics - 
+A Processor for JRC GHSL Built-Up Characteristics -
 R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
     """  # Longer processor description
     version = version_name_from_file(
@@ -83,7 +83,7 @@ Concept & Methodology:
 
 Schiavina M., Melchiorri M., Pesaresi M., Politis P., Freire S., Maffenini L.,
 Florio P., Ehrlich D., Goch K., Tommasi P., Kemper T. GHSL Data Package 2022,
-JRC 129516, ISBN 978-92-76-53071-8 doi:10.2760/19817 
+JRC 129516, ISBN 978-92-76-53071-8 doi:10.2760/19817
     """
     data_license = DataPackageLicense(
         name="CC-BY-4.0",

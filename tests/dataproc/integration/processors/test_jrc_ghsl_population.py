@@ -21,8 +21,8 @@ from dataproc.processors.core.jrc_ghsl_population.r2022_epoch2020_1km import (
     Processor,
     Metadata,
 )
-from dataproc.backends.storage import init_storage_backend
-from dataproc.backends.storage.awss3 import S3Manager
+from dataproc.storage import init_storage_backend
+from dataproc.storage.awss3 import S3Manager
 from config import (
     PACKAGES_HOST_URL,
     S3_REGION,

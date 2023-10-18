@@ -8,7 +8,7 @@ from typing import Any
 from celery import group, chain, chord
 from celery.result import AsyncResult
 from dataproc import Boundary
-from dataproc.backends import LocalFSBackend
+from dataproc.storage import LocalFSBackend
 from dataproc import tasks
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.tasks import app

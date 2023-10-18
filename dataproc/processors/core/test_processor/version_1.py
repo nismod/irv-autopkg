@@ -54,8 +54,11 @@ class Processor(BaseProcessorABC):
         # Pause to allow inspection
         sleep(1)
         self.update_progress(30, "waiting")
-        output_folder = self.paths_helper.build_absolute_path(
-            "test_processor", self.metadata.version, "outputs"
+        output_folder = os.path.join(
+            self.processing_root_folder,
+            "test_processor",
+            self.metadata.version,
+            "outputs",
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
         if self.exists() is True:

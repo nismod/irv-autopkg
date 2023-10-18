@@ -11,7 +11,7 @@ from dataproc.helpers import (
     add_dataset_to_datapackage,
     datapackage_resource,
 )
-from dataproc.backends.storage.localfs import LocalFSStorageBackend
+from dataproc.storage.localfs import LocalFSStorageBackend
 from dataproc.processors.core.test_processor.version_1 import (
     Metadata as TestProcMetadata,
 )

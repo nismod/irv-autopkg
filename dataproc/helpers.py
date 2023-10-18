@@ -21,7 +21,7 @@ import requests
 from rasterio import sample
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
 from dataproc.exceptions import (
     FileCreationException,
@@ -289,23 +289,6 @@ def generate_datapackage(
 
 
 # FILE OPERATIONS
-
-
-def output_filename(
-    dataset_name: str,
-    dataset_version: str,
-    boundary_name: str,
-    file_format: str,
-    dataset_subfilename: str = None,
-) -> str:
-    """
-    Generate a standardized output filename
-    """
-    base = f"{dataset_name}-{dataset_version}"
-    if not dataset_subfilename:
-        return f"{base}-{boundary_name}.{file_format.replace('.', '')}"
-    else:
-        return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
 
 
 def unpack_zip(zip_fpath: str, target_folder: str):

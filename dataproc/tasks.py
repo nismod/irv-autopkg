@@ -28,7 +28,7 @@ from dataproc.exceptions import (
     ProcessorDatasetExists,
     ProcessorExecutionFailed,
 )
-from dataproc.backends.storage import init_storage_backend
+from dataproc.storage import init_storage_backend
 
 # Setup Configured Storage Backend
 storage_backend = init_storage_backend(STORAGE_BACKEND)

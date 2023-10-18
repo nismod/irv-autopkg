@@ -160,8 +160,11 @@ class Processor(BaseProcessorABC):
         return fpath str The path to the fetch source file
         """
         # Check if the files exist
-        expected_source_path = self.paths_helper.build_absolute_path(
-            "natural_earth_raster", "NE2_50M_SR", "NE2_50M_SR.tif"
+        expected_source_path = os.path.join(
+            self.processing_root_folder,
+            "natural_earth_raster",
+            "NE2_50M_SR",
+            "NE2_50M_SR.tif",
         )
         if os.path.exists(expected_source_path):
             self.provenance_log[
@@ -201,8 +204,8 @@ class Processor(BaseProcessorABC):
         # Pull the zip file to the configured processing backend
         zip_path = download_file(
             self.source_zip_url,
-            self.paths_helper.build_absolute_path(
-                "natural_earth_raster", "NE2_50M_SR.zip"
+            os.path.join(
+                self.processing_root_folder, "natural_earth_raster", "NE2_50M_SR.zip"
             ),
         )
         return zip_path

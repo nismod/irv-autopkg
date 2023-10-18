@@ -6,7 +6,7 @@ from config import (
     S3_BUCKET,
     S3_REGION,
 )
-from dataproc.backends import StorageBackend
+from dataproc.storage import StorageBackend
 from dataproc.exceptions import ConfigException
 from .localfs import LocalFSStorageBackend
 from .awss3 import AWSS3StorageBackend
