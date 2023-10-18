@@ -3,7 +3,6 @@ Test Failing Processor
 """
 
 from time import sleep
-import os
 import inspect
 
 from dataproc import DataPackageLicense
@@ -13,9 +12,6 @@ from dataproc.processors.internal.base import (
 )
 from dataproc.helpers import (
     version_name_from_file,
-    create_test_file,
-    data_file_hash,
-    datapackage_resource,
     processor_name_from_file,
 )
 
