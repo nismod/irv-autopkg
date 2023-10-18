@@ -1,5 +1,4 @@
-"""
-FastAPI App Main
+"""IRV-Autopkg main server application (FastAPI entry point)
 """
 
 import logging
@@ -19,12 +18,12 @@ from config import (
 from api.routers import jobs, packages, probes, boundaries, processors
 from api.helpers import OPENAPI_TAGS_META
 
-app = FastAPI(
+APP = FastAPI(
     debug=True if DEPLOYMENT_ENV == "dev" else False, openapi_tags=OPENAPI_TAGS_META
 )
 
 
-@app.on_event("startup")
+@APP.on_event("startup")
 async def startup():
     """Startup hooks"""
     logger = logging.getLogger("uvicorn.access")
@@ -53,15 +52,15 @@ async def startup():
         )
 
 
-@app.on_event("shutdown")
+@APP.on_event("shutdown")
 async def shutdown():
     """Shutdown hooks"""
     await database.disconnect()
 
 
 # Routers
-app.include_router(probes.router)
-app.include_router(jobs.router)
-app.include_router(packages.router)
-app.include_router(boundaries.router)
-app.include_router(processors.router)
+APP.include_router(probes.ROUTER)
+APP.include_router(jobs.router)
+APP.include_router(packages.ROUTER)
+APP.include_router(boundaries.router)
+APP.include_router(processors.ROUTER)

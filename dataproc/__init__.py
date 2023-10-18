@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 
 class Boundary(dict):
@@ -50,7 +50,7 @@ class DataPackageResource:
     dataset_format: str
     dataset_size_bytes: int
     dataset_hashes: List[str]
-    sources: List[dict]
+    sources: List[Dict]
     dp_license: DataPackageLicense
 
     def asdict(self):

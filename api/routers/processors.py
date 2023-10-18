@@ -20,16 +20,16 @@ from api.routes import (
 from api import schemas
 from api.helpers import handle_exception
 
-router = APIRouter(
+ROUTER = APIRouter(
     tags=["processors"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
 )
-logger = logging.getLogger("uvicorn.access")
-logger.setLevel(LOG_LEVEL)
+LOGGER = logging.getLogger("uvicorn.access")
+LOGGER.setLevel(LOG_LEVEL)
 
 
-@router.get(PROCESSORS_BASE_ROUTE, response_model=List[schemas.Processor])
+@ROUTER.get(PROCESSORS_BASE_ROUTE, response_model=List[schemas.Processor])
 async def get_processors():
     """Metadata for all available data processors"""
     try:
@@ -58,11 +58,11 @@ async def get_processors():
             results.append(schemas.Processor(name=proc_name, versions=output_versions))
         return results
     except Exception as err:
-        handle_exception(logger, err)
+        handle_exception(LOGGER, err)
         raise HTTPException(status_code=500)
 
 
-@router.get(
+@ROUTER.get(
     PROCESSORS_NAME_ROUTE,
     response_model=schemas.Processor,
     response_model_exclude_none=True,
@@ -98,11 +98,11 @@ async def get_processor(name: str):
     except HTTPException:
         raise
     except Exception as err:
-        handle_exception(logger, err)
+        handle_exception(LOGGER, err)
         raise HTTPException(status_code=500)
 
 
-@router.get(
+@ROUTER.get(
     PROCESSORS_VERSION_ROUTE,
     response_model=schemas.ProcessorVersionMetadata,
     response_model_exclude_none=True,
@@ -134,5 +134,5 @@ async def get_processor_version(name: str, version: str):
     except HTTPException:
         raise
     except Exception as err:
-        handle_exception(logger, err)
+        handle_exception(LOGGER, err)
         raise HTTPException(status_code=500)

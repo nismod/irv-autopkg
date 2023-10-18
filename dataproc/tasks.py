@@ -164,6 +164,7 @@ def processor_task(
                     return sink
                 except ProcessorDatasetExists:
                     sink[processor_name_version] = {"skipped": f"{task_sig} exists"}
+                    # TODO check and update provenance anyway?
                     return sink
                 except Exception as err:
                     logger.exception("")

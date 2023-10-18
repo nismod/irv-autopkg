@@ -1,24 +1,24 @@
 """
 Helper methods / classes
 """
-from enum import Enum
-import inspect
-from typing import Generator, List, Tuple
-from types import ModuleType
-import os
-import requests
-import zipfile
-import json
-from subprocess import check_output, CalledProcessError, check_call
-import shutil
-from collections import OrderedDict
-from time import time
 import csv
+import inspect
+import json
+import os
+import shutil
 import warnings
+import zipfile
+from collections import defaultdict, OrderedDict
+from enum import Enum
+from subprocess import check_output, CalledProcessError, check_call
+from time import time
+from types import ModuleType
+from typing import Dict, Generator, List, Optional, Tuple
 
-import rasterio
-from rasterio import sample
 import numpy as np
+import rasterio
+import requests
+from rasterio import sample
 
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.backends import StorageBackend
@@ -34,7 +34,7 @@ from dataproc.exceptions import (
 
 
 def processors_as_enum(
-    include_test_processors: str = False, additions: List[str] = []
+    include_test_processors: bool = False, additions: List[str] = []
 ) -> Enum:
     """Generate an Enum of the currently available processors"""
     procs = {}
@@ -92,12 +92,14 @@ def build_processor_name_version(processor_base_name: str, version: str) -> str:
     return f"{processor_base_name}.{version}"
 
 
-def list_processors(include_test_processors: bool = False) -> List[BaseProcessorABC]:
+def list_processors(
+    include_test_processors: bool = False,
+) -> Dict[str, List[str]]:
     """Retrieve a list of available processors and their versions"""
     # Iterate through Core processors and collect metadata
     import dataproc.processors.core as available_processors
 
-    valid_processors = {}  # {name: [versions]}
+    valid_processors: Dict[str, List[str]] = defaultdict(list)  # {name: [versions]}
     for name, processor in inspect.getmembers(available_processors):
         if include_test_processors is False:
             if "test" in name:
@@ -107,14 +109,11 @@ def list_processors(include_test_processors: bool = False) -> List[BaseProcessor
             continue
         # Split name and version
         proc_name, proc_version = name.split(".")
-        if proc_name in valid_processors.keys():
-            valid_processors[proc_name].append(proc_version)
-        else:
-            valid_processors[proc_name] = [proc_version]
+        valid_processors[proc_name].append(proc_version)
     return valid_processors
 
 
-def get_processor_by_name(processor_name_version: str) -> BaseProcessorABC:
+def get_processor_by_name(processor_name_version: str) -> Optional[BaseProcessorABC]:
     """Retrieve a processor module by its name (including version) and check its validity"""
     import dataproc.processors.core as available_processors
 
@@ -124,9 +123,12 @@ def get_processor_by_name(processor_name_version: str) -> BaseProcessorABC:
             continue
         if name == processor_name_version:
             return processor.Processor
+    return None
 
 
-def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
+def get_processor_meta_by_name(
+    processor_name_version: str,
+) -> Optional[BaseMetadataABC]:
     """Retrieve a processor MetaData module by its name (including version)"""
     import dataproc.processors.core as available_processors
 
@@ -136,14 +138,15 @@ def get_processor_meta_by_name(processor_name_version: str) -> BaseProcessorABC:
             continue
         if name == processor_name_version:
             return processor.Metadata
+    return None
 
 
 # METADATA
 
 
 def add_license_to_datapackage(
-    dp_license: DataPackageLicense, datapackage: dict
-) -> dict:
+    dp_license: DataPackageLicense, datapackage: Dict
+) -> Dict:
     """
     Append a license to the datapackage licenses array
 
@@ -160,8 +163,8 @@ def add_license_to_datapackage(
 
 
 def add_dataset_to_datapackage(
-    dp_resource: DataPackageResource, datapackage: dict
-) -> dict:
+    dp_resource: DataPackageResource, datapackage: Dict
+) -> Dict:
     """
     Append a resource (dataset) to the datapackage resources array
 
@@ -270,11 +273,10 @@ def generate_datapackage(
     data_format: str,
     sizes: List[int],
     hashes: List[str],
-) -> dict:
+) -> Dict:
     """
     Generate the datapackage resource
     """
-    # Generate the datapackage and add it to the output log
     datapkg = datapackage_resource(
         metadata,
         uris,
@@ -282,6 +284,7 @@ def generate_datapackage(
         sizes,
         hashes,
     )
+    # TODO should this do storage_backend.put_processor_metadata for consistency?
     return datapkg.asdict()
 
 
@@ -856,7 +859,7 @@ def fiona_crop_file_to_geopkg(
     input_fpath: str,
     boundary: Boundary,
     output_fpath: str,
-    output_schema: dict,
+    output_schema: Dict,
     output_crs: int = 4326,
 ) -> bool:
     """

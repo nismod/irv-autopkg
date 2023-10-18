@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import os
-import shutil
 import logging
+import shutil
+from abc import ABC, abstractmethod
 
 from celery.app import task
 

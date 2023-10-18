@@ -11,22 +11,22 @@ from api.db import database
 from api.helpers import get_celery_active_tasks
 
 
-router = APIRouter(
+ROUTER = APIRouter(
     tags=["probes"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
 )
-logger = logging.getLogger("uvicorn.access")
-logger.setLevel(LOG_LEVEL)
+LOGGER = logging.getLogger("uvicorn.access")
+LOGGER.setLevel(LOG_LEVEL)
 
 
-@router.get(LIVENESS_ROUTE, tags=["probes"])
+@ROUTER.get(LIVENESS_ROUTE, tags=["probes"])
 async def get_liveness():
     """API Liveness Route"""
     return {"status": "alive"}
 
 
-@router.get(READINESS_ROUTE, tags=["probes"])
+@ROUTER.get(READINESS_ROUTE, tags=["probes"])
 async def get_readiness():
     """API Readiness Route, inc. DB check"""
     readiness = []

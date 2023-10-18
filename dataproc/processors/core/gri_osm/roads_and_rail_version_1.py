@@ -19,11 +19,11 @@ from dataproc.helpers import (
     output_filename,
 )
 from dataproc.exceptions import ProcessorDatasetExists
-from config import get_db_uri_ogr
+from config import get_db_uri_ogr, PACKAGES_HOST_URL
 
 
 class Metadata(BaseMetadataABC):
-    """""" ""
+    """"""
 
     name = processor_name_from_file(
         inspect.stack()[1].filename
@@ -42,7 +42,7 @@ This dataset is a derived, processed extract from the global OpenStreetMap
 database, produced by researchers at the University of Oxford to support
 infrastructure systems analysis and climate risk and resilience assessments.
 
-The data is produced from a snapshot of OpenStreetMap (the current version is 
+The data is produced from a snapshot of OpenStreetMap (the current version is
 taken from November 2022) by a reproducible pipeline which is under development
 and made freely available at https://github.com/nismod/open-gira.
     """

@@ -1,10 +1,7 @@
+"""API Helpers
 """
-API Helpers
-"""
-
-from enum import Enum
 import traceback
-from typing import Any, List
+from typing import List
 
 from celery import group
 from celery.result import GroupResult
@@ -15,18 +12,14 @@ from dataproc import tasks, Boundary
 from dataproc.tasks import boundary_setup, generate_provenance
 from dataproc.helpers import (
     get_processor_meta_by_name,
-    list_processors,
-    build_processor_name_version,
 )
 from dataproc.exceptions import InvalidProcessorException
-from api.exceptions import (
-    CannotGetCeleryTasksInfoException,
-)
 
-from config import CELERY_APP, INCLUDE_TEST_PROCESSORS
+from config import CELERY_APP
 
+#
 # API
-
+#
 OPENAPI_TAGS_META = [
     {
         "name": "boundaries",
@@ -46,9 +39,10 @@ OPENAPI_TAGS_META = [
     },
 ]
 
+
+#
 # Logging & Error Handling
-
-
+#
 def handle_exception(logger, err: Exception):
     """
     Handle generic exceptions
@@ -61,14 +55,9 @@ def handle_exception(logger, err: Exception):
     )
 
 
+#
 # DAGs and Processing
-
-
-def get_processor_task(name: str) -> Any:
-    """Get task related to a processor task by its name"""
-    return getattr(tasks, name)
-
-
+#
 def create_dag(boundary: Boundary, processors: List[str]):
     """
     Generate a DAG of processing jobs for a given boundary
@@ -297,44 +286,6 @@ def get_celery_task_info(task_id: str) -> dict:
     """
     task_inspector = CELERY_APP.control.inspect()
     return task_inspector.query_task(task_id)
-
-
-def _task_arg_contains_boundary(boundary_name: str, task: dict) -> bool:
-    """
-    Whether a given task info shows it is instantiated against a given boundary
-    """
-    if task["type"] == "dataproc.tasks.processor_task":
-        # Match task to requested boundary name
-        if (
-            task["args"][1]["name"] == boundary_name
-        ):  # see tasks.py -> processor_task args
-            return True
-    return False
-
-
-def currently_active_or_reserved_processors(boundary_name: str) -> List[str]:
-    """
-    DEPRECATED
-
-    Collect a list of name.version entries for
-        processors wither executing (active) or queued (reserved)
-        against a given boundary name
-    """
-    active_tasks = get_celery_active_tasks()
-    reserved_tasks = get_celery_reserved_tasks()
-    if active_tasks is None or reserved_tasks is None:
-        # The processing backend has probably failed / is not running
-        raise CannotGetCeleryTasksInfoException()
-    processors = []
-    for worker, worker_executing_tasks in active_tasks.items():
-        for task in worker_executing_tasks:
-            if _task_arg_contains_boundary(boundary_name, task):
-                processors.append(task["args"][2])
-    for worker, worker_executing_tasks in reserved_tasks.items():
-        for task in worker_executing_tasks:
-            if _task_arg_contains_boundary(boundary_name, task):
-                processors.append(task["args"][2])
-    return processors
 
 
 def build_package_url(packages_host_url: str, boundary_name: str) -> str:

@@ -3,7 +3,7 @@ AWS S3 Filesystem Backend
 """
 
 import os
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import json
 from datetime import datetime
 import warnings
@@ -66,7 +66,6 @@ class AWSS3StorageBackend(StorageBackend):
         ::param s3_access_key str S3 access key
         ::param s3_secret_key str S3 secret key
         """
-        dict.__init__(self)
         self.bucket = bucket
         self.s3_access_key = s3_access_key
         self.s3_secret_key = s3_secret_key
@@ -132,7 +131,7 @@ class AWSS3StorageBackend(StorageBackend):
             chk = s3_fs.get_file_info(absolute_s3_path)
             return chk.type != fs.FileType.NotFound
 
-    def tree(self, summary: bool = False) -> dict:
+    def tree(self, summary: bool = False) -> Dict:
         """
         Generate a source-of-truth tree for the
         FS showing Packages and Processors
@@ -148,7 +147,7 @@ class AWSS3StorageBackend(StorageBackend):
 
         ::kwarg summary bool Return only boundary names (packages), not included dataset_versions
         """
-        tree = {}
+        tree: Dict[str, Dict[str, List[str]]] = {}
         if summary is True:
             for package in self._list_directories(self._build_absolute_path("")):
                 # First level packages
@@ -494,7 +493,7 @@ class AWSS3StorageBackend(StorageBackend):
             with s3_fs.open_output_stream(datapackage_fpath) as stream:
                 stream.write(json.dumps(datapackage).encode())
 
-    def load_datapackage(self, boundary_name: str) -> dict:
+    def load_datapackage(self, boundary_name: str) -> Dict:
         """Load the datapackage.json file from backend and return"""
         datapackage_fpath = self._build_absolute_path(boundary_name, "datapackage.json")
         with S3Manager(*self._parse_env(), region=self.s3_region) as s3_fs:

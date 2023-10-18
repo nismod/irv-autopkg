@@ -1,5 +1,4 @@
-"""
-Custom Dataproc exceptions
+"""Custom Dataproc exceptions
 """
 
 

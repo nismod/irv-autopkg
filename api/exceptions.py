@@ -1,5 +1,4 @@
-"""
-Custom Exceptions
+"""Custom Exceptions
 """
 
 

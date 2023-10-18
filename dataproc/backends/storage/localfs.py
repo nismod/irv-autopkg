@@ -25,7 +25,6 @@ class LocalFSStorageBackend(StorageBackend):
     """Backend for local filesystem"""
 
     def __init__(self, top_level_folder_path: str) -> None:
-        dict.__init__(self)
         self.top_level_folder_path = top_level_folder_path
 
     def _build_absolute_path(self, *args) -> str:

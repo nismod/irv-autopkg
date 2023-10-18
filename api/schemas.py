@@ -1,5 +1,4 @@
-"""
-Pydantic Schemas
+"""Pydantic Schemas
 """
 
 from typing import List, Optional
@@ -115,9 +114,9 @@ class Package(PackageSummary):
     datapackage: DataPackage  # Datapackage.json parsed from the FS and nested within the Package response
 
 
+#
 # Jobs
-
-
+#
 class Job(BaseModel):
     boundary_name: str
     processors: List[str]  # List of processor names
