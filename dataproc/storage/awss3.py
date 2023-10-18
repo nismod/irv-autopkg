@@ -20,7 +20,7 @@ from dataproc.exceptions import (
 from dataproc import DataPackageResource
 from dataproc import helpers
 from config import PACKAGES_HOST_URL
-from ..base import StorageBackend
+from .base import StorageBackend
 
 
 class S3Manager:
