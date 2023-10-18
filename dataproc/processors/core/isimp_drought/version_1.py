@@ -3,7 +3,6 @@ ISIMP Drought V1 Processor
 """
 
 import os
-import inspect
 import shutil
 from typing import List
 
@@ -11,12 +10,10 @@ from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    processor_name_from_file,
     tiffs_in_folder,
-    version_name_from_file,
     crop_raster,
     assert_geotiff,
-    generate_datapackage,
+    datapackage_resource,
     fetch_zenodo_doi,
     output_filename,
     unpack_zip,
@@ -25,17 +22,7 @@ from .helpers import VERSION_1_SOURCE_FILES
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "ISIMP Drought v1 processor"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "ISIMP Drought"  # The dataset this processor targets
     data_author = "Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020)"
     data_title = "ISIMP Drought"
@@ -163,8 +150,8 @@ class Processor(BaseProcessorABC):
         self.generate_documentation()
 
         # Generate datapackage in log (using directory for URI)
-        hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        hashes, sizes = self.calculate_files_metadata(results_fpaths)
+        datapkg = datapackage_resource(
             self.metadata,
             result_uris,
             "GeoTIFF",

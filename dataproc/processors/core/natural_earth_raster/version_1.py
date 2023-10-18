@@ -3,37 +3,23 @@ Test Raster Processor
 """
 
 import os
-import inspect
 
 from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     crop_raster,
     unpack_zip,
     assert_geotiff,
     download_file,
-    generate_datapackage,
-    output_filename,
+    datapackage_resource,
 )
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth image"  # Longer processor description
     )
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "natural_earth_raster"  # The dataset this processor targets
     data_author = "Natural Earth Data"
     data_title = ""
@@ -65,7 +51,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
             ),
         )
@@ -81,7 +67,7 @@ class Processor(BaseProcessorABC):
         self.update_progress(50, "cropping source")
         output_fpath = os.path.join(
             self.tmp_processing_folder,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
             ),
         )
@@ -103,7 +89,7 @@ class Processor(BaseProcessorABC):
         # Generate Datapackage
         self.update_progress(90, "generate datapackage")
         hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        datapkg = datapackage_resource(
             self.metadata, [result_uri], "GeoTIFF", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg

@@ -3,7 +3,6 @@ WRI Aqueduct Processor
 """
 
 import os
-import inspect
 
 from celery.app import task
 from dataproc.exceptions import ProcessorDatasetExists
@@ -15,28 +14,15 @@ from dataproc.processors.internal.base import (
 from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     crop_raster,
     assert_geotiff,
-    generate_datapackage,
-    output_filename,
+    datapackage_resource,
 )
 from dataproc.processors.core.wri_aqueduct.helpers import HazardAqueduct
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "A Processor for WRI Aqueduct"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "wri_aqueduct"  # The dataset this processor targets
     data_title = "Aqueduct Flood Hazard Maps"
     data_title_long = "World Resource Institute - Aqueduct Flood Hazard Maps (Version 2, updated October 20, 2020)"
@@ -128,7 +114,7 @@ class Processor(BaseProcessorABC):
             subfilename = os.path.splitext(fileinfo.name)[0]
             output_fpath = os.path.join(
                 self.tmp_processing_folder,
-                output_filename(
+                self.output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
@@ -177,7 +163,7 @@ class Processor(BaseProcessorABC):
 
         hashes, sizes = self.calculate_files_metadata(results_fpaths)
         # Generate datapackage in log (using directory for URI)
-        datapkg = generate_datapackage(
+        datapkg = datapackage_resource(
             self.metadata,
             result_uris,
             "GeoTIFF",

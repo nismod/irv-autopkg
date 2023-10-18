@@ -3,33 +3,23 @@ Vector Processor for WRI Global Powerplants
 """
 
 import os
-import inspect
 
 from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     data_file_hash,
-    version_name_from_file,
     download_file,
-    processor_name_from_file,
-    generate_datapackage,
+    datapackage_resource,
     unpack_zip,
     csv_to_gpkg,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
-    output_filename,
 )
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(inspect.stack()[1].filename)
     description = "World Resources Institute - Global Powerplants"
-    version = version_name_from_file(inspect.stack()[1].filename)
     dataset_name = "wri_powerplants"
     data_author = "World Resources Institute"
     data_title = "WRI Global Power Plant Database"
@@ -110,7 +100,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
             ),
         )
@@ -122,7 +112,7 @@ class Processor(BaseProcessorABC):
 
         output_fpath = os.path.join(
             self.tmp_processing_folder,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
             ),
         )
@@ -156,7 +146,7 @@ class Processor(BaseProcessorABC):
 
         # Generate Datapackage
         hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        datapkg = datapackage_resource(
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg

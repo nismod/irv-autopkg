@@ -3,29 +3,16 @@ Test Failing Processor
 """
 
 from time import sleep
-import inspect
 
 from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
 )
-from dataproc.helpers import (
-    version_name_from_file,
-    processor_name_from_file,
-)
 
 
 class Metadata(BaseMetadataABC):
-    """Processor metadata"""
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "A test processor that fails"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = ""  # The dataset this processor targets
     data_author = ""
     data_title = ""

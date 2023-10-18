@@ -3,8 +3,6 @@ JRC Built-C Processor
 """
 
 import os
-import inspect
-import shutil
 from typing import List
 
 from celery.app import task
@@ -17,31 +15,18 @@ from dataproc.processors.internal.base import (
 from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     crop_raster,
     assert_geotiff,
-    generate_datapackage,
-    output_filename,
+    datapackage_resource,
 )
 from dataproc.processors.core.jrc_ghsl_built_c.helpers import JRCBuiltCFetcher
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = """
 A Processor for JRC GHSL Built-Up Characteristics -
 R2022 release, Epoch 2018, 10m resolution, Morphological Settlement Zone and Functional classification
     """  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "r2022_epoch2018_10m_mszfun"  # The dataset this processor targets
     data_author = "Joint Research Centre"
     data_title = "GHS-BUILT-C MSZ and FC, R2022 E2018 10m"
@@ -161,7 +146,7 @@ class Processor(BaseProcessorABC):
             )
             output_fpath = os.path.join(
                 self.tmp_processing_folder,
-                output_filename(
+                self.output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
@@ -226,8 +211,8 @@ class Processor(BaseProcessorABC):
         self.log.debug("%s - generating datapackage meta", self.metadata.name)
 
         # Generate datapackage in log (using directory for URI)
-        hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        hashes, sizes = self.calculate_files_metadata(results_fpaths)
+        datapkg = datapackage_resource(
             self.metadata,
             result_uris,
             "GeoTIFF",

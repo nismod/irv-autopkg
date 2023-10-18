@@ -3,33 +3,20 @@ Vector Processor for OSM Roads and Rail (inc. damages)
 """
 
 import os
-import inspect
+from typing import List
 
 from dataproc import DataPackageLicense
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    version_name_from_file,
     crop_osm_to_geopkg,
-    data_file_hash,
-    data_file_size,
-    processor_name_from_file,
     datapackage_resource,
-    output_filename,
 )
 from dataproc.exceptions import ProcessorDatasetExists
 from config import get_db_uri_ogr, PACKAGES_HOST_URL
 
 
 class Metadata(BaseMetadataABC):
-    """"""
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "Extraction from GRI OSM Table for Roads and Rail, including Damages"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "gri_osm_road_and_rail"  # The dataset this processor targets
     data_author = "nismod/open-gira contributors and OpenStreetMap contributors"
     data_title = "Road and Rail networks derived from OpenStreetMap"
@@ -73,9 +60,9 @@ class Processor(BaseProcessorABC):
     output_geometry_operation = "clip"  # Clip or intersect
     osm_crop_batch_size = 1000
 
-    def output_filenames(self) -> list[str]:
+    def output_filenames(self) -> List[str]:
         return [
-            output_filename(
+            self.output_filename(
                 self.metadata.name,
                 self.metadata.version,
                 self.boundary["name"],
@@ -97,15 +84,13 @@ class Processor(BaseProcessorABC):
         self.log.debug("%s - cropping to geopkg", self.metadata.name)
         gen = crop_osm_to_geopkg(
             self.boundary,
-            str(
-                get_db_uri_ogr(
-                    dbname=os.getenv(self.pg_osm_dbname_env),
-                    username_env=self.pg_osm_user_env,
-                    password_env=self.pg_osm_password_env,
-                    host_env=self.pg_osm_host_env,
-                    port_env=self.pg_osm_port_env,
-                )
-            ),
+            get_db_uri_ogr(
+                dbname=os.getenv(self.pg_osm_dbname_env, ""),
+                username_env=self.pg_osm_user_env,
+                password_env=self.pg_osm_password_env,
+                host_env=self.pg_osm_host_env,
+                port_env=self.pg_osm_port_env,
+            ).__str__(),
             self.input_pg_table,
             output_fpath,
             geometry_column=self.input_geometry_column,
@@ -136,7 +121,7 @@ class Processor(BaseProcessorABC):
         self.update_progress(80, "generate documentation & datapackage")
         self.generate_documentation()
 
-        datapkg = self.generate_datapackage()
+        datapkg = self.generate_datapackage_resource()
         self.provenance_log["datapackage"] = datapkg
         self.log.debug(
             "%s generated datapackage in log: %s", self.metadata.name, datapkg

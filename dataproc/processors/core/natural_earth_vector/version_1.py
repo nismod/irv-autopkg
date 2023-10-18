@@ -3,7 +3,6 @@ Natural Earth Vector (Roads)
 """
 
 import os
-import inspect
 
 import sqlalchemy as sa
 
@@ -11,14 +10,11 @@ from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     unpack_zip,
     download_file,
     ogr2ogr_load_shapefile_to_pg,
     gdal_crop_pg_table_to_geopkg,
-    generate_datapackage,
-    output_filename,
+    datapackage_resource,
 )
 from config import (
     get_db_uri_ogr,
@@ -28,19 +24,9 @@ from config import (
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = (
         "A Test Processor for Natural Earth vector"  # Longer processor description
     )
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "natural_earth_vector_roads"  # The dataset this processor targets
     data_author = "Natural Earth Data"
     data_title = ""
@@ -83,7 +69,7 @@ class Processor(BaseProcessorABC):
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
             ),
         )
@@ -98,7 +84,7 @@ class Processor(BaseProcessorABC):
         # Crop to given boundary
         output_fpath = os.path.join(
             self.tmp_processing_folder,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
             ),
         )
@@ -141,7 +127,7 @@ class Processor(BaseProcessorABC):
 
         # Generate Datapackage
         hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        datapkg = datapackage_resource(
             self.metadata, [result_uri], "GEOPKG", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg

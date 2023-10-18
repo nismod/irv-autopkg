@@ -4,7 +4,6 @@ Test Raster Processor
 
 from time import sleep
 import os
-import inspect
 
 from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
@@ -13,24 +12,13 @@ from dataproc.processors.internal.base import (
     BaseMetadataABC,
 )
 from dataproc.helpers import (
-    version_name_from_file,
     create_test_file,
-    data_file_hash,
     datapackage_resource,
-    processor_name_from_file,
 )
 
 
 class Metadata(BaseMetadataABC):
-    """Processor metadata"""
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "A test processor for nightlights"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "nightlights"  # The dataset this processor targets
     data_author = "Nightlights Author"
     data_title = ""

@@ -1,8 +1,9 @@
 import os
 import logging
 import shutil
+import sys
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 from celery.app import task
 
@@ -12,11 +13,9 @@ from dataproc.storage import StorageBackend
 
 
 class BaseMetadataABC(ABC):
-    """Base Metadata ABC"""
+    """Data Processor Metadata"""
 
-    name: str = ""  # this must follow snakecase formatting, without special chars
     description: str = ""  # Longer processor description
-    version: str = ""  # Version of the Processor
     dataset_name: str = ""  # The dataset this processor targets
     data_title: str = ""  # Short one-liner title for dataset, ~30 characters is good
     data_title_long: str = ""  # Long title for dataset
@@ -25,6 +24,16 @@ class BaseMetadataABC(ABC):
     data_citation: str = ""  # Suggested citation, e.g. "Nicholas, C (2023) irv-autopkg. [Software] Available at: https://github.com/nismod/irv-autopkg"
     data_license: Optional[DataPackageLicense] = None
     data_origin_url: str = ""
+
+    @property
+    def name(self) -> str:
+        """Default to processor directory name"""
+        return os.path.basename(os.path.dirname(_instance_file(self)))
+
+    @property
+    def version(self) -> str:
+        """Default to processor file basename"""
+        return os.path.basename(_instance_file(self)).replace(".py", "")
 
 
 class BaseProcessorABC(ABC):
@@ -147,9 +156,7 @@ class BaseProcessorABC(ABC):
     def generate_documentation(self):
         """Generate documentation for the processor on the result backend"""
         # Generate Documentation
-        class_dir = os.path.dirname(
-            os.path.abspath(sys.modules[self.__class__.__module__].__file__)
-        )
+        class_dir = os.path.dirname(os.path.abspath(_instance_file(self)))
         index_fpath = os.path.join(
             class_dir,
             "templates",
@@ -181,3 +188,8 @@ class BaseProcessorABC(ABC):
             f"{self.metadata.name} - created license documentation"
         ] = license_create
         self.log.debug("%s generated documentation on backend", self.metadata.name)
+
+
+def _instance_file(obj):
+    """Get module filename of an object's class definition"""
+    return sys.modules[obj.__class__.__module__].__file__

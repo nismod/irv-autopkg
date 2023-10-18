@@ -3,8 +3,6 @@ JRC Population Processor
 """
 
 import os
-import inspect
-import shutil
 from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
@@ -13,28 +11,15 @@ from dataproc.processors.internal.base import (
 )
 from dataproc import DataPackageLicense
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     crop_raster,
     assert_geotiff,
-    generate_datapackage,
-    output_filename,
+    datapackage_resource,
 )
 from dataproc.processors.core.jrc_ghsl_population.helpers import JRCPopFetcher
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "A Processor for JRC GHSL Population - R2022 release, Epoch 2020, 1Km resolution"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "r2022_epoch2020_1km"  # The dataset this processor targets
     data_author = "Joint Research Centre"
     data_title = "GHS-POP - R2022A"
@@ -124,7 +109,7 @@ class Processor(BaseProcessorABC):
         source_fpath = self._fetch_source()
         output_fpath = os.path.join(
             self.tmp_processing_folder,
-            output_filename(
+            self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
             ),
         )
@@ -166,7 +151,7 @@ class Processor(BaseProcessorABC):
         # Generate datapackage in log (using directory for URI)
         self.log.debug("%s - generating datapackage meta", self.metadata.name)
         hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        datapkg = datapackage_resource(
             self.metadata, [result_uri], "GeoTIFF", sizes, hashes
         )
         self.provenance_log["datapackage"] = datapkg

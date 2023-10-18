@@ -3,37 +3,23 @@ Gridfinder Processor
 """
 
 import os
-import inspect
 from typing import List
 
 from dataproc import DataPackageLicense
 from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
-    processor_name_from_file,
-    version_name_from_file,
     crop_raster,
     assert_geotiff,
-    generate_datapackage,
+    datapackage_resource,
     fetch_zenodo_doi,
     fiona_crop_file_to_geopkg,
     assert_vector_file,
-    output_filename,
 )
 
 
 class Metadata(BaseMetadataABC):
-    """
-    Processor metadata
-    """
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "gridfinder - Predictive mapping of the global power system using open data"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "gridfinder"  # The dataset this processor targets
     data_author = "Arderne, Christopher; Nicolas, Claire; Zorn, Conrad; Koks, Elco E"
     data_title = "Gridfinder"
@@ -126,7 +112,7 @@ class Processor(BaseProcessorABC):
 
             output_fpath = os.path.join(
                 self.tmp_processing_folder,
-                output_filename(
+                self.output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],
@@ -185,8 +171,8 @@ class Processor(BaseProcessorABC):
         self.generate_documentation()
 
         # Generate datapackage in log (using directory for URI)
-        hashes, sizes = self.calculate_files_metadata([output_fpath])
-        datapkg = generate_datapackage(
+        hashes, sizes = self.calculate_files_metadata(results_fpaths)
+        datapkg = datapackage_resource(
             self.metadata,
             result_uris,
             "mixed",

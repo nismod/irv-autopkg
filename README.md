@@ -285,14 +285,7 @@ export AUTOPKG_STORAGE_BACKEND=awss3 && python -m unittest discover tests/datapr
 ```python
 class Metadata(BaseMetadataABC):
     """Processor metadata"""
-
-    name = processor_name_from_file(
-        inspect.stack()[1].filename
-    )  # this must follow snakecase formatting, without special chars
     description = "A test processor for nightlights"  # Longer processor description
-    version = version_name_from_file(
-        inspect.stack()[1].filename
-    )  # Version of the Processor
     dataset_name = "nightlights"  # The dataset this processor targets
     data_author = "Nightlights Author"
     data_title = ""
