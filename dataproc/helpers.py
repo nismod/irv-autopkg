@@ -20,8 +20,6 @@ import rasterio
 import requests
 from rasterio import sample
 
-from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
-from dataproc.storage import StorageBackend
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
 from dataproc.exceptions import (
     FileCreationException,
@@ -61,7 +59,7 @@ def dataset_name_from_processor(processor_name_version: str) -> str:
     return processor_name_version.split(".")[0]
 
 
-def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
+def valid_processor(name: str, processor) -> bool:
     """Check if a Processor is valid and can be used"""
     if name in ["_module", "pkgutil"]:
         return False
@@ -71,20 +69,6 @@ def valid_processor(name: str, processor: BaseProcessorABC) -> bool:
     if isinstance(processor, ModuleType):
         return True
     return False
-
-
-def version_name_from_file(filename: str):
-    """
-    Generate a version from the name of a processors version file
-    """
-    return os.path.basename(filename).replace(".py", "")
-
-
-def processor_name_from_file(filename: str):
-    """
-    Generate a processor from the name of the folder in-which the processor file resides
-    """
-    return os.path.basename(os.path.dirname(filename))
 
 
 def build_processor_name_version(processor_base_name: str, version: str) -> str:
@@ -113,7 +97,7 @@ def list_processors(
     return valid_processors
 
 
-def get_processor_by_name(processor_name_version: str) -> Optional[BaseProcessorABC]:
+def get_processor_by_name(processor_name_version: str):
     """Retrieve a processor module by its name (including version) and check its validity"""
     import dataproc.processors.core as available_processors
 
@@ -126,9 +110,7 @@ def get_processor_by_name(processor_name_version: str) -> Optional[BaseProcessor
     return None
 
 
-def get_processor_meta_by_name(
-    processor_name_version: str,
-) -> Optional[BaseMetadataABC]:
+def get_processor_meta_by_name(processor_name_version: str):
     """Retrieve a processor MetaData module by its name (including version)"""
     import dataproc.processors.core as available_processors
 
@@ -184,7 +166,7 @@ def add_dataset_to_datapackage(
 
 
 def datapackage_resource(
-    metadata: BaseMetadataABC,
+    metadata,
     uris: List[str],
     dataset_format: str,
     dataset_sizes_bytes: List[int],
