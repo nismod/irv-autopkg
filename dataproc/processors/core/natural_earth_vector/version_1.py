@@ -17,9 +17,7 @@ from dataproc.helpers import (
     download_file,
     ogr2ogr_load_shapefile_to_pg,
     gdal_crop_pg_table_to_geopkg,
-    generate_license_file,
     generate_datapackage,
-    generate_index_file,
     data_file_hash,
     data_file_size,
     output_filename,
@@ -156,36 +154,6 @@ class Processor(BaseProcessorABC):
 
         # Cleanup as required
         return self.provenance_log
-
-    def generate_documentation(self):
-        """Generate documentation for the processor
-        on the result backend"""
-        # Generate Documentation
-        index_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.index_filename,
-        )
-        index_create = generate_index_file(
-            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created index documentation"
-        ] = index_create
-        license_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.license_filename,
-        )
-        license_create = generate_license_file(
-            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created license documentation"
-        ] = license_create
-        self.log.debug("%s generated documentation on backend", self.metadata.name)
 
     def _fetch_source(self) -> str:
         """

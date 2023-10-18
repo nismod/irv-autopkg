@@ -193,7 +193,6 @@ def datapackage_resource(
     """
     Generate a datapackage resource for this processor
 
-    ::param output_fpath str Local path to the processed data used to generate the hash
     ::uris List[str] Final URIs of the output data (on storage backend).
     """
     return DataPackageResource(
@@ -225,67 +224,6 @@ def data_file_hash(fpath: str) -> str:
 def data_file_size(fpath: str) -> int:
     """Filesize in bytes"""
     return os.path.getsize(fpath)
-
-
-def generate_index_file(
-    storage_backend: StorageBackend,
-    index_fpath: str,
-    boundary_name: str,
-    metadata: BaseMetadataABC,
-) -> bool:
-    """
-    Generate the index documentation file and
-        push to supplied storage backend
-
-    ::returns result bool
-    """
-    return storage_backend.put_processor_metadata(
-        index_fpath,
-        boundary_name,
-        metadata.name,
-        metadata.version,
-    )
-
-
-def generate_license_file(
-    storage_backend: StorageBackend,
-    license_fpath: str,
-    boundary_name: str,
-    metadata: BaseMetadataABC,
-) -> bool:
-    """
-    Generate the License documentation file and
-        push to supplied storage backend
-
-    ::returns result bool
-    """
-    return storage_backend.put_processor_metadata(
-        license_fpath,
-        boundary_name,
-        metadata.name,
-        metadata.version,
-    )
-
-
-def generate_datapackage(
-    metadata: BaseMetadataABC,
-    uris: str,
-    data_format: str,
-    sizes: List[int],
-    hashes: List[str],
-) -> Dict:
-    """
-    Generate the datapackage resource
-    """
-    datapkg = datapackage_resource(
-        metadata,
-        uris,
-        data_format,
-        sizes,
-        hashes,
-    )
-    # TODO should this do storage_backend.put_processor_metadata for consistency?
-    return datapkg.asdict()
 
 
 # FILE OPERATIONS

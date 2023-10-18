@@ -13,9 +13,7 @@ from dataproc.helpers import (
     data_file_hash,
     data_file_size,
     processor_name_from_file,
-    generate_index_file,
-    generate_license_file,
-    generate_datapackage,
+    datapackage_resource,
     output_filename,
 )
 from dataproc.exceptions import ProcessorDatasetExists
@@ -75,16 +73,13 @@ class Processor(BaseProcessorABC):
     output_geometry_operation = "clip"  # Clip or intersect
     osm_crop_batch_size = 1000
 
-    def output_fpaths(self) -> list[str]:
+    def output_filenames(self) -> list[str]:
         return [
-            os.path.join(
-                self.tmp_processing_folder,
-                output_filename(
-                    self.metadata.name,
-                    self.metadata.version,
-                    self.boundary["name"],
-                    "gpkg",
-                ),
+            output_filename(
+                self.metadata.name,
+                self.metadata.version,
+                self.boundary["name"],
+                "gpkg",
             )
         ]
 
@@ -93,7 +88,9 @@ class Processor(BaseProcessorABC):
         if self.exists() is True:
             raise ProcessorDatasetExists()
         # Setup output path in the processing backend
-        output_fpath = self.output_fpaths()[0]
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, self.output_filenames()[0]
+        )
 
         # Crop to given boundary
         self.update_progress(10, "cropping source")
@@ -149,40 +146,12 @@ class Processor(BaseProcessorABC):
         return self.provenance_log
 
     def generate_datapackage_resource(self):
-        output_fpath = self.output_fpaths()[0]
+        output_fpath = os.path.join(
+            self.tmp_processing_folder, self.output_filenames()[0]
+        )
         ## TODO write helpers for files produced (local path) and resulting URIs
         hashes = [data_file_hash(output_fpath)]
         sizes = [data_file_size(output_fpath)]
         result_uri = output_fpath.replace(self.tmp_processing_folder, PACKAGES_HOST_URL)
         uris = [result_uri]
-        return generate_datapackage(self.metadata, uris, "GPKG", sizes, hashes)
-
-    def generate_documentation(self):
-        """Generate documentation for the processor
-        on the result backend"""
-        # Generate Documentation
-        index_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.index_filename,
-        )
-        index_create = generate_index_file(
-            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created index documentation"
-        ] = index_create
-        license_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.license_filename,
-        )
-        license_create = generate_license_file(
-            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created license documentation"
-        ] = license_create
-        self.log.debug("%s generated documentation on backend", self.metadata.name)
+        return datapackage_resource(self.metadata, uris, "GPKG", sizes, hashes)

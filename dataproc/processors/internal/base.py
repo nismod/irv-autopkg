@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 from abc import ABC, abstractmethod
+from typing import Dict, Optional
 
 from celery.app import task
 
@@ -21,7 +22,7 @@ class BaseMetadataABC(ABC):
     data_author: str = ""
     data_summary: str = ""  # 1-3 paragraph prose summary of the dataset
     data_citation: str = ""  # Suggested citation, e.g. "Nicholas, C (2023) irv-autopkg. [Software] Available at: https://github.com/nismod/irv-autopkg"
-    data_license: DataPackageLicense = None
+    data_license: Optional[DataPackageLicense] = None
     data_origin_url: str = ""
 
 
@@ -36,12 +37,12 @@ class BaseProcessorABC(ABC):
         task_executor: task,
         processing_root_folder: str,
     ) -> None:
-        """Processor instatntiation"""
+        """Processor instantiation"""
         self.metadata = metadata
         self.boundary = boundary
         self.storage_backend = storage_backend
         self.executor = task_executor
-        self.provenance_log = {}
+        self.provenance_log: Dict = {}
         self.log = logging.getLogger(__name__)
         # Source folder will persist between processor runs
         self.processing_root_folder = processing_root_folder
@@ -100,7 +101,7 @@ class BaseProcessorABC(ABC):
         dataset_version: str,
         boundary_name: str,
         file_format: str,
-        dataset_subfilename: str = None,
+        dataset_subfilename: Optional[str] = None,
     ) -> str:
         """
         Generate a standardized output filename
@@ -112,18 +113,19 @@ class BaseProcessorABC(ABC):
             return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
 
     @abstractmethod
-    def output_fpaths(self) -> list[str]:
+    def output_filenames(self) -> list[str]:
         """List all expected files for a given processor"""
 
     def exists(self):
         """Whether all output files for a given processor and boundary exist"""
-        return self.storage_backend.processor_file_exists(
-            self.boundary["name"],
-            self.metadata.name,
-            self.metadata.version,
-            self.output_filename(
-                self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
-            ),
+        return all(
+            self.storage_backend.processor_file_exists(
+                self.boundary["name"],
+                self.metadata.name,
+                self.metadata.version,
+                filename,
+            )
+            for filename in self.output_filenames()
         )
 
     @abstractmethod
@@ -133,3 +135,41 @@ class BaseProcessorABC(ABC):
     @abstractmethod
     def generate_datapackage_resource(self):
         """Generate datapackage resource for a given processor"""
+
+    def generate_documentation(self):
+        """Generate documentation for the processor on the result backend"""
+        # Generate Documentation
+        class_dir = os.path.dirname(
+            os.path.abspath(sys.modules[self.__class__.__module__].__file__)
+        )
+        index_fpath = os.path.join(
+            class_dir,
+            "templates",
+            self.metadata.version,
+            self.index_filename,
+        )
+        index_create = self.storage_backend.put_processor_metadata(
+            index_fpath,
+            self.boundary["name"],
+            self.metadata.name,
+            self.metadata.version,
+        )
+        self.provenance_log[
+            f"{self.metadata.name} - created index documentation"
+        ] = index_create
+        license_fpath = os.path.join(
+            class_dir,
+            "templates",
+            self.metadata.version,
+            self.license_filename,
+        )
+        license_create = self.storage_backend.put_processor_metadata(
+            license_fpath,
+            self.boundary["name"],
+            self.metadata.name,
+            self.metadata.version,
+        )
+        self.provenance_log[
+            f"{self.metadata.name} - created license documentation"
+        ] = license_create
+        self.log.debug("%s generated documentation on backend", self.metadata.name)

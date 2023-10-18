@@ -18,9 +18,7 @@ from dataproc.helpers import (
     assert_geotiff,
     data_file_hash,
     data_file_size,
-    generate_index_file,
     generate_datapackage,
-    generate_license_file,
     fetch_zenodo_doi,
     output_filename,
     unpack_zip,
@@ -58,7 +56,7 @@ The ISIMIP2b climate input data and impact model output data analyzed in this st
 Event definitions are given in Lange et al, table 1. Land area is exposed to drought if monthly soil moisture falls below the 2.5th percentile of the preindustrial baseline distribution for at least seven consecutive months. Land area is exposed to extreme heat if both a relative indicator based on temperature (Russo et al 2015, 2017) and an absolute indicator based on temperature and relative humidity (Masterton & Richardson, 1979) exceed their respective threshold value.
     """
     data_citation = """
-Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616   
+Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616
     """
     data_license = DataPackageLicense(
         name="CC0",
@@ -186,36 +184,6 @@ class Processor(BaseProcessorABC):
         )
 
         return self.provenance_log
-
-    def generate_documentation(self):
-        """Generate documentation for the processor
-        on the result backend"""
-        # Generate Documentation
-        index_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.index_filename,
-        )
-        index_create = generate_index_file(
-            self.storage_backend, index_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created index documentation"
-        ] = index_create
-        license_fpath = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "templates",
-            self.metadata.version,
-            self.license_filename,
-        )
-        license_create = generate_license_file(
-            self.storage_backend, license_fpath, self.boundary["name"], self.metadata
-        )
-        self.provenance_log[
-            f"{self.metadata.name} - created license documentation"
-        ] = license_create
-        self.log.debug("%s generated documentation on backend", self.metadata.name)
 
     def _fetch_source(self) -> List[str]:
         """
