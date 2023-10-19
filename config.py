@@ -15,15 +15,17 @@ def get_db_uri(
     password_env="AUTOPKG_POSTGRES_PASSWORD",
     host_env="AUTOPKG_POSTGRES_HOST",
     port_env="AUTOPKG_POSTGRES_PORT",
-) -> sa.engine.URL:
+) -> str:
     """Standard user DBURI"""
-    return sa.engine.URL.create(
-        drivername="postgresql+asyncpg",
-        username=getenv(username_env),
-        password=getenv(password_env),
-        host=getenv(host_env),
-        port=getenv(port_env),
-        database=dbname,
+    return str(
+        sa.engine.URL.create(
+            drivername="postgresql+asyncpg",
+            username=getenv(username_env),
+            password=getenv(password_env),
+            host=getenv(host_env),
+            port=getenv(port_env),
+            database=dbname,
+        )
     )
 
 
@@ -33,18 +35,20 @@ def get_db_uri_ogr(
     password_env="AUTOPKG_POSTGRES_PASSWORD",
     host_env="AUTOPKG_POSTGRES_HOST",
     port_env="AUTOPKG_POSTGRES_PORT",
-) -> sa.engine.URL:
+) -> str:
     """Standard user DBURI for use with OGR (no psycopg2)"""
     for var in [username_env, password_env, host_env, port_env]:
         if not getenv(var):
             raise Exception(f"Environment failed to parse - check var: {var}")
-    return sa.engine.URL.create(
-        drivername="postgresql",
-        username=getenv(username_env),
-        password=getenv(password_env),
-        host=getenv(host_env),
-        port=getenv(port_env),
-        database=dbname,
+    return str(
+        sa.engine.URL.create(
+            drivername="postgresql",
+            username=getenv(username_env),
+            password=getenv(password_env),
+            host=getenv(host_env),
+            port=getenv(port_env),
+            database=dbname,
+        )
     )
 
 
@@ -84,7 +88,7 @@ CELERY_BROKER = getenv("AUTOPKG_CELERY_BROKER", "redis://localhost")
 CELERY_BACKEND = getenv("AUTOPKG_CELERY_BACKEND", "redis://localhost")
 CELERY_CONCURRENCY = int(getenv("AUTOPKG_CELERY_CONCURRENCY", "2"))
 REDIS_HOST = getenv("AUTOPKG_REDIS_HOST", "localhost")
-TASK_LOCK_TIMEOUT = getenv("AUTOPKG_TASK_LOCK_TIMEOUT", "600")
+TASK_LOCK_TIMEOUT = int(getenv("AUTOPKG_TASK_LOCK_TIMEOUT", "600"))
 
 # Api Env
 API_POSTGRES_USER = getenv("AUTOPKG_POSTGRES_USER")
