@@ -6,20 +6,17 @@ import sys
 import json
 import string
 import os
-import inspect
-import asyncio
 from typing import List, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 
-current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
 from config import get_db_uri_sync, API_POSTGRES_DB
-from api.db.models import Boundary
-from api import db
+from api.db.models import Boundary, Base
 
 
 def clean_name(name: str) -> str:
@@ -80,9 +77,9 @@ def load_boundaries(
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     if setup_tables is True:
-        db.Base.metadata.create_all(engine)
+        Base.metadata.create_all(engine)
     if wipe_table is True:
-        for tbl in reversed(db.Base.metadata.sorted_tables):
+        for tbl in reversed(Base.metadata.sorted_tables):
             engine.execute(tbl.delete())
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     loaded_ids = []
