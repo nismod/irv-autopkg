@@ -13,7 +13,6 @@ from dataproc.exceptions import (
     FileCreationException,
     PackageNotFoundException,
     DatasetNotFoundException,
-    FolderNotFoundException,
 )
 from dataproc import DataPackageResource
 from dataproc import helpers
@@ -36,6 +35,9 @@ class LocalFSStorageBackend(StorageBackend):
     def _build_uri(self, absolute_fpath: str) -> str:
         """Build the internet-accessible URI from a given localFS absolute fpath"""
         return absolute_fpath.replace(self.top_level_folder_path, PACKAGES_HOST_URL)
+
+    def _exists(self, absolute_fpath: str) -> bool:
+        return os.path.exists(absolute_fpath)
 
     def tree(self, summary: bool = False) -> dict:
         """
@@ -151,20 +153,6 @@ class LocalFSStorageBackend(StorageBackend):
             with open(dest_abs_path, "w") as fptr:
                 json.dump(log, fptr)
         return os.path.exists(dest_abs_path)
-
-    def boundary_folder_exists(self, boundary_name: str):
-        """If a given boundary folder exists"""
-        return os.path.exists(self._build_absolute_path(boundary_name))
-
-    def boundary_data_folder_exists(self, boundary_name: str):
-        """If a given boundary data folder exists"""
-        return os.path.exists(
-            self._build_absolute_path(boundary_name, self.datasets_folder_name)
-        )
-
-    def boundary_file_exists(self, boundary_name: str, filename: str):
-        """If a given file for a boundary exists"""
-        return os.path.exists(self._build_absolute_path(boundary_name, filename))
 
     def create_boundary_folder(self, boundary_name: str):
         """

@@ -123,12 +123,12 @@ class AWSS3StorageBackend(StorageBackend):
                 if item.type == fs.FileType.Directory
             ]
 
-    def _exists(self, absolute_s3_path: str) -> bool:
+    def _exists(self, absolute_path: str) -> bool:
         """
         Check if an object at the given path exists
         """
         with S3Manager(*self._parse_env(), region=self.s3_region) as s3_fs:
-            chk = s3_fs.get_file_info(absolute_s3_path)
+            chk = s3_fs.get_file_info(absolute_path)
             return chk.type != fs.FileType.NotFound
 
     def tree(self, summary: bool = False) -> Dict:
@@ -187,7 +187,7 @@ class AWSS3StorageBackend(StorageBackend):
             return self._list_directories(
                 self._build_absolute_path(package, self.datasets_folder_name)
             )
-        except:
+        except Exception:
             # The package does not exist
             raise PackageNotFoundException(f"{package}")
 
@@ -204,7 +204,7 @@ class AWSS3StorageBackend(StorageBackend):
             return self._list_directories(
                 self._build_absolute_path(package, self.datasets_folder_name, dataset)
             )
-        except:
+        except Exception:
             # The dataset does not exist
             raise DatasetNotFoundException(f"{dataset}")
 
@@ -237,20 +237,6 @@ class AWSS3StorageBackend(StorageBackend):
                 with s3_fs.open_output_stream(dest_abs_path) as stream:
                     stream.write(json.dumps(log).encode())
         return True
-
-    def boundary_folder_exists(self, boundary_name: str):
-        """If a given boundary folder exists"""
-        return self._exists(self._build_absolute_path(boundary_name))
-
-    def boundary_data_folder_exists(self, boundary_name: str):
-        """If a given boundary data folder exists"""
-        return self._exists(
-            self._build_absolute_path(boundary_name, self.datasets_folder_name)
-        )
-
-    def boundary_file_exists(self, boundary_name: str, filename: str):
-        """If a given file for a boundary exists"""
-        return self._exists(self._build_absolute_path(boundary_name, filename))
 
     def create_boundary_folder(self, boundary_name: str):
         """
