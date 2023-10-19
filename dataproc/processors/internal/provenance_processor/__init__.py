@@ -1,8 +1,7 @@
 """
 Manages provenance files for a given boundary
 """
-import os
-from typing import Any, List
+from typing import List
 from datetime import datetime
 import logging
 
@@ -24,7 +23,7 @@ class ProvenanceProcessor:
     def generate(self, processing_log: List[dict]) -> dict:
         """Generate files for a given processor"""
         # Remove duplicate boundary processor entries and extract DataPackage Update Entries
-        boundary_log = None
+        boundary_log = {}
         datapackage_resources = []
         for log in processing_log:
             if not boundary_log:
@@ -40,18 +39,18 @@ class ProvenanceProcessor:
         self._update_datapackage(datapackage_resources)
 
         # Flatten Log
-        _ = self._update_boundary_provenance(processing_log)
+        self._update_boundary_provenance(processing_log)
         # Return the Prov log as task output
         return {datetime.utcnow().isoformat(): processing_log}
 
-    def _update_boundary_provenance(self, processing_log: List[dict]) -> dict:
+    def _update_boundary_provenance(self, processing_log: List[dict]):
         """
         Update a given provenance file for a boundary
         """
         # Add log about provenance running
         processing_log.append({"provenance_processor": {"updated in backend": True}})
         # Dump the Prov log to backend
-        return self.storage_backend.add_provenance(
+        self.storage_backend.add_provenance(
             self.boundary["name"], processing_log, self.provenance_log_filename
         )
 

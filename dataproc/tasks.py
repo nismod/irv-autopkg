@@ -1,11 +1,12 @@
 """
 Processor Task Wrappers
 """
-from typing import Any, List
+from typing import Any
 from contextlib import contextmanager
 import logging
+from api.exceptions import ProcessorNotFoundException
 
-from celery import signals, states
+from celery import signals
 from celery.utils.log import get_task_logger
 from redis import Redis
 
@@ -13,7 +14,7 @@ from config import (
     LOG_LEVEL,
     CELERY_APP,
     TASK_LOCK_TIMEOUT,
-    STORAGE_BACKEND,
+    STORAGE_BACKEND as STORAGE_BACKEND_KEY,
     LOCALFS_PROCESSING_BACKEND_ROOT,
     REDIS_HOST,
 )
@@ -26,12 +27,11 @@ from dataproc.processors.internal import (
 from dataproc.exceptions import (
     ProcessorAlreadyExecutingException,
     ProcessorDatasetExists,
-    ProcessorExecutionFailed,
 )
 from dataproc.storage import init_storage_backend
 
 # Setup Configured Storage Backend
-storage_backend = init_storage_backend(STORAGE_BACKEND)
+STORAGE_BACKEND = init_storage_backend(STORAGE_BACKEND_KEY)
 
 # Used for guarding against parallel execution of duplicate tasks
 redis_client = Redis(host=REDIS_HOST)
@@ -92,7 +92,7 @@ def boundary_setup(boundary: Boundary) -> dict:
         with redis_lock(task_sig) as acquired:
             if acquired:
                 try:
-                    proc = BoundaryProcessor(boundary, storage_backend)
+                    proc = BoundaryProcessor(boundary, STORAGE_BACKEND)
                     result = proc.generate()
                     return result
                 except Exception as err:
@@ -150,11 +150,15 @@ def processor_task(
             if acquired:
                 try:
                     module = get_processor_by_name(processor_name_version)
+                    if module is None:
+                        raise ProcessorNotFoundException
                     module_meta = get_processor_meta_by_name(processor_name_version)
+                    if module_meta is None:
+                        raise ProcessorNotFoundException
                     with module(
                         module_meta,
                         boundary,
-                        storage_backend,
+                        STORAGE_BACKEND,
                         self,
                         LOCALFS_PROCESSING_BACKEND_ROOT,
                     ) as proc:
@@ -203,7 +207,7 @@ def generate_provenance(self, sink: Any, boundary: Boundary):
                     # The sink can come in as a list (multiple processors ran) or dict (one processor ran)
                     if isinstance(sink, dict):
                         sink = [sink]
-                    proc = ProvenanceProcessor(boundary, storage_backend)
+                    proc = ProvenanceProcessor(boundary, STORAGE_BACKEND)
                     return proc.generate(sink)
                 except Exception as err:
                     logger.exception("")

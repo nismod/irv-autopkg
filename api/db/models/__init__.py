@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from config import DBURI_API
+from config import DBURI_API  # type: ignore
 
 SQLALCHEMY_DATABASE_URL = DBURI_API
 
@@ -16,3 +16,5 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 from .boundary import Boundary
+
+__all__ = ["Base", "Boundary"]

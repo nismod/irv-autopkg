@@ -2,14 +2,14 @@
 Boundary LIST endpoints
 """
 import inspect
-from typing import List
+from typing import List, Optional
 import logging
 
 from fastapi import APIRouter, HTTPException
 
 from config import LOG_LEVEL
 from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE, BOUNDARY_SEARCH_ROUTE
-from api.db import DBController
+from api.db.controller import DBController
 from api.helpers import handle_exception
 from api import schemas
 from api.exceptions import BoundarySearchException, BoundaryNotFoundException
@@ -39,7 +39,9 @@ async def get_all_boundary_summaries():
 
 @router.get(BOUNDARY_SEARCH_ROUTE, response_model=List[schemas.BoundarySummary])
 async def search_boundary(
-    name: str = None, latitude: float = None, longitude: float = None
+    name: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
 ):
     """Search for boundaries by name or coordinates."""
     try:

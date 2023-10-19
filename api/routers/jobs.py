@@ -27,7 +27,7 @@ from api.exceptions import (
     ProcessorAlreadyExecutingException,
     CannotGetCeleryTasksInfoException,
 )
-from api.db import DBController
+from api.db.controller import DBController
 
 router = APIRouter(
     tags=["jobs"],
@@ -78,12 +78,16 @@ def get_status(job_id: str):
             if not result:
                 raise JobNotFoundException(f"{job_id}")
             group_result = GroupResult(job_id, [result], ResultBase())
+        if group_result.results:
+            results = group_result.results
+        else:
+            results = []
         # Remove Boundary processor from each jobs info
         logger.debug(
             "Group Status: %s",
             [
                 [result.state, result.info, result.args, result.name]
-                for result in group_result.results
+                for result in results
             ],
         )
         # Create response object

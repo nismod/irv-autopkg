@@ -9,7 +9,6 @@ import shutil
 import warnings
 import zipfile
 from collections import defaultdict, OrderedDict
-from enum import Enum
 from subprocess import check_output, CalledProcessError, check_call
 from time import time
 from types import ModuleType
@@ -23,30 +22,11 @@ from rasterio import sample
 from dataproc import Boundary, DataPackageLicense, DataPackageResource
 from dataproc.exceptions import (
     FileCreationException,
-    SourceRasterProjectionException,
     UnexpectedFilesException,
     ZenodoGetFailedException,
 )
 
 # DAGs and Processing
-
-
-def processors_as_enum(
-    include_test_processors: bool = False, additions: List[str] = []
-) -> Enum:
-    """Generate an Enum of the currently available processors"""
-    procs = {}
-    for proc_name, proc_versions in list_processors(
-        include_test_processors=include_test_processors
-    ).items():
-        for version in proc_versions:
-            name_version = build_processor_name_version(proc_name, version)
-            procs[name_version] = name_version
-    # Add in any additional fields
-    for addition in additions:
-        if not addition in procs.keys():
-            procs[addition] = addition
-    return Enum("ProcessorsEnum", procs)
 
 
 def processor_name(dataset: str, version: str) -> str:
@@ -134,10 +114,10 @@ def add_license_to_datapackage(
 
     ::returns datapackage dict Update with given license if applicable
     """
-    if not "licenses" in datapackage.keys():
+    if "licenses" not in datapackage.keys():
         datapackage["licenses"] = [dp_license.asdict()]
     else:
-        if not dp_license.asdict()["name"] in [
+        if dp_license.asdict()["name"] not in [
             i["name"] for i in datapackage["licenses"]
         ]:
             datapackage["licenses"].append(dp_license.asdict())
@@ -153,12 +133,14 @@ def add_dataset_to_datapackage(
     ::returns datapackage dict Updated with given dataset if applicable
     """
     # Generate the resource object
-    if not "resources" in datapackage.keys():
+    if "resources" not in datapackage.keys():
         datapackage["resources"] = [dp_resource.asdict()]
     else:
-        if not "-".join(
+        if "-".join(
             [dp_resource.asdict()["name"], dp_resource.asdict()["version"]]
-        ) in ["-".join([i["name"], i["version"]]) for i in datapackage["resources"]]:
+        ) not in [
+            "-".join([i["name"], i["version"]]) for i in datapackage["resources"]
+        ]:
             datapackage["resources"].append(dp_resource.asdict())
     # Update the license
     datapackage = add_license_to_datapackage(dp_resource.dp_license, datapackage)
@@ -277,7 +259,7 @@ def unpack_and_check_zip_tifs(
     target_folder: str,
     expected_crs: str,
     num_expected_tifs: int = 1,
-    expected_hashes: List[str] = None,
+    expected_hashes: Optional[List[str]] = None,
 ) -> List[str]:
     """
     Unpack a downloaded zip and do some checks to ensure it is correct
@@ -381,7 +363,7 @@ def sample_geotiff_coords(fpath: str, num_coords: int = 10) -> np.ndarray:
 
 
 def sample_geotiff(
-    fpath: str, coords: np.ndarray = None, num_samples: int = 10
+    fpath: str, coords: Optional[np.ndarray] = None, num_samples: int = 10
 ) -> Tuple[np.ndarray, List[np.ndarray]]:
     """
     Retrieve a sample of given GeoTIFF file.
@@ -402,11 +384,11 @@ def sample_geotiff(
 
 def assert_geotiff(
     fpath: str,
-    check_crs: str = "EPSG:4326",
+    check_crs: Optional[str] = "EPSG:4326",
     check_compression=True,
     check_is_bigtiff=False,
-    check_pixel_coords: np.ndarray = None,
-    check_pixel_expected_samples: List[np.ndarray] = None,
+    check_pixel_coords: Optional[np.ndarray] = None,
+    check_pixel_expected_samples: Optional[List[np.ndarray]] = None,
 ):
     """
     Check a given file is a valid geotiff, optionally checking:
@@ -466,7 +448,7 @@ def crop_raster(
     inds = gdal.Open(raster_input_fpath)
 
     source_boundary_crs = pyproj.CRS("EPSG:4326")
-    target_boundary_crs = pyproj.crs.CRS.from_wkt(inds.GetProjection())
+    target_boundary_crs = pyproj.CRS.from_wkt(inds.GetProjection())
     if source_boundary_crs != target_boundary_crs:
         # Reproject boundary to source raster for projwin
         project = pyproj.Transformer.from_crs(
@@ -499,7 +481,9 @@ def crop_raster(
 
 
 def assert_vector_file(
-    fpath: str, expected_shape: tuple = None, expected_crs: str = None
+    fpath: str,
+    expected_shape: Optional[tuple] = None,
+    expected_crs: Optional[str] = None,
 ):
     """
     Check a given file is a valid vector file and can beparsed with geopandas.
@@ -512,6 +496,8 @@ def assert_vector_file(
     import fiona
 
     with fiona.open(fpath, "r") as fptr:
+        if fptr.schema is None or fptr.crs is None:
+            assert False, f"file did not load schema or crs: {fpath}"
         if expected_shape is not None:
             shape = (
                 len(fptr),
@@ -556,7 +542,7 @@ def copy_from_pg_table(pg_uri: str, sql: str, output_csv_fpath: str) -> int:
     with psycopg2.connect(dsn=pg_uri) as conn:
         with open(output_csv_fpath, "w") as fptr:
             with conn.cursor() as cur:
-                cur.copy_expert(sql, fptr)
+                cur.copy_expert(sql, fptr)  # type: ignore
     with open(output_csv_fpath, "rb") as fptr:
         total_lines = sum(1 for i in fptr) - 1  # Remove header line
     return total_lines
@@ -569,7 +555,7 @@ def crop_osm_to_geopkg(
     output_fpath: str,
     geometry_column: str = "geom",
     extract_type: str = "clip",
-    limit: int = None,
+    limit: Optional[int] = None,
     batch_size: int = 1000,
 ) -> Generator:
     """
@@ -592,7 +578,7 @@ def crop_osm_to_geopkg(
     """
     import fiona
     from fiona.crs import CRS
-    from shapely import from_wkt, to_geojson, from_wkb
+    from shapely import to_geojson, from_wkb
 
     geojson = json.dumps(boundary["geojson"])
     if extract_type == "intersect":
@@ -609,9 +595,9 @@ def crop_osm_to_geopkg(
         """
     if limit is not None and int(limit):
         stmt = f"{stmt} LIMIT {limit}"
+    tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f"{time()}_tmp.csv")
     try:
         # Generate CSV using COPY command
-        tmp_csv_fpath = os.path.join(os.path.dirname(output_fpath), f"{time()}_tmp.csv")
 
         # initialise count/index variables
         csv_line_count = copy_from_pg_table(pg_uri, stmt, tmp_csv_fpath)
@@ -779,6 +765,7 @@ def fiona_crop_file_to_geopkg(
     import fiona
     from fiona.crs import CRS
     import shapely
+    import shapely.geometry
 
     clip_geom = shapely.from_geojson(json.dumps(boundary["geojson"]))
     with fiona.open(
@@ -832,11 +819,12 @@ def csv_to_gpkg(
             "estimated_generation_note_2017": str,
         },
     )
-    if not latitude_col in df.columns or not longitude_col in df.columns:
+    if latitude_col not in df.columns or longitude_col not in df.columns:
         raise Exception(
             f"latitude and longitude columns required in CSV columns, got: {df.columns}"
         )
-    df = df.set_geometry(gp.points_from_xy(df[longitude_col], df[latitude_col]))
-    df.crs = crs
-    df.to_file(output_gpkg_fpath)
+    lons, lats = df[longitude_col], df[latitude_col]
+    geoms = gp.points_from_xy(lons, lats)
+    gdf = gp.GeoDataFrame(df, geometry=geoms, crs=crs)  # type: ignore
+    gdf.to_file(output_gpkg_fpath)
     return os.path.exists(output_gpkg_fpath)

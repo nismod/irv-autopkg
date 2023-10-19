@@ -6,7 +6,7 @@ from enum import Enum
 
 from pydantic import BaseModel, validator
 
-from dataproc.helpers import processors_as_enum
+from dataproc.helpers import build_processor_name_version, list_processors
 from config import INCLUDE_TEST_PROCESSORS
 
 MISSING_PROC_MSG = "processor details not available"
@@ -155,12 +155,29 @@ class JobStateEnum(str, Enum):
     REVOKED = "REVOKED"
 
 
+def _get_members():
+    procs = {}
+    for proc_name, proc_versions in list_processors(
+        include_test_processors=INCLUDE_TEST_PROCESSORS
+    ).items():
+        for version in proc_versions:
+            name_version = build_processor_name_version(proc_name, version)
+            procs[name_version] = name_version
+    # Add in any additional fields
+    additions = [MISSING_PROC_MSG]
+    for addition in additions:
+        if addition not in procs.keys():
+            procs[addition] = addition
+    return procs
+
+
+ProcessorsEnum = Enum("ProcessorsEnum", _get_members())
+
+
 class JobStatus(SubmittedJob):
     """Status of a Submitted Job"""
 
-    processor_name: processors_as_enum(
-        include_test_processors=INCLUDE_TEST_PROCESSORS, additions=[MISSING_PROC_MSG]
-    )
+    processor_name: ProcessorsEnum
     job_status: JobStateEnum
     job_progress: Optional[JobProgress]
     job_result: Optional[dict]

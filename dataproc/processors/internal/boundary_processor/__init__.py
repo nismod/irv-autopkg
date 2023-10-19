@@ -6,6 +6,7 @@ import os
 import logging
 
 from config import LOCALFS_PROCESSING_BACKEND_ROOT
+from dataproc.storage.base import StorageBackend
 
 
 class BoundaryProcessor:
@@ -17,7 +18,7 @@ class BoundaryProcessor:
     version_filename = "version.html"
     datapackage_filename = "datapackage.json"
 
-    def __init__(self, boundary: dict, storage_backend: dict) -> None:
+    def __init__(self, boundary: dict, storage_backend: StorageBackend) -> None:
         """
         Boundary Processor initialised with a boundary, storage and processing backends
 
@@ -30,10 +31,12 @@ class BoundaryProcessor:
         self.storage_backend = storage_backend
         self.log = logging.getLogger(__name__)
         self.provenance_log = {}
+        if LOCALFS_PROCESSING_BACKEND_ROOT is None:
+            raise KeyError("LOCALFS_PROCESSING_BACKEND_ROOT not loaded from config")
         self.tmp_processing_folder = os.path.join(
             LOCALFS_PROCESSING_BACKEND_ROOT,
             "boundary_processor",
-            self.boundary["name"],
+            str(self.boundary["name"]),
             "tmp",
         )
         os.makedirs(self.tmp_processing_folder, exist_ok=True)

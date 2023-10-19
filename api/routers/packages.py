@@ -27,6 +27,7 @@ from api.helpers import (
     build_dataset_version_url,
 )
 from api.schemas import (
+    DataPackage,
     Package,
     PackageSummary,
     Processor as SchemaProcessor,
@@ -86,6 +87,8 @@ async def get_package(boundary_name: str):
         LOGGER.debug("found existing datasets: %s", existing_datasets)
         for dataset in existing_datasets:
             processor_versions = []
+            proc_name = "none_found"
+            version = "none_found"
             try:
                 for version in STORAGE_BACKEND.dataset_versions(boundary_name, dataset):
                     proc_name = processor_name(dataset, version)
@@ -104,12 +107,14 @@ async def get_package(boundary_name: str):
                         version,
                     )
                     processor_versions.append(meta)
+
                 if processor_versions:
                     output_processors.append(
                         SchemaProcessor(name=dataset, versions=processor_versions)
                     )
                 else:
                     raise PackageHasNoDatasetsException(boundary_name)
+
             except DatasetNotFoundException:
                 LOGGER.debug(
                     "No dataset with the given name was found on the FS: %s", dataset
@@ -126,10 +131,10 @@ async def get_package(boundary_name: str):
             raise PackageHasNoDatasetsException(boundary_name)
 
         # Collect the datapackage from FS
-        datapackage = None
         try:
             datapackage = STORAGE_BACKEND.load_datapackage(boundary_name)
         except Exception as err:
+            datapackage = {}
             handle_exception(LOGGER, err)
 
         # Collect the boundary geom
@@ -140,7 +145,7 @@ async def get_package(boundary_name: str):
             uri=build_package_url(PACKAGES_HOST_URL, boundary_name),
             boundary=boundary,
             processors=output_processors,
-            datapackage=datapackage if datapackage else {},
+            datapackage=DataPackage(**datapackage),
         )
         LOGGER.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result

@@ -5,7 +5,7 @@ DB Queries - Postgres
 import json
 from typing import List
 
-from sqlalchemy.sql import select, update, insert, func
+from sqlalchemy.sql import select, func
 from geoalchemy2 import Geometry
 from fastapi.logger import logger
 from databases import Database
@@ -25,9 +25,9 @@ class Queries:
         """
         Generate geometry from GeoJSON via DB
         """
-        geojson = json.dumps(geojson)
+        geojson_str = json.dumps(geojson)
         stmt = select(
-            func.ST_AsEWKT(func.ST_SetSRID(func.ST_GeomFromGeoJSON(geojson), 4326))
+            func.ST_AsEWKT(func.ST_SetSRID(func.ST_GeomFromGeoJSON(geojson_str), 4326))
         )
         res = await self.database.execute(stmt)
         return res

@@ -2,8 +2,8 @@ import databases
 
 from config import DBURI_API
 
-from .models import *
+from .models import boundary
 
-database = databases.Database(str(DBURI_API))
+database = databases.Database(DBURI_API)
 
-from .controller import DBController
+__all__ = ["boundary", "database"]
