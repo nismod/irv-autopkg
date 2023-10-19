@@ -314,29 +314,28 @@ class Processor(BaseProcessorABC):
             self.processing_root_folder, "test_processor", self.metadata.version, "outputs"
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
-        else:
-            # Generate a blank tests dataset
-            create_test_file(output_fpath)
-            result_uri = self.storage_backend.put_processor_data(
-                output_fpath,
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-            )
-            self.provenance_log[f"{self.metadata.name} - move to storage success"] = True
-            self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
-            # Generate the datapackage and add it to the output log
-            hashes, sizes = self.calculate_files_metadata([output_fpath])
-            datapkg = datapackage_resource(
-                self.metadata,
-                [result_uri],
-                "GEOPKG",
-                sizes,
-                hashes,
-            )
-            self.provenance_log["datapackage"] = datapkg.asdict()
+
+        # Generate a blank tests dataset
+        create_test_file(output_fpath)
+        result_uri = self.storage_backend.put_processor_data(
+            output_fpath,
+            self.boundary["name"],
+            self.metadata.name,
+            self.metadata.version,
+        )
+        self.provenance_log[f"{self.metadata.name} - move to storage success"] = True
+        self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
+        # Generate the datapackage and add it to the output log
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
+        datapkg = datapackage_resource(
+            self.metadata,
+            [result_uri],
+            "GEOPKG",
+            sizes,
+            hashes,
+        )
+        self.provenance_log["datapackage"] = datapkg.asdict()
+
         return self.provenance_log
 
     def exists(self):

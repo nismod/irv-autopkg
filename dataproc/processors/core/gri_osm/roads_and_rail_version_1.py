@@ -11,7 +11,6 @@ from dataproc.helpers import (
     crop_osm_to_geopkg,
     datapackage_resource,
 )
-from dataproc.exceptions import ProcessorDatasetExists
 from config import get_db_uri_ogr, PACKAGES_HOST_URL
 
 
@@ -47,9 +46,6 @@ Global Road and Rail networks derived from OpenStreetMap. [Dataset] Available at
 class Processor(BaseProcessorABC):
     """A Processor for GRI OSM Database"""
 
-    index_filename = "index.html"
-    license_filename = "license.html"
-
     pg_osm_host_env = "AUTOPKG_OSM_PGHOST"
     pg_osm_port_env = "AUTOPKG_OSM_PORT"
     pg_osm_user_env = "AUTOPKG_OSM_PGUSER"
@@ -72,8 +68,6 @@ class Processor(BaseProcessorABC):
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
         # Setup output path in the processing backend
         output_fpath = os.path.join(
             self.tmp_processing_folder, self.output_filenames()[0]

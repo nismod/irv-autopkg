@@ -5,7 +5,6 @@ Vector Processor for WRI Global Powerplants
 import os
 
 from dataproc import DataPackageLicense
-from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     data_file_hash,
@@ -45,8 +44,6 @@ http://resourcewatch.org/ https://earthengine.google.com/"""
 class Processor(BaseProcessorABC):
     """A Processor for GRI OSM Database"""
 
-    index_filename = "index.html"
-    license_filename = "license.html"
     total_expected_files = 1
     source_zip_url = "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
     expected_zip_hash = "083f11452efc1ed0e8fb1494f0ce49e5c37718e2"
@@ -94,21 +91,16 @@ class Processor(BaseProcessorABC):
     }
     expected_source_gpkg_shape = (34936, 37)
 
-    def exists(self):
+    def output_filenames(self):
         """Whether all output files for a given processor & boundary exist on the FS on not"""
-        return self.storage_backend.processor_file_exists(
-            self.boundary["name"],
-            self.metadata.name,
-            self.metadata.version,
+        return [
             self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
-            ),
-        )
+            )
+        ]
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
 
         output_fpath = os.path.join(
             self.tmp_processing_folder,

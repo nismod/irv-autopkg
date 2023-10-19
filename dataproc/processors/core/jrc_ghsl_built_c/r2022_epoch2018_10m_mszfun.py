@@ -5,9 +5,6 @@ JRC Built-C Processor
 import os
 from typing import List
 
-from celery.app import task
-from dataproc.exceptions import ProcessorDatasetExists
-
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
@@ -83,15 +80,13 @@ class Processor(BaseProcessorABC):
         "GHS_BUILT_C_FUN_E2018_GLOBE_R2022A_54009_10_V1_0.tif",
         "GHS_BUILT_C_MSZ_E2018_GLOBE_R2022A_54009_10_V1_0.tif",
     ]
-    index_filename = "index.html"
-    license_filename = "license.html"
 
     def __init__(
         self,
         metadata: BaseMetadataABC,
         boundary: Boundary,
         storage_backend: StorageBackend,
-        task_executor: task,
+        task_executor,
         processing_root_folder: str,
     ) -> None:
         super().__init__(
@@ -99,33 +94,9 @@ class Processor(BaseProcessorABC):
         )
         self.fetcher = JRCBuiltCFetcher()
 
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        try:
-            count_on_backend = self.storage_backend.count_boundary_data_files(
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-                datafile_ext=".tif",
-            )
-        except FileNotFoundError:
-            return False
-        return count_on_backend == self.total_expected_files
-
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
-        else:
-            # Ensure we start with a blank output folder on the storage backend
-            try:
-                self.storage_backend.remove_boundary_data_files(
-                    self.boundary["name"],
-                    self.metadata.name,
-                    self.metadata.version,
-                )
-            except FileNotFoundError:
-                pass
+
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",

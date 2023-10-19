@@ -7,7 +7,6 @@ import os
 import sqlalchemy as sa
 
 from dataproc import DataPackageLicense
-from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     unpack_zip,
@@ -47,8 +46,6 @@ class Metadata(BaseMetadataABC):
 class Processor(BaseProcessorABC):
     """A Processor for Natural Earth Vector"""
 
-    index_filename = "index.html"
-    license_filename = "license.html"
     source_zip_filename = "ne_10m_roads.zip"
     source_zip_url = os.path.join(
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_roads.zip"
@@ -63,21 +60,16 @@ class Processor(BaseProcessorABC):
     pg_host_env = "AUTOPKG_POSTGRES_HOST"
     pg_port_env = "AUTOPKG_POSTGRES_PORT"
 
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        return self.storage_backend.processor_file_exists(
-            self.boundary["name"],
-            self.metadata.name,
-            self.metadata.version,
+    def output_filenames(self):
+        return [
             self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "gpkg"
             ),
-        )
+        ]
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
+
         # Check if the source exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
         pg_table_name = self._fetch_source()
@@ -91,11 +83,14 @@ class Processor(BaseProcessorABC):
 
         self.update_progress(20, "cropping source")
         self.log.debug("Natural earth vector - cropping Roads to geopkg")
+        dbname = os.getenv(self.pg_dbname_env)
+        if dbname is None:
+            raise KeyError(f"{self.pg_dbname_env} not set")
         gdal_crop_pg_table_to_geopkg(
             self.boundary,
             str(
                 get_db_uri_ogr(
-                    dbname=os.getenv(self.pg_dbname_env),
+                    dbname=dbname,
                     username_env=self.pg_user_env,
                     password_env=self.pg_password_env,
                     host_env=self.pg_host_env,

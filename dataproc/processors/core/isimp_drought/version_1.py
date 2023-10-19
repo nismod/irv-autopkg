@@ -7,7 +7,6 @@ import shutil
 from typing import List
 
 from dataproc import DataPackageLicense
-from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     tiffs_in_folder,
@@ -15,7 +14,6 @@ from dataproc.helpers import (
     assert_geotiff,
     datapackage_resource,
     fetch_zenodo_doi,
-    output_filename,
     unpack_zip,
 )
 from .helpers import VERSION_1_SOURCE_FILES
@@ -58,36 +56,10 @@ class Processor(BaseProcessorABC):
     zenodo_doi = "10.5281/zenodo.7732393"
     source_files = VERSION_1_SOURCE_FILES
     total_expected_files = len(source_files)
-    index_filename = "index.html"
-    license_filename = "license.html"
-
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        try:
-            count_on_backend = self.storage_backend.count_boundary_data_files(
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-                datafile_ext=".tif",
-            )
-        except FileNotFoundError:
-            return False
-        return count_on_backend == self.total_expected_files
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
-        else:
-            # Ensure we start with a blank output folder on the storage backend
-            try:
-                self.storage_backend.remove_boundary_data_files(
-                    self.boundary["name"],
-                    self.metadata.name,
-                    self.metadata.version,
-                )
-            except FileNotFoundError:
-                pass
+
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
         source_fpaths = self._fetch_source()
@@ -104,7 +76,7 @@ class Processor(BaseProcessorABC):
 
             output_fpath = os.path.join(
                 self.tmp_processing_folder,
-                output_filename(
+                self.output_filename(
                     self.metadata.name,
                     self.metadata.version,
                     self.boundary["name"],

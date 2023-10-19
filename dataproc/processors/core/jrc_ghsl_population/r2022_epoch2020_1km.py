@@ -3,7 +3,6 @@ JRC Population Processor
 """
 
 import os
-from dataproc.exceptions import ProcessorDatasetExists
 
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
@@ -69,36 +68,17 @@ class Processor(BaseProcessorABC):
     total_expected_files = 1
     source_fnames = ["GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.tif"]
     zip_url = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2022A/GHS_POP_E2020_GLOBE_R2022A_54009_1000/V1-0/GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.zip"
-    index_filename = "index.html"
-    license_filename = "license.html"
 
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        try:
-            count_on_backend = self.storage_backend.count_boundary_data_files(
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-                datafile_ext=".tif",
+    def output_filenames(self) -> list[str]:
+        return [
+            self.output_filename(
+                self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
             )
-        except FileNotFoundError:
-            return False
-        return count_on_backend == self.total_expected_files
+        ]
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
-        else:
-            # Ensure we start with a blank output folder on the storage backend
-            try:
-                self.storage_backend.remove_boundary_data_files(
-                    self.boundary["name"],
-                    self.metadata.name,
-                    self.metadata.version,
-                )
-            except FileNotFoundError:
-                pass
+
         # Check if the source TIFF exists and fetch it if not
         self.log.debug(
             "%s - collecting source geotiffs into %s",

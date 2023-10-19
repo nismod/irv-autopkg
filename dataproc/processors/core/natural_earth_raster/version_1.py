@@ -5,7 +5,6 @@ Test Raster Processor
 import os
 
 from dataproc import DataPackageLicense
-from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import BaseProcessorABC, BaseMetadataABC
 from dataproc.helpers import (
     crop_raster,
@@ -38,28 +37,21 @@ class Metadata(BaseMetadataABC):
 class Processor(BaseProcessorABC):
     """A Processor for Natural Earth"""
 
-    index_filename = "index.html"
-    license_filename = "license.html"
     source_zip_filename = "NE2_50M_SR.zip"
     source_zip_url = os.path.join(
         "https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/50m/raster/NE2_50M_SR.zip"
     )
 
-    def exists(self):
-        """Whether all output files for a given processor & boundary exist on the FS on not"""
-        return self.storage_backend.processor_file_exists(
-            self.boundary["name"],
-            self.metadata.name,
-            self.metadata.version,
+    def output_filenames(self):
+        return [
             self.output_filename(
                 self.metadata.name, self.metadata.version, self.boundary["name"], "tif"
-            ),
-        )
+            )
+        ]
 
     def generate(self):
         """Generate files for a given processor"""
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
+
         # Check if the source TIFF exists and fetch it if not
         self.update_progress(10, "fetching and verifying source")
         geotiff_fpath = self._fetch_source()

@@ -5,9 +5,9 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 
-from celery.app import task
 
 from dataproc import Boundary, DataPackageLicense
+from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.helpers import data_file_hash
 from dataproc.storage import StorageBackend
 
@@ -37,14 +37,18 @@ class BaseMetadataABC(ABC):
 
 
 class BaseProcessorABC(ABC):
-    """Base Processor ABC"""
+    """Base Processor Class"""
+
+    total_expected_files = 0
+    index_filename = "index.html"
+    license_filename = "license.html"
 
     def __init__(
         self,
         metadata: BaseMetadataABC,
         boundary: Boundary,
         storage_backend: StorageBackend,
-        task_executor: task,
+        task_executor,
         processing_root_folder: str,
     ) -> None:
         """Processor instantiation"""
@@ -54,17 +58,33 @@ class BaseProcessorABC(ABC):
         self.executor = task_executor
         self.provenance_log: Dict = {}
         self.log = logging.getLogger(__name__)
-        # Source folder will persist between processor runs
         self.processing_root_folder = processing_root_folder
+        # Source folder will persist between processor runs
         self.source_folder = os.path.join(self.processing_root_folder, "source_data")
-        os.makedirs(self.source_folder, exist_ok=True)
         # Tmp Processing data will be cleaned between processor runs
         self.tmp_processing_folder = os.path.join(
             self.processing_root_folder, "tmp", self.boundary["name"]
         )
-        os.makedirs(self.tmp_processing_folder, exist_ok=True)
 
     def __enter__(self):
+        if self._exists():
+            raise ProcessorDatasetExists
+
+        # Ensure we have source data and tmp processing folders
+        os.makedirs(self.source_folder, exist_ok=True)
+        self._clean_tmp()
+        os.makedirs(self.tmp_processing_folder)
+
+        # Ensure we start with a blank output folder on the storage backend
+        try:
+            self.storage_backend.remove_boundary_data_files(
+                self.boundary["name"],
+                self.metadata.name,
+                self.metadata.version,
+            )
+        except FileNotFoundError:
+            pass
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -75,6 +95,34 @@ class BaseProcessorABC(ABC):
             exc_val,
             exc_tb,
         )
+        self._clean_tmp()
+
+    def _exists(self):
+        """Whether all output files for a given processor and boundary exist"""
+        # TODO test / handle either approach???s
+        if self.total_expected_files > 0:
+            try:
+                count_on_backend = self.storage_backend.count_boundary_data_files(
+                    self.boundary["name"],
+                    self.metadata.name,
+                    self.metadata.version,
+                    datafile_ext=".tif",
+                )
+            except FileNotFoundError:
+                return False
+            return count_on_backend == self.total_expected_files
+
+        return all(
+            self.storage_backend.processor_file_exists(
+                self.boundary["name"],
+                self.metadata.name,
+                self.metadata.version,
+                filename,
+            )
+            for filename in self.output_filenames()
+        )
+
+    def _clean_tmp(self):
         try:
             shutil.rmtree(self.tmp_processing_folder, ignore_errors=True)
         except FileNotFoundError:
@@ -117,7 +165,7 @@ class BaseProcessorABC(ABC):
         Generate a standardized output filename
         """
         base = f"{dataset_name}-{dataset_version}"
-        if not dataset_subfilename:
+        if dataset_subfilename is not None:
             return f"{base}-{boundary_name}.{file_format.replace('.', '')}"
         else:
             return f"{base}-{dataset_subfilename}-{boundary_name}.{file_format.replace('.', '')}"
@@ -125,18 +173,6 @@ class BaseProcessorABC(ABC):
     @abstractmethod
     def output_filenames(self) -> list[str]:
         """List all expected files for a given processor"""
-
-    def exists(self):
-        """Whether all output files for a given processor and boundary exist"""
-        return all(
-            self.storage_backend.processor_file_exists(
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-                filename,
-            )
-            for filename in self.output_filenames()
-        )
 
     @abstractmethod
     def generate(self):
@@ -190,6 +226,9 @@ class BaseProcessorABC(ABC):
         self.log.debug("%s generated documentation on backend", self.metadata.name)
 
 
-def _instance_file(obj):
+def _instance_file(obj) -> str:
     """Get module filename of an object's class definition"""
-    return sys.modules[obj.__class__.__module__].__file__
+    fpath = sys.modules[obj.__class__.__module__].__file__
+    if fpath is None:
+        raise ModuleNotFoundError
+    return fpath

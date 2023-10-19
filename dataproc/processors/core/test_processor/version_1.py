@@ -6,7 +6,6 @@ from time import sleep
 import os
 
 from dataproc import DataPackageLicense
-from dataproc.exceptions import ProcessorDatasetExists
 from dataproc.processors.internal.base import (
     BaseProcessorABC,
     BaseMetadataABC,
@@ -49,39 +48,30 @@ class Processor(BaseProcessorABC):
             "outputs",
         )
         output_fpath = os.path.join(output_folder, f"{self.boundary['name']}_test.tif")
-        if self.exists() is True:
-            raise ProcessorDatasetExists()
-        else:
-            # Generate a blank tests dataset
-            create_test_file(output_fpath)
-            result_uri = self.storage_backend.put_processor_data(
-                output_fpath,
-                self.boundary["name"],
-                self.metadata.name,
-                self.metadata.version,
-            )
-            self.provenance_log[
-                f"{self.metadata.name} - move to storage success"
-            ] = True
-            self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
-            # Generate the datapackage and add it to the output log
 
-            hashes, sizes = self.calculate_files_metadata([output_fpath])
-            datapkg = datapackage_resource(
-                self.metadata,
-                [result_uri],
-                "GEOPKG",
-                sizes,
-                hashes,
-            )
-            self.provenance_log["datapackage"] = datapkg.asdict()
-        return self.provenance_log
-
-    def exists(self):
-        """Whether all files for a given processor exist on the FS on not"""
-        return self.storage_backend.processor_file_exists(
+        # Generate a blank tests dataset
+        create_test_file(output_fpath)
+        result_uri = self.storage_backend.put_processor_data(
+            output_fpath,
             self.boundary["name"],
             self.metadata.name,
             self.metadata.version,
-            f"{self.boundary['name']}_test.tif",
         )
+        self.provenance_log[f"{self.metadata.name} - move to storage success"] = True
+        self.provenance_log[f"{self.metadata.name} - result URI"] = result_uri
+        # Generate the datapackage and add it to the output log
+
+        hashes, sizes = self.calculate_files_metadata([output_fpath])
+        datapkg = datapackage_resource(
+            self.metadata,
+            [result_uri],
+            "tiff",
+            sizes,
+            hashes,
+        )
+        self.provenance_log["datapackage"] = datapkg.asdict()
+
+        return self.provenance_log
+
+    def output_filenames(self):
+        return [f"{self.boundary['name']}_test.tif"]
