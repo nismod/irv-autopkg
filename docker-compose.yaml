@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   db:
     image: postgis/postgis:13-3.1-alpine
@@ -27,9 +27,6 @@ services:
     user: autopkg
     ports:
       - 6379:6379
-    command: redis-server --save 20 1 --loglevel debug
-    volumes: 
-      - ./data/redis:/data
     cpus: "0.25"
     mem_reservation: "50M"
     mem_limit: "250M"
@@ -47,7 +44,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis
 
   dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
+    image: ghcr.io/nismod/irv-autopkg:0.3.0-dev
     user: autopkg
     build: .
     volumes:
@@ -62,7 +59,7 @@ services:
     mem_limit: "1G"
 
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
+    image: ghcr.io/nismod/irv-autopkg:0.3.0-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
@@ -72,17 +69,16 @@ services:
       - 8000:8000
     env_file:
       - envs/.api_and_dataproc.env
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn api.main:APP --host 0.0.0.0 --port 8000
     cpus: "0.25"
     mem_reservation: "50M"
     mem_limit: "250M"
-
 
   # API test-harness requires API and Dataproc to be running
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
   # To run tests change AUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
-    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
+    image: ghcr.io/nismod/irv-autopkg:0.3.0-dev
     volumes:
       - ./tests:/usr/src/app/tests
     env_file:
@@ -91,7 +87,7 @@ services:
 
   # Dataproc test-harness only requires DB
   test-dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.2.7-dev
+    image: ghcr.io/nismod/irv-autopkg:0.3.0-dev
     volumes:
       - ./tests:/usr/src/app/tests
     env_file:
