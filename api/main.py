@@ -4,7 +4,7 @@
 import logging
 
 from fastapi import FastAPI
-import uvicorn
+import uvicorn.logging
 
 from api.db import database
 from config import (
@@ -60,7 +60,7 @@ async def shutdown():
 
 # Routers
 APP.include_router(probes.ROUTER)
-APP.include_router(jobs.router)
+APP.include_router(jobs.ROUTER)
 APP.include_router(packages.ROUTER)
-APP.include_router(boundaries.router)
+APP.include_router(boundaries.ROUTER)
 APP.include_router(processors.ROUTER)

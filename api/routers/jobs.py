@@ -29,7 +29,7 @@ from api.exceptions import (
 )
 from api.db.controller import DBController
 
-router = APIRouter(
+ROUTER = APIRouter(
     tags=["jobs"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
@@ -58,7 +58,7 @@ def extract_job_id(node):
     return proc_id
 
 
-@router.get(
+@ROUTER.get(
     JOB_STATUS_ROUTE,
     response_model=schemas.JobGroupStatus,
     response_model_exclude_none=True,
@@ -104,7 +104,7 @@ def get_status(job_id: str):
         raise HTTPException(status_code=500)
 
 
-@router.post(JOBS_BASE_ROUTE, response_model=schemas.SubmittedJob)
+@ROUTER.post(JOBS_BASE_ROUTE, response_model=schemas.SubmittedJob)
 async def submit_processing_job(job: schemas.Job, status_code=status.HTTP_202_ACCEPTED):
     """Submit a job for a given package to run a list of dataset-processors"""
     try:

@@ -41,7 +41,7 @@ def load_boundaries_json(
     with open(boundaries_geojson_fpath, "r") as fptr:
         data = json.load(fptr)
     # Check EPSG
-    if not data["crs"]["properties"]["name"] in accepted_crs:
+    if data["crs"]["properties"]["name"] not in accepted_crs:
         raise Exception(
             f"Boundary Features must be one of the following CRS's: {accepted_crs}"
         )
@@ -77,9 +77,9 @@ def load_boundaries(
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     if setup_tables is True:
-        Base.metadata.create_all(engine)
+        Base.metadata.create_all(engine)  # type: ignore
     if wipe_table is True:
-        for tbl in reversed(Base.metadata.sorted_tables):
+        for tbl in reversed(Base.metadata.sorted_tables):  # type: ignore
             engine.execute(tbl.delete())
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     loaded_ids = []
@@ -105,14 +105,14 @@ def load_boundaries(
                             4326,
                         )
                     ),
-                )
+                )  # type: ignore
                 session.add(boundary)
                 _id = session.commit()
                 loaded_ids.append(_id)
         except Exception as err:
             print(f"Boundary insert failed due to {err}, rolling back transaction...")
             session.rollback()
-    engine.dispose()
+    engine.dispose()  # type: ignore
     success = len(loaded_ids) == (len(data["features"]) - skipped)
     return success, loaded_ids
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     fpath = sys.argv[1]
     name_column = sys.argv[2]
     long_name_column = sys.argv[3]
-    wipe_table = sys.argv[4]
+    wipe_table = sys.argv[4] == "true"
     if not fpath:
         print("missing fpath")
         sys.exit(1)
@@ -137,10 +137,6 @@ if __name__ == "__main__":
     if not long_name_column:
         print("no long_name_column supplied - using long_name")
         name_column = "long_name"
-    if wipe_table == "true":
-        wipe_table = True
-    else:
-        wipe_table = False
     print("Loading with: ", fpath, name_column, long_name_column, wipe_table)
     all_loaded, ids = load_boundaries(
         fpath,

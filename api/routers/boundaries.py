@@ -14,7 +14,7 @@ from api.helpers import handle_exception
 from api import schemas
 from api.exceptions import BoundarySearchException, BoundaryNotFoundException
 
-router = APIRouter(
+ROUTER = APIRouter(
     tags=["boundaries"],
     dependencies=[],
     responses={404: {"description": "Not found"}},
@@ -24,7 +24,7 @@ logger = logging.getLogger("uvicorn.access")
 logger.setLevel(LOG_LEVEL)
 
 
-@router.get(BOUNDARIES_BASE_ROUTE, response_model=List[schemas.BoundarySummary])
+@ROUTER.get(BOUNDARIES_BASE_ROUTE, response_model=List[schemas.BoundarySummary])
 async def get_all_boundary_summaries():
     """Retrieve summary information on available boundaries"""
     try:
@@ -37,7 +37,7 @@ async def get_all_boundary_summaries():
         raise HTTPException(status_code=500)
 
 
-@router.get(BOUNDARY_SEARCH_ROUTE, response_model=List[schemas.BoundarySummary])
+@ROUTER.get(BOUNDARY_SEARCH_ROUTE, response_model=List[schemas.BoundarySummary])
 async def search_boundary(
     name: Optional[str] = None,
     latitude: Optional[float] = None,
@@ -70,7 +70,7 @@ async def search_boundary(
         raise HTTPException(status_code=500)
 
 
-@router.get(BOUNDARY_ROUTE, response_model=schemas.Boundary)
+@ROUTER.get(BOUNDARY_ROUTE, response_model=schemas.Boundary)
 async def get_boundary_by_name(name: str):
     """Retrieved detailed information on a specific boundary"""
     try:

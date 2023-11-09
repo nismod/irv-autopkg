@@ -17,8 +17,6 @@ class TestDataprocHelpers(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if LOCAL_FS_PROCESSING_DATA_TOP_DIR is None:
-            raise KeyError("LOCAL_FS_PROCESSING_DATA_TOP_DIR not found in config")
         cls.test_processing_data_dir = os.path.join(
             LOCAL_FS_PROCESSING_DATA_TOP_DIR, "test_dataproc_helpers"
         )

@@ -3,9 +3,8 @@ Test Helpers
 """
 import os
 import sys
-import inspect
 import json
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 import shutil
 from time import sleep, time
 
@@ -15,11 +14,10 @@ import shapely
 from shapely.ops import transform
 import pyproj
 from pyarrow import fs
-from pyarrow.fs import S3FileSystem, LocalFileSystem
-import numpy as np
+from pyarrow.fs import S3FileSystem
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
-from api import db
+from api.db.models import Base
 from dataproc.helpers import (
     assert_geotiff,
     assert_vector_file,
@@ -28,7 +26,7 @@ from dataproc.helpers import (
 )
 from dataproc.storage.awss3 import S3Manager, AWSS3StorageBackend
 
-current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, parent_dir)
 
@@ -45,8 +43,8 @@ def wipe_db(setup_tables=True):
     # Init DB and Load via SA
     engine = sa.create_engine(db_uri, pool_pre_ping=True)
     if setup_tables:
-        db.Base.metadata.create_all(engine)
-    for tbl in reversed(db.Base.metadata.sorted_tables):
+        Base.metadata.create_all(engine)  # type: ignore
+    for tbl in reversed(Base.metadata.sorted_tables):  # type: ignore
         engine.execute(tbl.delete())
 
 
@@ -263,7 +261,7 @@ def remove_tree_awss3(
 def clean_packages(
     backend_type: str,
     storage_backend: Any,
-    s3_bucket: str = None,
+    s3_bucket: Optional[str] = None,
     s3_region="eu-west-2",
     packages=["gambia"],
 ):
@@ -272,6 +270,7 @@ def clean_packages(
     start = time()
     try:
         if backend_type == "awss3":
+            assert s3_bucket is not None, "Must provide S3 bucket"
             with S3Manager(*storage_backend._parse_env(), region=s3_region) as s3_fs:
                 remove_tree_awss3(s3_fs, s3_bucket, packages=packages)
             while True:

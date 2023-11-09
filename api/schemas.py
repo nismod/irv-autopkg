@@ -53,7 +53,7 @@ class DataPackage(BaseModel):
 class BoundarySummary(BaseModel):
     """Summary of a boundary"""
 
-    id = int
+    id: int
     name: str
     name_long: str
 
@@ -155,7 +155,7 @@ class JobStateEnum(str, Enum):
     REVOKED = "REVOKED"
 
 
-def _get_members():
+def _get_processor_name_versions():
     procs = {}
     for proc_name, proc_versions in list_processors(
         include_test_processors=INCLUDE_TEST_PROCESSORS
@@ -171,7 +171,7 @@ def _get_members():
     return procs
 
 
-ProcessorsEnum = Enum("ProcessorsEnum", _get_members())
+ProcessorsEnum = Enum("ProcessorsEnum", _get_processor_name_versions())
 
 
 class JobStatus(SubmittedJob):

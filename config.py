@@ -58,15 +58,17 @@ def get_db_uri_sync(
     password_env="AUTOPKG_POSTGRES_PASSWORD",
     host_env="AUTOPKG_POSTGRES_HOST",
     port_env="AUTOPKG_POSTGRES_PORT",
-) -> sa.engine.URL:
+) -> str:
     """Standard user DBURI - non-async"""
-    return sa.engine.URL.create(
-        drivername="postgresql+psycopg2",
-        username=getenv(username_env),
-        password=getenv(password_env),
-        host=getenv(host_env),
-        port=getenv(port_env),
-        database=dbname,
+    return str(
+        sa.engine.URL.create(
+            drivername="postgresql+psycopg2",
+            username=getenv(username_env),
+            password=getenv(password_env),
+            host=getenv(host_env),
+            port=getenv(port_env),
+            database=dbname,
+        )
     )
 
 

@@ -3,7 +3,7 @@ DB Queries - Postgres
 """
 
 import json
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy.sql import select, func
 from geoalchemy2 import Geometry
@@ -43,15 +43,17 @@ class Queries:
         # Format to object
         return json.loads(res)
 
-    async def get_boundary_by_name(self, name: str) -> models.Boundary:
+    async def get_boundary_by_name(self, name: str):
         """
         Get detailed information about a specific boundary
             This includes a GeoJSON repr of the geometry under field ST_AsGeoJSON
         """
         stmt = select(
             models.Boundary,
-            func.ST_AsGeoJSON(models.Boundary.geometry),
-            func.ST_AsGeoJSON(func.ST_Envelope(models.Boundary.geometry)),
+            func.ST_AsGeoJSON(models.Boundary.geometry).label("geometry"),
+            func.ST_AsGeoJSON(func.ST_Envelope(models.Boundary.geometry)).label(
+                "envelope"
+            ),
         ).where(models.Boundary.name == name)
         res = await self.database.fetch_one(stmt)
         if not res:

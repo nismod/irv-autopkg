@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   db:
     image: postgis/postgis:13-3.1-alpine
@@ -35,7 +35,7 @@ services:
       - ./wait-for-it.sh:/opt/wait-for-it.sh
       - packages:/usr/src/app/tests/data/packages
       - processing:/usr/src/app/tests/data/processing
-    command: /opt/wait-for-it.sh db:5432 --timeout=20 -- uvicorn api.main:app --host 0.0.0.0 --port 8000
+    command: /opt/wait-for-it.sh db:5432 --timeout=20 -- uvicorn api.main:APP --host 0.0.0.0 --port 8000
 
   test:
     image: ghcr.io/nismod/irv-autopkg:${AUTOPKG_VERSION}
