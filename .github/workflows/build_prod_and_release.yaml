@@ -6,7 +6,16 @@ on:
   push:
     branches:
       - master
-    paths: ['api/**', 'dataproc/**', 'tests/**', 'config.py', 'Dockerfile', 'requirements.txt', '.github/**']
+    paths:
+      [
+        "api/**",
+        "dataproc/**",
+        "tests/**",
+        "config.py",
+        "Dockerfile",
+        "requirements.txt",
+        ".github/**",
+      ]
 
 env:
   REGISTRY: ghcr.io
@@ -14,7 +23,6 @@ env:
   TEST_IMAGE_TAG: test
 
 jobs:
-
   build-and-push-image-release:
     runs-on: ubuntu-latest
     permissions:
@@ -60,14 +68,3 @@ jobs:
           cache-to: type=gha,mode=max
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          draft: false
-          prerelease: false
