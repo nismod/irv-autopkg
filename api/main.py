@@ -3,10 +3,9 @@ FastAPI App Main
 """
 
 import logging
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from uvicorn.logging import ColourizedFormatter
+import uvicorn
 
 from api.db import database
 from config import (
@@ -20,17 +19,17 @@ from config import (
 from api.routers import jobs, packages, probes, boundaries, processors
 from api.helpers import OPENAPI_TAGS_META
 
+app = FastAPI(
+    debug=True if DEPLOYMENT_ENV == "dev" else False, openapi_tags=OPENAPI_TAGS_META
+)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Define startup/shutdown events
 
-    See docs at https://fastapi.tiangolo.com/advanced/events/#lifespan-events
-    """
-    # Startup
+@app.on_event("startup")
+async def startup():
+    """Startup hooks"""
     logger = logging.getLogger("uvicorn.access")
     logger.setLevel(LOG_LEVEL)
-    console_formatter = ColourizedFormatter(
+    console_formatter = uvicorn.logging.ColourizedFormatter(
         "{asctime} {levelprefix} {pathname} : {lineno}: {message}",
         style="{",
         use_colors=True,
@@ -53,18 +52,11 @@ async def lifespan(app: FastAPI):
             f"WARNING - Failed to connect to Celery backend at: {CELERY_APP._get_backend()}, {err}"
         )
 
-    # Run
-    yield
 
-    # Shutdown
+@app.on_event("shutdown")
+async def shutdown():
+    """Shutdown hooks"""
     await database.disconnect()
-
-
-app = FastAPI(
-    debug=True if DEPLOYMENT_ENV == "dev" else False,
-    openapi_tags=OPENAPI_TAGS_META,
-    lifespan=lifespan,
-)
 
 
 # Routers
