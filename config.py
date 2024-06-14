@@ -122,12 +122,14 @@ if DEPLOYMENT_ENV == "test":
 else:
     # PROD
     # The root-level folder when using localfs storage backend
-    LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT")
+    LOCALFS_STORAGE_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT", "")
     # The root-level folder when using localfs processing backend
-    LOCALFS_PROCESSING_BACKEND_ROOT = getenv("AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT")
+    LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
+        "AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT", ""
+    )
     # AWSS3 Storage Backend
-    S3_ACCESS_KEY = getenv("AUTOPKG_S3_ACCESS_KEY")
-    S3_SECRET_KEY = getenv("AUTOPKG_S3_SECRET_KEY")
+    S3_ACCESS_KEY = getenv("AUTOPKG_S3_ACCESS_KEY", "")
+    S3_SECRET_KEY = getenv("AUTOPKG_S3_SECRET_KEY", "")
     # Top level S3 bucket, under-which packages are stored if using AWSS3 backend
     S3_BUCKET = getenv("AUTOPKG_S3_BUCKET", "irv-autopkg")
     S3_REGION = getenv("AUTOPKG_S3_REGION", "eu-west-2")
@@ -140,11 +142,13 @@ CELERY_APP = Celery(
     worker_concurrency=CELERY_CONCURRENCY,
     broker_url=CELERY_BROKER,
     result_backend=CELERY_BACKEND,
-    result_extended=True
+    result_extended=True,
 )
 
 # Seconds before submitted tasks expire
 TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
 
 # Remove Test Processors from the available processors list
-INCLUDE_TEST_PROCESSORS = True if getenv("AUTOPKG_INCLUDE_TEST_PROCESSORS", "True") == "True" else False
+INCLUDE_TEST_PROCESSORS = (
+    True if getenv("AUTOPKG_INCLUDE_TEST_PROCESSORS", "True") == "True" else False
+)
