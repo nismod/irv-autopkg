@@ -2,7 +2,7 @@
 Pydantic Schemas
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 
 from pydantic import BaseModel, validator
@@ -189,6 +189,20 @@ class GdlAnnualData(BaseModel):
     iso_code: str
     year: int
     value: float
+
+
+class GdlValueExtent(BaseModel):
+    """Min and and values for across dataset"""
+
+    min: float
+    max: float
+
+
+class GdlCountryAnnual(BaseModel):
+    """GDL values for country/dataset with full dataset extents for scaling"""
+
+    data: List[GdlAnnualData]
+    extents: Dict[int, GdlValueExtent]
 
 
 class GdlCountryMeta(BaseModel):

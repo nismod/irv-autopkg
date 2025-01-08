@@ -70,11 +70,46 @@ async def get_all_annual_data(dataset_key: str):
         raise HTTPException(status_code=500)
 
 
-@router.get(GDL_DATA_ISO_ROUTE, response_model=List[schemas.GdlAnnualData])
+@router.get(GDL_DATA_ISO_ROUTE, response_model=schemas.GdlCountryAnnual)
 async def get_annual_for_country(dataset_key: str, iso_code: str):
     """Read all annual data for single country and dataset"""
     try:
         Model = dataset_key_to_model[dataset_key]
+
+        # Get extents for scaling axes
+        stmt_full_dataset = select_gdl_annual(Model).order_by(
+            Model.gdl_code, Model.year
+        )
+        results = await database.fetch_all(stmt_full_dataset)
+        parsed_full_data = parse_gdl_annual(results)
+        years = set()
+        for record in parsed_full_data:
+            years.add(record["year"])
+
+        year_extents = {}
+        for year in years:
+            year_extents[year] = {"min": None, "max": None}
+
+        for record in parsed_full_data:
+            year = record["year"]
+            if (
+                year_extents[year]["min"] is None
+                or year_extents[year]["min"] > record["value"]
+            ):
+                year_extents[year] = {
+                    "min": record["value"],
+                    "max": year_extents[year]["max"],
+                }
+
+            if (
+                year_extents[year]["max"] is None
+                or year_extents[year]["max"] < record["value"]
+            ):
+                year_extents[year] = {
+                    "min": year_extents[year]["max"],
+                    "max": record["value"],
+                }
+
         stmt = (
             select_gdl_annual(Model)
             .where(models.GdlRegion.iso_code == iso_code)
@@ -82,7 +117,7 @@ async def get_annual_for_country(dataset_key: str, iso_code: str):
         )
         results = await database.fetch_all(stmt)
 
-        return parse_gdl_annual(results)
+        return {"data": parse_gdl_annual(results), "extents": year_extents}
 
     except Exception as err:
         handle_exception(logger, err)
