@@ -46,9 +46,9 @@ class DataPackage(BaseModel):
         @staticmethod
         def schema_extra(schema: dict):
             schema.clear()
-            schema[
-                "$ref"
-            ] = "https://specs.frictionlessdata.io/schemas/data-package.json"
+            schema["$ref"] = (
+                "https://specs.frictionlessdata.io/schemas/data-package.json"
+            )
 
 
 class BoundarySummary(BaseModel):
@@ -178,3 +178,66 @@ class JobGroupStatus(BaseModel):
     job_group_status: str
     job_group_percent_complete: Optional[int] = 0
     job_group_processors: List[JobStatus]
+
+
+# GDL
+class GdlAnnualData(BaseModel):
+    """GDL dataset value for a region and year"""
+
+    gdl_code: str
+    region_name: str
+    iso_code: str
+    year: int
+    value: float
+
+
+class GdlCountryMeta(BaseModel):
+    """GDL metadata for a country"""
+
+    iso_code: str
+    country_name: str
+    continent: str
+
+
+class GdlRegionMeta(BaseModel):
+    """GDL metadata for a region"""
+
+    gdl_code: str
+    region_name: str
+    level: str
+    iso_code: str
+
+
+class GdlNationalGeoProperties(GdlRegionMeta):
+    """Metadata to include with national geojson"""
+
+    country_name: str
+
+
+class GdlNationalBoundary(BaseModel):
+    """National geojson boundary feature"""
+
+    type: str
+    geometry: MultiPolygon
+
+
+class GdlNationalGeo(BaseModel):
+    """National level geojson"""
+
+    boundary: GdlNationalBoundary
+    envelope: Polygon
+    properties: GdlNationalGeoProperties
+
+
+class GdlSubnationalProperties(GdlRegionMeta):
+    """Metadata to include with sub-national geojson"""
+
+    pass
+
+
+class GdlSubnationalGeo(BaseModel):
+    """Region level geojson"""
+
+    type: str
+    geometry: MultiPolygon
+    properties: GdlSubnationalProperties
