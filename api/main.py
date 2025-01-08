@@ -16,8 +16,9 @@ from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
 )
 
-from api.routers import jobs, packages, probes, boundaries, processors
+from api.routers import gdl, jobs, packages, probes, boundaries, processors
 from api.helpers import OPENAPI_TAGS_META
+
 
 app = FastAPI(
     debug=True if DEPLOYMENT_ENV == "dev" else False, openapi_tags=OPENAPI_TAGS_META
@@ -65,3 +66,4 @@ app.include_router(jobs.router)
 app.include_router(packages.router)
 app.include_router(boundaries.router)
 app.include_router(processors.router)
+app.include_router(gdl.router)
