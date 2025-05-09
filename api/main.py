@@ -8,7 +8,6 @@ import time
 from fastapi import FastAPI
 import uvicorn
 
-from api.db import database
 from config import (
     DEPLOYMENT_ENV,
     LOG_LEVEL,
@@ -16,7 +15,7 @@ from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
 )
 
-from api.routers import jobs, packages, probes, boundaries, processors
+from api.routers import packages, boundaries
 
 OPENAPI_TAGS_META = [
     {
@@ -39,31 +38,18 @@ async def startup():
     """Startup hooks"""
     logger = logging.getLogger("uvicorn.access")
     logger.setLevel(LOG_LEVEL)
-    console_formatter = uvicorn.logging.ColourizedFormatter(
-        "{asctime} {levelprefix} {pathname} : {lineno}: {message}",
+    formatter = uvicorn.logging.ColourizedFormatter(
+        "[{asctime}] {levelname}: {filename} - {funcName} - {message}",
         style="{",
         use_colors=True,
     )
-    logger.handlers[0].setFormatter(console_formatter)
+    logger.handlers[0].setFormatter(formatter)
     logger.info(
         "Booting API with env: %s, package backend: %s, processing backend: %s",
         DEPLOYMENT_ENV,
         LOCALFS_STORAGE_BACKEND_ROOT,
         LOCALFS_PROCESSING_BACKEND_ROOT,
     )
-    try:
-        await database.connect()
-        logger.info("Connected to Postgres - Success")
-    except:
-        time.sleep(10)
-        await database.connect()
-        logger.info("Connected to Postgres - Success")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Shutdown hooks"""
-    await database.disconnect()
 
 
 # Routers

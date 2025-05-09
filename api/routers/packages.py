@@ -26,7 +26,6 @@ from api.schemas import (
     Package,
     PackageSummary,
 )
-from api.db.controller import DBController
 
 router = APIRouter(
     tags=["packages"],
@@ -45,7 +44,7 @@ async def get_packages():
     """Retrieve information on available top-level packages (which are created from boundaries)"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        packages = storage_backend.packages()
+        packages = sorted(storage_backend.packages())
         logger.debug("found packages in backend: %s", packages)
         result = []
         for boundary_name in packages:
@@ -67,6 +66,7 @@ async def get_package(boundary_name: str):
     """
     Retrieve information about a specific package (which has been created from a given boundary)
     """
+    boundary_name = boundary_name.upper()
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
 

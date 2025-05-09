@@ -8,7 +8,6 @@ API_ROUTE_BASE = f"/{API_VERSION}"
 
 # Retrieval of all Boundaries (no detail)
 BOUNDARIES_BASE_ROUTE = API_ROUTE_BASE + "/boundaries"
-BOUNDARY_SEARCH_ROUTE = BOUNDARIES_BASE_ROUTE + "/search"
 BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/{name}"
 
 # Retrieval of information about packages

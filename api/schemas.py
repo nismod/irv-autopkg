@@ -3,46 +3,45 @@ Pydantic Schemas
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, ConfigDict, RootModel, AnyUrl, EmailStr, Field, constr
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    RootModel,
+    AnyUrl,
+    EmailStr,
+    Field,
+    RootModel,
+)
 
 
-class Polygon(RootModel):
-    """Reference to the external GeoJSON Polygon JSON Schema"""
-
-    class Config:
-        @staticmethod
-        def schema_extra(schema: dict):
-            schema.clear()
-            schema["$ref"] = "https://geojson.org/schema/Polygon.json"
+class Type(Enum):
+    Polygon = "Polygon"
+    MultiPolygon = "MultiPolygon"
 
 
-class MultiPolygon(RootModel):
-    """Reference to the external GeoJSON MultiPolygon JSON Schema"""
-
-    class Config:
-        @staticmethod
-        def schema_extra(schema: dict):
-            schema.clear()
-            schema["$ref"] = "https://geojson.org/schema/MultiPolygon.json"
+class Coordinate(RootModel):
+    root: List[float]
 
 
-class DataPackage(RootModel):
-    """Reference to the external DataPackage JSON Schema"""
+class Polygon(BaseModel):
+    type: Type
+    coordinates: List[List[Coordinate]]
+    bbox: Optional[List[float]] = Field(None, min_items=4)
 
-    class Config:
-        @staticmethod
-        def schema_extra(schema: dict):
-            schema.clear()
-            schema["$ref"] = (
-                "https://specs.frictionlessdata.io/schemas/data-package.json"
-            )
+
+class MultiPolygon(BaseModel):
+    type: Type
+    coordinates: List[List[List[Coordinate]]]
+    bbox: Optional[List[float]] = Field(None, min_items=4)
 
 
 class BoundarySummary(BaseModel):
     """Summary of a boundary"""
 
-    id = int
+    id: int
     name: str
     name_long: str
 
@@ -59,19 +58,6 @@ class Boundary(BoundarySummary):
     model_config = ConfigDict(from_attributes=True)
 
 
-class PackageSummary(BaseModel):
-    """Summary information about a top-level package (which is formed from a boundary)"""
-
-    boundary_name: str  # Name of the Boundary the package was created from
-    uri: str  # URI to the package
-
-
-class Package(PackageSummary):
-    """Detailed information about a package"""
-
-    datapackage: DataPackage
-
-
 class Contributor(BaseModel):
     title: str = Field(
         ...,
@@ -79,7 +65,7 @@ class Contributor(BaseModel):
         examples=['{\n  "title": "My Package Title"\n}\n'],
         title="Title",
     )
-    path: Optional[constr(regex=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$")] = Field(
+    path: Optional[str] = Field(
         None,
         description="A fully qualified URL, or a POSIX file path.",
         examples=[
@@ -103,12 +89,13 @@ class Contributor(BaseModel):
 
 
 class Licenses(BaseModel):
-    name: constr(regex=r"^([-a-zA-Z0-9._])+$") = Field(
+    name: str = Field(
         ...,
+        pattern=r"^([-a-zA-Z0-9._])+$",
         description="MUST be an Open Definition license identifier, see http://licenses.opendefinition.org/",
         title="Open Definition license identifier",
     )
-    path: Optional[constr(regex=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$")] = Field(
+    path: Optional[str] = Field(
         None,
         description="A fully qualified URL, or a POSIX file path.",
         examples=[
@@ -125,8 +112,8 @@ class Licenses(BaseModel):
     )
 
 
-class PathItem(BaseModel):
-    __root__: constr(regex=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$") = Field(
+class PathItem(RootModel):
+    root: str = Field(
         ...,
         description="A fully qualified URL, or a POSIX file path.",
         examples=[
@@ -144,15 +131,7 @@ class Source(BaseModel):
         examples=['{\n  "title": "My Package Title"\n}\n'],
         title="Title",
     )
-    path: Optional[constr(regex=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$")] = Field(
-        None,
-        description="A fully qualified URL, or a POSIX file path.",
-        examples=[
-            '{\n  "path": "file.csv"\n}\n',
-            '{\n  "path": "http://example.com/file.csv"\n}\n',
-        ],
-        title="Path",
-    )
+    path: Optional[PathItem]
     email: Optional[EmailStr] = Field(
         None,
         description="An email address.",
@@ -171,15 +150,14 @@ class Resources(BaseModel):
         ],
         title="Profile",
     )
-    name: constr(regex=r"^([-a-z0-9._/])+$") = Field(
+    name: str = Field(
         ...,
+        pattern=r"^([-a-z0-9._/])+$",
         description="An identifier string. Lower case characters with `.`, `_`, `-` and `/` are allowed.",
         examples=['{\n  "name": "my-nice-name"\n}\n'],
         title="Name",
     )
-    path: Optional[
-        Union[constr(regex=r"^(?=^[^./~])(^((?!\.{2}).)*$).*$"), List[PathItem]]
-    ] = Field(
+    path: Optional[Union[PathItem, List[PathItem]]] = Field(
         None,
         description="A reference to the data for this resource, as either a path as a string, or an array of paths as strings. of valid URIs.",
         examples=[
@@ -189,7 +167,6 @@ class Resources(BaseModel):
         ],
         title="Path",
     )
-    data: Any = Field(..., description="Inline data for this resource.", title="Data")
     schema_: Optional[Union[str, Dict[str, Any]]] = Field(
         None, alias="schema", description="A schema for this resource.", title="Schema"
     )
@@ -231,14 +208,15 @@ class Resources(BaseModel):
         min_items=1,
         title="Licenses",
     )
-    format: Optional[str] = Field(
+    format: Optional[Union[str, List[str]]] = Field(
         None,
         description="The file format of this resource.",
         examples=['{\n  "format": "xls"\n}\n'],
         title="Format",
     )
-    mediatype: Optional[constr(regex=r"^(.+)/(.+)$")] = Field(
+    mediatype: Optional[str] = Field(
         None,
+        pattern=r"^(.+)/(.+)$",
         description="The media type of this resource. Can be any valid media type listed with [IANA](https://www.iana.org/assignments/media-types/media-types.xhtml).",
         examples=['{\n  "mediatype": "text/csv"\n}\n'],
         title="Media Type",
@@ -249,20 +227,16 @@ class Resources(BaseModel):
         examples=['{\n  "encoding": "utf-8"\n}\n'],
         title="Encoding",
     )
-    bytes: Optional[int] = Field(
+    bytes: Optional[Union[int, List[int]]] = Field(
         None,
         description="The size of this resource in bytes.",
         examples=['{\n  "bytes": 2082\n}\n'],
         title="Bytes",
     )
-    hash: Optional[constr(regex=r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")] = Field(
+    hashes: Optional[List[str]] = Field(
         None,
-        description="The MD5 hash of this resource. Indicate other hashing algorithms with the {algorithm}:{hash} format.",
-        examples=[
-            '{\n  "hash": "d25c9c77f588f5dc32059d2da1136c02"\n}\n',
-            '{\n  "hash": "SHA256:5262f12512590031bbcc9a430452bfd75c2791ad6771320bb4b5728bfb78c4d0"\n}\n',
-        ],
-        title="Hash",
+        description="The MD5 hashes of files in this resource. Indicate other hashing algorithms with the {algorithm}:{hash} format.",
+        title="Hashes",
     )
 
 
@@ -276,8 +250,9 @@ class DataPackage(BaseModel):
         ],
         title="Profile",
     )
-    name: Optional[constr(regex=r"^([-a-z0-9._/])+$")] = Field(
+    name: Optional[str] = Field(
         None,
+        pattern=r"^([-a-zA-Z0-9._/])+$",
         description="An identifier string. Lower case characters with `.`, `_`, `-` and `/` are allowed.",
         examples=['{\n  "name": "my-nice-name"\n}\n'],
         title="Name",
@@ -372,3 +347,16 @@ class DataPackage(BaseModel):
         min_items=0,
         title="Sources",
     )
+
+
+class PackageSummary(BaseModel):
+    """Summary information about a top-level package (which is formed from a boundary)"""
+
+    boundary_name: str  # Name of the Boundary the package was created from
+    uri: str  # URI to the package
+
+
+class Package(PackageSummary):
+    """Detailed information about a package"""
+
+    datapackage: DataPackage

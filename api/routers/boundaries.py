@@ -40,40 +40,6 @@ async def get_all_boundary_summaries(session: SessionDep):
         raise HTTPException(status_code=500)
 
 
-@router.get(BOUNDARY_SEARCH_ROUTE, response_model=List[schemas.BoundarySummary])
-async def search_boundary(
-    session: SessionDep,
-    name: str = None,
-    latitude: float = None,
-    longitude: float = None,
-):
-    """Search for boundaries by name or coordinates."""
-    try:
-        logger.debug(
-            "performing %s with query %s",
-            inspect.stack()[0][3],
-            [name, latitude, longitude],
-        )
-        if latitude is not None and longitude is not None:
-            result = controller.search_boundaries_by_coordinates(
-                latitude, longitude, session
-            )
-        elif name:
-            result = controller.search_boundaries_by_name(name, session)
-        else:
-            raise BoundarySearchException(
-                "Search must include name or valid latitude, longitude coordinates"
-            )
-        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
-        return result
-    except BoundarySearchException as err:
-        handle_exception(logger, err)
-        raise HTTPException(status_code=400, detail=str(err))
-    except Exception as err:
-        handle_exception(logger, err)
-        raise HTTPException(status_code=500)
-
-
 @router.get(BOUNDARY_ROUTE, response_model=schemas.Boundary)
 async def get_boundary_by_name(name: str, session: SessionDep):
     """Retrieved detailed information on a specific boundary"""

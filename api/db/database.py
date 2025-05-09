@@ -11,7 +11,6 @@ SQLALCHEMY_DATABASE_URL = DBURI_API
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
     future=True,
     pool_pre_ping=True,
 )
