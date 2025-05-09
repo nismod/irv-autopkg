@@ -3,16 +3,11 @@ Tests for Packages
 """
 
 import os
-import sys
-import inspect
 import unittest
-import shutil
 
 import requests
 
-current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
+current_dir = os.path.dirname(__file__)
 
 from api.routes import PACKAGE_ROUTE, PACKAGES_BASE_ROUTE
 from tests.helpers import (
@@ -21,22 +16,16 @@ from tests.helpers import (
     remove_tree,
     assert_datapackage_resource,
     create_tree_awss3,
-    clean_packages,
 )
 from tests.dataproc.integration.processors import (
     LOCAL_FS_PACKAGE_DATA_TOP_DIR,
 )
 from dataproc.backends.storage import init_storage_backend
 from dataproc.backends.storage.awss3 import S3Manager
-from config import (
-    STORAGE_BACKEND,
-    S3_BUCKET,
-    S3_REGION
-)
+from config import STORAGE_BACKEND, S3_BUCKET, S3_REGION
 
 
 class TestPackages(unittest.TestCase):
-
     """
     These tests require API and Celery Worker to be run ning (with redis)
     """
@@ -44,17 +33,6 @@ class TestPackages(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.backend = init_storage_backend(STORAGE_BACKEND)
-
-    @classmethod
-    def tearDownClass(cls):
-        # Package data
-        clean_packages(
-            STORAGE_BACKEND,
-            cls.backend,
-            s3_bucket=S3_BUCKET,
-            s3_region=S3_REGION,
-            packages=["gambia"],
-        )
 
     def assert_package(
         self,

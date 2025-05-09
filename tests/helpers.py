@@ -1,31 +1,21 @@
 """
 Test Helpers
 """
+
 import os
-import sys
 import inspect
 import json
-from typing import Any, List, Tuple
+from typing import List
 import shutil
-from time import sleep, time
 
 import sqlalchemy as sa
-import rasterio
-import shapely
-from shapely.ops import transform
-import pyproj
-from pyarrow import fs
-from pyarrow.fs import S3FileSystem, LocalFileSystem
-import numpy as np
+from pyarrow.fs import S3FileSystem
 
 from config import get_db_uri_sync, API_POSTGRES_DB, INTEGRATION_TEST_ENDPOINT
 from api import db
-from dataproc.helpers import assert_geotiff, assert_vector_file, sample_geotiff, sample_geotiff_coords
-from dataproc.backends.storage.awss3 import S3Manager, AWSS3StorageBackend
+from dataproc.backends.storage.awss3 import AWSS3StorageBackend
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parent_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.insert(0, parent_dir)
 
 test_data_dir = os.path.join(current_dir, "data")
 
@@ -47,46 +37,6 @@ def wipe_db(setup_tables=True):
 
 def build_route(postfix_url: str):
     return "{}{}".format(INTEGRATION_TEST_ENDPOINT, postfix_url)
-
-
-def load_country_geojson(name: str) -> Tuple[dict, dict]:
-    """
-    Load the geojson boundary and envelope for a given country
-    """
-    with open(os.path.join(test_data_dir, "countries", f"{name}.geojson"), "r") as fptr:
-        boundary = json.load(fptr)
-
-    with open(
-        os.path.join(test_data_dir, "countries", f"{name}_envelope.geojson"), "r"
-    ) as fptr:
-        envelope = json.load(fptr)
-
-    return boundary, envelope
-
-
-def load_natural_earth_roads_to_pg():
-    """
-    Load the natrual earth shapefile of roads into Postgres
-    Enables testing of vector clipping Processor
-    """
-    pguri = str(get_db_uri_sync(API_POSTGRES_DB)).replace("+psycopg2", "")
-    fpath = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "data",
-        "global",
-        "ne_10m_roads",
-        "ne_10m_roads.shp",
-    )
-    cmd = f'ogr2ogr -f "PostgreSQL" -nlt PROMOTE_TO_MULTI PG:"{pguri}" "{fpath}"'
-    os.system(cmd)
-
-
-def drop_natural_earth_roads_from_pg():
-    """Drop loaded Natural Earth Roads data from DB"""
-    db_uri = get_db_uri_sync(API_POSTGRES_DB)
-    # Init DB and Load via SA
-    engine = sa.create_engine(db_uri, pool_pre_ping=True)
-    _ = engine.execute("DROP TABLE ne_10m_roads;")
 
 
 def gen_datapackage(boundary_name: str, dataset_names: List[str]) -> dict:
@@ -247,196 +197,6 @@ def create_tree_awss3(
             )
 
 
-def remove_tree_awss3(
-    s3_fs: S3FileSystem, bucket: str, packages: list = ["gambia", "zambia"]
-):
-    """Remove a tree from aws s3 backend"""
-    for package in packages:
-        s3_fs.delete_dir(os.path.join(bucket, package))
-
-
-def clean_packages(
-    backend_type: str,
-    storage_backend: Any,
-    s3_bucket: str = None,
-    s3_region="eu-west-2",
-    packages=["gambia"]
-):
-    """Remove packages used in a test"""
-    max_wait = 60
-    start = time()
-    try:
-        if backend_type == "awss3":
-            with S3Manager(*storage_backend._parse_env(), region=s3_region) as s3_fs:
-                remove_tree_awss3(s3_fs, s3_bucket, packages=packages)
-            while True:
-                existing_packages = storage_backend.packages()
-                if any([True for i in existing_packages if i in packages]):
-                    sleep(0.5)
-                else:
-                    break
-                if (time()-start) > max_wait:
-                    raise Exception("timed out waiting for packages to be deleted")
-        elif backend_type == "localfs":
-            remove_tree(storage_backend.top_level_folder_path, packages=packages)
-        else:
-            print("unknown backend type:", backend_type)
-    except FileNotFoundError:
-        pass
-
-def assert_vector_output(
-    expected_shape: tuple,
-    expected_crs: str,
-    local_vector_fpath: str=None,
-    s3_fs: S3FileSystem = None,
-    s3_vector_fpath: str = None,
-    tmp_folder: str = None,
-):
-    """
-    Wrapper for assert vector file with support for fetching from S3
-    """
-    if s3_fs and s3_vector_fpath:
-        if not tmp_folder:
-            local_vector_fpath = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "data",
-                "processing",
-                os.path.basename(s3_vector_fpath),
-            )
-        else:
-            local_vector_fpath = os.path.join(
-                tmp_folder, os.path.basename(s3_vector_fpath)
-            )
-        fs.copy_files(
-            s3_vector_fpath,
-            local_vector_fpath,
-            source_filesystem=s3_fs,
-            destination_filesystem=fs.LocalFileSystem(),
-        )
-    assert_vector_file(
-        local_vector_fpath,
-        expected_shape,
-        expected_crs=expected_crs,
-    )
-
-def assert_raster_output(
-    envelope: dict,
-    localfs_raster_fpath: str = None,
-    s3_fs: S3FileSystem = None,
-    s3_raster_fpath: str = None,
-    check_crs: str = "EPSG:4326",
-    check_compression=True,
-    tolerence: float = 0.1,
-    tmp_folder: str = None,
-    check_is_bigtiff: bool=False,
-    pixel_check_raster_fpath: str = None,
-    pixel_check_num_samples: int = 100
-):
-    """
-    Wrapper for assert_geotiff and assert_raster_bounds_correct
-        which asserts either local or S3 source results
-    if localfs_raster_fpath is provided then local source will be assumed
-
-    if s3_fs and s3_raster_fpath are provided then requested source
-        will be pulled locally before assertions.
-
-    ::kwarg pixel_check_raster_fpath str 
-        If this kwarg is set then pixels will be sampled from the raster at localfs_raster_fpath    
-        and compared to pisels in the raster at pixel_check_raster_fpath
-    """
-    try:
-        if s3_fs and s3_raster_fpath:
-            if not tmp_folder:
-                localfs_raster_fpath = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    "data",
-                    "processing",
-                    os.path.basename(s3_raster_fpath),
-                )
-            else:
-                localfs_raster_fpath = os.path.join(
-                    tmp_folder, os.path.basename(s3_raster_fpath)
-                )
-            fs.copy_files(
-                s3_raster_fpath,
-                localfs_raster_fpath,
-                source_filesystem=s3_fs,
-                destination_filesystem=fs.LocalFileSystem(),
-            )
-        if pixel_check_raster_fpath is not None:
-            # Collect sample and coords from the first raster, then sample second raster
-            src_coords = sample_geotiff_coords(localfs_raster_fpath, pixel_check_num_samples)
-            _, expected_samples = sample_geotiff(pixel_check_raster_fpath, coords=src_coords)
-        else:
-            src_coords = None
-            expected_samples = None
-        assert_geotiff(
-            localfs_raster_fpath,
-            check_crs=check_crs,
-            check_compression=check_compression,
-            check_is_bigtiff=check_is_bigtiff,
-            check_pixel_coords=src_coords,
-            check_pixel_expected_samples=expected_samples
-        )
-        assert_raster_bounds_correct(
-            localfs_raster_fpath, envelope, tolerence=tolerence
-        )
-    finally:
-        # Clean local S3 artifacts
-        if s3_fs and s3_raster_fpath:
-            if os.path.exists(localfs_raster_fpath):
-                os.remove(localfs_raster_fpath)
-
-
-def assert_raster_bounds_correct(
-    raster_fpath: str, envelope: dict, tolerence: float = 0.1
-):
-    """
-    Check the bounds of the given raster match the given envelope (almost)
-
-    ::param envelope dict Geojson Dict of boundary envelope (Polygon)
-    """
-    with rasterio.open(raster_fpath) as src:
-        # Reproject bounds as necessary based on the source raster
-        source_raster_epsg = ":".join(src.crs.to_authority())
-        if source_raster_epsg != "EPSG:4326":
-            shape = shapely.from_geojson(json.dumps(envelope))
-            source_boundary_crs = pyproj.CRS("EPSG:4326")
-            target_boundary_crs = pyproj.CRS(source_raster_epsg)
-
-            project = pyproj.Transformer.from_crs(
-                source_boundary_crs, target_boundary_crs, always_xy=True
-            ).transform
-            shape = transform(project, shape)
-            x_coords, y_coords = shape.exterior.coords.xy
-            tolerence = 1000.0
-        else:
-            x_coords = [i[0] for i in envelope["coordinates"][0]]
-            y_coords = [i[1] for i in envelope["coordinates"][0]]
-        assert (
-            abs(src.bounds.left - min(x_coords)) < tolerence
-        ), f"bounds {src.bounds.left} did not match expected {min(x_coords)} within tolerence {tolerence}"
-        assert (
-            abs(src.bounds.right - max(x_coords)) < tolerence
-        ), f"bounds {src.bounds.right} did not match expected {max(x_coords)} within tolerence {tolerence}"
-        assert (
-            abs(src.bounds.top - max(y_coords)) < tolerence
-        ), f"bounds {src.bounds.top} did not match expected {max(y_coords)} within tolerence {tolerence}"
-        assert (
-            abs(src.bounds.bottom - min(y_coords)) < tolerence
-        ), f"bounds {src.bounds.bottom} did not match expected {min(y_coords)} within tolerence {tolerence}"
-
-
-def assert_exists_awss3(s3_fs: S3FileSystem, s3_raster_fpath: str):
-    """
-    Check if a given file exists on the s3 filessytem
-    """
-    chk = s3_fs.get_file_info(s3_raster_fpath)
-    assert (
-        chk.type != fs.FileType.NotFound
-    ), f"file was not found on S3 {s3_raster_fpath}"
-
-
 def assert_package(top_level_fpath: str, boundary_name: str):
     """Assert integrity of a package and datasets contained within
     This does not assert the integrity of actualy data files (raster/vector);
@@ -468,52 +228,6 @@ def assert_package(top_level_fpath: str, boundary_name: str):
         assert os.path.exists(
             os.path.join(top_level_fpath, boundary_name, doc)
         ), f"top-level {doc} missing"
-
-def assert_package_awss3(awss3_backend: AWSS3StorageBackend, boundary_name: str, expected_processor_versions: List=[]):
-    """Assert integrity of a package and datasets contained within (on S3)
-    This does not assert the integrity of actualy data files (raster/vector);
-    just the folder structure
-    """
-    required_top_level_docs = [
-        "index.html",
-        "license.html",
-        "version.html",
-        "provenance.json",
-        "datapackage.json",
-    ]
-    packages = awss3_backend._list_directories(awss3_backend._build_absolute_path(""))
-    assert (
-        boundary_name in packages
-    ), f"{boundary_name} missing in package S3 root: {packages}"
-
-    # Ensure the top-level index and other docs exist
-    for doc in required_top_level_docs:
-        assert awss3_backend.boundary_file_exists(
-            boundary_name, doc
-        ), f"package {boundary_name} is missing a top-level file: {doc}"
-
-    # Check we have folders for the expected processor versions
-    for proc_version in expected_processor_versions:
-        proc, version = proc_version.split('.')
-        s3_versions = awss3_backend.dataset_versions(boundary_name, proc)
-        assert version in s3_versions, f"{version} not found in dataset {s3_versions} for processor {proc}"
-
-def assert_table_in_pg(db_uri: str, tablename: str):
-    """Check a given table exists in PG"""
-    from sqlalchemy.sql import text
-
-    engine = sa.create_engine(db_uri, pool_pre_ping=True)
-    stmt = text(f'SELECT * FROM "{tablename}"')
-    engine.execute(stmt)
-
-
-def setup_test_data_paths(processor: Any, test_processing_data_dir: str):
-    """
-    Reset the processing paths on an instantiated processor module to reflect the test environment
-    """
-    processor.paths_helper.top_level_folder_path = test_processing_data_dir
-    processor.source_folder = processor.paths_helper.build_absolute_path("source_data")
-    processor.tmp_processing_folder = processor.paths_helper.build_absolute_path("tmp")
 
 
 def assert_datapackage_resource(dp_resource: dict):

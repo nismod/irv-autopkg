@@ -6,7 +6,6 @@ from os import getenv, path
 import logging
 
 import sqlalchemy as sa
-from celery import Celery
 
 
 def get_db_uri(
@@ -18,28 +17,7 @@ def get_db_uri(
 ) -> sa.engine.URL:
     """Standard user DBURI"""
     return sa.engine.URL.create(
-        drivername="postgresql+asyncpg",
-        username=getenv(username_env),
-        password=getenv(password_env),
-        host=getenv(host_env),
-        port=getenv(port_env),
-        database=dbname,
-    )
-
-
-def get_db_uri_ogr(
-    dbname: str,
-    username_env="AUTOPKG_POSTGRES_USER",
-    password_env="AUTOPKG_POSTGRES_PASSWORD",
-    host_env="AUTOPKG_POSTGRES_HOST",
-    port_env="AUTOPKG_POSTGRES_PORT",
-) -> sa.engine.URL:
-    """Standard user DBURI for use with OGR (no psycopg2)"""
-    for var in [username_env, password_env, host_env, port_env]:
-        if not getenv(var):
-            raise Exception(f"Environment failed to parse - check var: {var}")
-    return sa.engine.URL.create(
-        drivername="postgresql",
+        drivername="postgresql+psycopg2",
         username=getenv(username_env),
         password=getenv(password_env),
         host=getenv(host_env),
@@ -66,12 +44,6 @@ def get_db_uri_sync(
     )
 
 
-# DATAPROC VARS
-REDIS_HOST = getenv("AUTOPKG_REDIS_HOST", "localhost")
-TASK_LOCK_TIMEOUT = int(
-    getenv("AUTOPKG_TASK_LOCK_TIMEOUT", "600")
-)  # seconds before locked tasks timeout
-
 # Deployment Env
 DEPLOYMENT_ENV = getenv("AUTOPKG_DEPLOYMENT_ENV", "prod")
 LOG_LEVEL = logging.getLevelName(getenv("AUTOPKG_LOG_LEVEL", "DEBUG"))
@@ -79,12 +51,6 @@ INTEGRATION_TEST_ENDPOINT = getenv(
     "AUTOPKG_INTEGRATION_TEST_ENDPOINT", "http://localhost:8000"
 )
 
-# Celery Env
-CELERY_BROKER = getenv("AUTOPKG_CELERY_BROKER", "redis://localhost")
-CELERY_BACKEND = getenv("AUTOPKG_CELERY_BACKEND", "redis://localhost")
-CELERY_CONCURRENCY = int(getenv("AUTOPKG_CELERY_CONCURRENCY", "2"))
-REDIS_HOST = getenv("AUTOPKG_REDIS_HOST", "localhost")
-TASK_LOCK_TIMEOUT = getenv("AUTOPKG_TASK_LOCK_TIMEOUT", "600")
 
 # Api Env
 API_POSTGRES_USER = getenv("AUTOPKG_POSTGRES_USER")
@@ -136,19 +102,3 @@ else:
 
 # Initialised Startup Data
 DBURI_API = get_db_uri(API_POSTGRES_DB)
-CELERY_APP = Celery(
-    "AutoPackage",
-    worker_prefetch_multiplier=1,  # Do not change - long running tasks require this. See: https://docs.celeryq.dev/en/stable/userguide/configuration.html#std-setting-worker_prefetch_multiplier
-    worker_concurrency=CELERY_CONCURRENCY,
-    broker_url=CELERY_BROKER,
-    result_backend=CELERY_BACKEND,
-    result_extended=True,
-)
-
-# Seconds before submitted tasks expire
-TASK_EXPIRY_SECS = int(getenv("AUTOPKG_TASK_EXPIRY_SECS", "3600"))
-
-# Remove Test Processors from the available processors list
-INCLUDE_TEST_PROCESSORS = (
-    True if getenv("AUTOPKG_INCLUDE_TEST_PROCESSORS", "True") == "True" else False
-)

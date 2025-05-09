@@ -1,18 +1,21 @@
 """
 Boundary LIST endpoints
 """
+
 import inspect
 from typing import List
 import logging
 
 from fastapi import APIRouter, HTTPException
 
+import api.db.controller as controller
+
 from config import LOG_LEVEL
-from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE, BOUNDARY_SEARCH_ROUTE
-from api.db import DBController
-from api.helpers import handle_exception
 from api import schemas
+from api.db.database import SessionDep
 from api.exceptions import BoundarySearchException, BoundaryNotFoundException
+from api.helpers import handle_exception
+from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE, BOUNDARY_SEARCH_ROUTE
 
 router = APIRouter(
     tags=["boundaries"],
@@ -25,14 +28,12 @@ logger.setLevel(LOG_LEVEL)
 
 
 @router.get(BOUNDARIES_BASE_ROUTE, response_model=List[schemas.BoundarySummary])
-async def get_all_boundary_summaries():
+async def get_all_boundary_summaries(session: SessionDep):
     """Retrieve summary information on available boundaries"""
     try:
         logger.debug("performing %s", inspect.stack()[0][3])
-        result = await DBController().get_all_boundary_summaries()
-        logger.debug(
-            "completed %s with result: %s", inspect.stack()[0][3], result
-        )
+        result = controller.get_all_boundary_summaries(session)
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
     except Exception as err:
         handle_exception(logger, err)
@@ -41,25 +42,29 @@ async def get_all_boundary_summaries():
 
 @router.get(BOUNDARY_SEARCH_ROUTE, response_model=List[schemas.BoundarySummary])
 async def search_boundary(
-    name: str = None, latitude: float = None, longitude: float = None
+    session: SessionDep,
+    name: str = None,
+    latitude: float = None,
+    longitude: float = None,
 ):
     """Search for boundaries by name or coordinates."""
     try:
-        logger.debug("performing %s with query %s", inspect.stack()[0][3], [name, latitude, longitude])
+        logger.debug(
+            "performing %s with query %s",
+            inspect.stack()[0][3],
+            [name, latitude, longitude],
+        )
         if latitude is not None and longitude is not None:
-            result = await DBController().search_boundaries_by_coordinates(
-                latitude, longitude
+            result = controller.search_boundaries_by_coordinates(
+                latitude, longitude, session
             )
         elif name:
-            result = await DBController().search_boundaries_by_name(name)
+            result = controller.search_boundaries_by_name(name, session)
         else:
             raise BoundarySearchException(
                 "Search must include name or valid latitude, longitude coordinates"
             )
-        logger.debug(
-            "completed %s with result: %s",
-            inspect.stack()[0][3], result
-        )
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
     except BoundarySearchException as err:
         handle_exception(logger, err)
@@ -70,14 +75,12 @@ async def search_boundary(
 
 
 @router.get(BOUNDARY_ROUTE, response_model=schemas.Boundary)
-async def get_boundary_by_name(name: str):
+async def get_boundary_by_name(name: str, session: SessionDep):
     """Retrieved detailed information on a specific boundary"""
     try:
         logger.debug("performing %s with name %s", inspect.stack()[0][3], name)
-        result = await DBController().get_boundary_by_name(name)
-        logger.debug(
-            "completed %s with result: %s", inspect.stack()[0][3], result
-        )
+        result = controller.get_boundary_by_name(name, session)
+        logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)
         return result
     except BoundaryNotFoundException as err:
         handle_exception(logger, err)

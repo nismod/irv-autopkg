@@ -19,49 +19,8 @@ services:
       - ./data/packages:/www/data/packages # Prod
       # - ./tests/data/packages:/www/data/packages # Testing
 
-  redis:
-    image: ghcr.io/nismod/irv-autopkg-redis:0.1
-    build: ./redis
-    restart: always
-    user: autopkg
-    ports:
-      - 6379:6379
-    command: redis-server --save 20 1 --loglevel debug
-    volumes:
-      - ./data/redis:/data
-    cpus: "0.25"
-    mem_reservation: "50M"
-    mem_limit: "250M"
-
-  flower:
-    image: mher/flower
-    command: celery --broker=redis://redis flower
-    volumes:
-      - ./data/flower:/data
-    working_dir: /data
-    ports:
-      - 5555:5555
-    environment:
-      CELERY_BROKER_URL: redis://redis
-      CELERY_RESULT_BACKEND: redis://redis
-
-  dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.3.1-dev
-    user: autopkg
-    build: .
-    volumes:
-      - ./data/packages:/data/packages
-      - ./data/processing:/data/processing
-      - ./tests:/usr/src/app/tests
-    env_file:
-      - envs/.api_and_dataproc.env
-    command: celery --app dataproc.tasks worker
-    cpus: 2
-    mem_reservation: "500M"
-    mem_limit: "1G"
-
   api:
-    image: ghcr.io/nismod/irv-autopkg:0.3.1-dev
+    image: ghcr.io/nismod/irv-autopkg:0.4.0-dev
     build: .
     volumes:
       - ./data/packages:/data/packages
@@ -80,18 +39,9 @@ services:
   # WARNING - THESE TESTS WILL WIPE THE CONFIGURED TEST HARNESS DB from anything in MODELS
   # To run tests change AUTOPKG_DEPLOYMENT_ENV=test in .api_and_dataproc.env, then reboot api and dataproc services
   test-api:
-    image: ghcr.io/nismod/irv-autopkg:0.3.1-dev
+    image: ghcr.io/nismod/irv-autopkg:0.4.0-dev
     volumes:
       - ./tests:/usr/src/app/tests
     env_file:
       - envs/.api_and_dataproc.env
     command: python -m unittest discover /usr/src/app/tests/api
-
-  # Dataproc test-harness only requires DB
-  test-dataproc:
-    image: ghcr.io/nismod/irv-autopkg:0.3.1-dev
-    volumes:
-      - ./tests:/usr/src/app/tests
-    env_file:
-      - envs/.api_and_dataproc.env
-    command: python -m unittest discover /usr/src/app/tests/dataproc

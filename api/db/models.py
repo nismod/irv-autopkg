@@ -3,11 +3,12 @@
 from sqlalchemy import Column, Integer, String
 from geoalchemy2 import Geometry
 
-from . import Base
+from .database import Base
 
 
 class Boundary(Base):
     """Boundaries table"""
+
     __tablename__ = "boundaries"
 
     id = Column(Integer, primary_key=True, index=True)

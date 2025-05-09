@@ -2,30 +2,21 @@
 Tests for Probes
 """
 
-import os
-import sys
-import inspect
 import unittest
 
 import requests
 
-current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-
 from api.routes import LIVENESS_ROUTE, READINESS_ROUTE
-from config import INTEGRATION_TEST_ENDPOINT
 from tests.helpers import build_route
 
 
 class TestProbes(unittest.TestCase):
-
     """
-    These tests require API and Celery Worker to be run ning (with redis)
+    These tests require the API to be running
     """
 
     def build_probes_route(self, probe_type):
-        if probe_type == 'liveness':
+        if probe_type == "liveness":
             _route = LIVENESS_ROUTE
         else:
             _route = READINESS_ROUTE
