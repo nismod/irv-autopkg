@@ -13,9 +13,9 @@ import api.db.controller as controller
 from config import LOG_LEVEL
 from api import schemas
 from api.db.database import SessionDep
-from api.exceptions import BoundarySearchException, BoundaryNotFoundException
+from api.exceptions import BoundaryNotFoundException
 from api.helpers import handle_exception
-from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE, BOUNDARY_SEARCH_ROUTE
+from api.routes import BOUNDARIES_BASE_ROUTE, BOUNDARY_ROUTE
 
 router = APIRouter(
     tags=["boundaries"],

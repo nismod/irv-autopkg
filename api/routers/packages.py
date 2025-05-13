@@ -2,6 +2,7 @@
 Package Detail endpoints
 """
 
+from copy import deepcopy
 import logging
 from typing import List
 import inspect
@@ -12,6 +13,7 @@ from config import (
     LOG_LEVEL,
     STORAGE_BACKEND,
     PACKAGES_HOST_URL,
+    PROCESSORS,
 )
 from dataproc.exceptions import (
     PackageNotFoundException,
@@ -74,6 +76,20 @@ async def get_package(boundary_name: str):
         datapackage = None
         try:
             datapackage = storage_backend.load_datapackage(boundary_name)
+            datapkg_resource_names = set()
+            for r in datapackage["resources"]:
+                datapkg_resource_names.add(f"{r['name']}{r['version']}")
+                r["bytes"] = sum(r["bytes"])
+
+            processors_with_status = []
+            for processor in PROCESSORS:
+                processor_with_status = deepcopy(processor)
+                for i, version in enumerate(processor["versions"]):
+                    if version["name"] in datapkg_resource_names:
+                        processor["versions"][i]["status"] = "complete"
+                    else:
+                        processor["versions"][i]["status"] = "incomplete"
+                processors_with_status.append(processor_with_status)
         except Exception as err:
             handle_exception(logger, err)
 
@@ -81,6 +97,7 @@ async def get_package(boundary_name: str):
         result = Package(
             boundary_name=boundary_name,
             uri=build_package_url(PACKAGES_HOST_URL, boundary_name),
+            processors=processors_with_status,
             datapackage=datapackage if datapackage else {},
         )
         logger.debug("completed %s with result: %s", inspect.stack()[0][3], result)

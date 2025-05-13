@@ -15,7 +15,7 @@ from config import (
     LOCALFS_PROCESSING_BACKEND_ROOT,
 )
 
-from api.routers import packages, boundaries
+from api.routers import boundaries, packages, processors
 
 OPENAPI_TAGS_META = [
     {
@@ -25,6 +25,10 @@ OPENAPI_TAGS_META = [
     {
         "name": "packages",
         "description": "Detail about existing packages",
+    },
+    {
+        "name": "processors",
+        "description": "Detail about resources contained in all packages",
     },
 ]
 
@@ -53,5 +57,6 @@ async def startup():
 
 
 # Routers
-app.include_router(packages.router)
 app.include_router(boundaries.router)
+app.include_router(packages.router)
+app.include_router(processors.router)

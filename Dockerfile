@@ -12,5 +12,6 @@ COPY config.py .
 COPY api ./api
 COPY dataproc ./dataproc
 COPY tests ./tests
+COPY processors.json .
 
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

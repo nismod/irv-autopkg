@@ -1,0 +1,255 @@
+[
+  {
+    "name": "geoboundaries",
+    "versions": [
+      {
+        "name": "geoboundaries.6.0.0",
+        "description": "geoBoundaries",
+        "version": "6.0.0",
+        "dataset_name": "geoboundaries",
+        "data_title": "geoBoundaries",
+        "data_title_long": "geoBoundaries: an open database of political administrative boundaries",
+        "data_author": "Runfola D, Anderson A, Baier H, Crittenden M, Dowker E, Fuhrig S, et al.",
+        "data_summary": "The geoBoundaries Global Database of Political Administrative Boundaries, built by the community and William & Mary geoLab, is an online, open license (CC BY 4.0) resource of information on administrative boundaries (i.e., state, county) for every country in the world. Since 2016, it has tracked approximately 1 million boundaries within over 200 entities, including all UN member states.\nAll boundaries are available to view or download in common file formats; the only requirement for use is acknowledgement. When using geoBoundaries on the web, put the name \"geoBoundaries\" with a link back to the website, www.geoboundaries.org, somewhere prominent on the page that uses the boundaries. This can be a stand-alone link or within a sentence. For written works that use geoBoundaries in analysis, cite the PLoS One Publication (Runfola et al., 2020).\nColumn Definitions:\n- boundaryID - A unique ID created for every boundary in the geoBoundaries database by concatenating ISO 3166-1 3 letter country code, boundary level, geoBoundaries version, and an ID based on the geometry. - boundaryISO -  The ISO 3166-1 3-letter country codes for each boundary. - boundaryYear - The year(s) for which a boundary is representative. In cases where this is a range, the format is 'DATE-START TO DATE-END'. - boundaryType - The type of boundary defined (i.e., ADM0 is equivalent to a country border; ADM1 a state.  Levels below ADM1 can vary in definition by country.) - boundarySource - The name of the sources for the boundary definition used (with most boundaries having two identified sources). - boundaryLicense - The specific license the data is released under. - licenseDetail - Any details necessary for the interpretation or use of the license noted. - licenseSource - A URL declaring the license under which a data product is made available. - boundarySourceURL -  A URL from which source data was retrieved. - sourceDataUpdateDate - A date encoded following ISO 8601 (Year-Month-Date) describing the last date this boundary was updated, for use in programmatic updating based on new releases. - buildDate - The date the geoBoundary files were generated. - downloadURL - A URL from which the geoBoundary can be downloaded. - shapeID - The boundary ID, followed by the letter `B' and a unique integer for each shape which is a member of that boundary. - shapeName - The identified name for a given shape.  '' if not identified. - shapeGroup - The country or similar organizational group that a shape belongs to, in ISO 3166-1 where relevant. - shapeType - The type of boundary represented by the shape. - shapeISO - ISO codes for individual administrative districts, where available.  Where possible, these conform to ISO 3166-2, but this is not guaranteed in all cases. 'None' if not identified. - boundaryCanonical - Canonical name(s) for the administrative hierarchy represented.  Present where available.\nIssues associated with the geoBoundaries dataset are tracked publically, and any individual can contribute comments through the github repository: https://github.com/wmgeolab/geoBoundaries\nDisclaimer:\nWith respect to the works on or made available through download from www.geoboundaries.org, we make no representations or warranties\u2014express, implied, or statutory\u2014as to the validity, accuracy, completeness, or fitness for a particular purpose; nor represent that use of such works would not infringe privately owned rights; nor assume any liability resulting from use of such works; and shall in no way be liable for any costs, expenses, claims, or demands arising out of use of such works.\nAttribution is required for use of this product. Users using individual boundary files from geoBoundaries should additionally ensure that they are citing the sources provided in the metadata for each file.\n",
+        "data_citation": "Runfola D, Anderson A, Baier H, Crittenden M, Dowker E, Fuhrig S, et al. (2020) geoBoundaries: A global database of political administrative boundaries. PLoS ONE 15(4): e0231866. https://doi.org/10.1371/journal.pone.0231866.\n",
+        "data_license": {
+          "name": "CC-BY-4.0",
+          "title": "Creative Commons Attribution 4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        "data_origin_url": "https://www.geoboundaries.org/",
+        "data_formats": ["zip"]
+      }
+    ]
+  },
+  {
+    "name": "jrc_ghsl",
+    "versions": [
+      {
+        "name": "jrc_ghsl.R2023A",
+        "description": "JRC Global Human Settlement Layers",
+        "version": "R2023A",
+        "dataset_name": "jrc_ghsl",
+        "data_author": "Joint Research Centre",
+        "data_title": "GHSL",
+        "data_title_long": "Extract from Global Human Settlement Layers",
+        "data_summary": "The GHS_POP spatial raster dataset depicts the distribution of residential population, expressed as the number of people per cell. Residential population estimates between 1975 and 2020 in 5-year intervals and projections to 2025 and 2030 derived from CIESIN GPWv4.11 were disaggregated from census or administrative units to grid cells, informed by the distribution, density, and classification of built-up as mapped in the Global Human Settlement Layer (GHSL) global layer per corresponding epoch.\nThe GHS_BUILT_S spatial raster dataset depicts the distribution of built-up surfaces, expressed as number of square metres. The data report about the total built-up surface and the built-up surface allocated to dominant non-residential (NRES) uses.\nData are spatial-temporal interpolated or extrapolated from 1975 to 2030 in 5 years intervals. For the temporal anchor point of 2018 the data is published at 10m as observed from the S2 image data.\nThe complete information about the GHSL main products can be found in the GHSL Data Package 2023 report (9.31 MB): https://ghsl.jrc.ec.europa.eu/documents/GHSL_Data_Package_2023.pdf\n",
+        "data_citation": "GHS_POP Dataset:\nSchiavina M., Freire S., Carioli A., MacManus K. (2023): GHS-POP R2023A - GHS population grid multitemporal (1975-2030).European Commission, Joint Research Centre (JRC) PID: http://data.europa.eu/89h/2ff68a52-5b5b-4a22-8f40-c41da8332cfe, doi:10.2905/2FF68A52-5B5B-4A22-8F40-C41DA8332CFE\nGHS_POP Concept & Methodology:\nFreire S., MacManus K., Pesaresi M., Doxsey-Whitfield E., Mills J. (2016) Development of new open and free multi-temporal global population grids at 250m resolution. Geospatial Data in a Changing World; Association of Geographic Information Laboratories in Europe (AGILE), AGILE 2016\nGHS_BUILT_S Dataset:\nPesaresi M., Politis P. (2023): GHS-BUILT-S R2023A - GHS built-up surface grid, derived from Sentinel2 composite and Landsat, multitemporal (1975-2030) European Commission, Joint Research Centre (JRC) PID: http://data.europa.eu/89h/9f06f36f-4b11-47ec-abb0-4f8b7b1d72ea, doi:10.2905/9F06F36F-4B11-47EC-ABB0-4F8B7B1D72EA\nGHS_BUILT_S Concept & Methodology:\nEuropean Commission GHSL Data Package 2023, Publications Office of the European Union, Luxembourg, 2023, JRC133256, ISBN 978-92-68-02341-9 doi:10.2760/098587\n",
+        "data_license": {
+          "name": "CC-BY-4.0",
+          "title": "Creative Commons Attribution 4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        "data_origin_url": "https://ghsl.jrc.ec.europa.eu/",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "copernicus_dem",
+    "versions": [
+      {
+        "name": "copernicus_dem.20231",
+        "description": "Copernicus 90m Digital Elevation Model",
+        "version": "20231",
+        "dataset_name": "copernicus_glo90",
+        "data_author": "European Union and ESA",
+        "data_title": "Copernicus GLO-90",
+        "data_title_long": "Copernicus Global Digital Elevation Model (WorldDEM GLO-90)",
+        "data_summary": "The Copernicus DEM is a Digital Surface Model (DSM) which represents the surface of the Earth including buildings, infrastructure and vegetation. GLO-90 provides worldwide coverage at 90 meters. Note that  ocean areas do not have tiles, there one can assume height values equal to zero. Data is provided as Cloud Optimized GeoTIFFs and comes from Copernicus DEM 2021 release.\n",
+        "data_citation": "Copernicus DEM - Global Digital Elevation Model (2021) https://doi.org/10.5270/ESA-c5d3d65 (produced using Copernicus WorldDEM\u2122-90 \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved)\n",
+        "data_license": {
+          "name": "Copernicus-DEM-EULA",
+          "title": "Licence for Copernicus DEM instance COP-DEM-GLO-90-F Global 90m Full, Free & Open",
+          "path": "https://esa.maps.eox.at/copernicus-dem_eula.pdf"
+        },
+        "data_origin_url": "https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "copernicus_lulc",
+    "versions": [
+      {
+        "name": "copernicus_lulc.v2.1.1",
+        "description": "Copernicus Land Cover Classification",
+        "version": "v2.1.1",
+        "dataset_name": "copernicus_lulc",
+        "data_author": "Copernicus Climate Change Service, Climate Data Store",
+        "data_title": "Copernicus Land Cover Classification",
+        "data_title_long": "Land cover classification gridded maps from 1992 to present derived from satellite observations",
+        "data_summary": "This dataset provides global maps describing the land surface into 22 classes, which have been defined using the United Nations Food and Agriculture Organization's (UN FAO) Land Cover Classification System (LCCS). In addition to the land cover (LC) maps, four quality flags are produced to document the reliability of the classification and change detection.\nIn order to ensure continuity, these land cover maps are consistent with the series of global annual LC maps from the 1990s to 2015 produced by the European Space Agency (ESA) Climate Change Initiative (CCI), which are also available on the ESA CCI LC viewer.\nTo produce this dataset, the entire Medium Resolution Imaging Spectrometer (MERIS) Full and Reduced Resolution archive from 2003 to 2012 was first classified into a unique 10-year baseline LC map. This is then back- and up-dated using change detected from (i) Advanced Very-High-Resolution Radiometer (AVHRR) time series from 1992 to 1999, (ii) SPOT-Vegetation (SPOT-VGT) time series from 1998 to 2012 and (iii) PROBA-Vegetation (PROBA-V) and Sentinel-3 OLCI (S3 OLCI) time series from 2013.\nBeyond the climate-modelling communities, this dataset's long-term consistency, yearly updates, and high thematic detail on a global scale have made it attractive for a multitude of applications such as land accounting, forest monitoring and desertification, in addition to scientific research.\nThe products are made available to the public by ESA and the consortium. You may use one or several CCI-LC products land cover map for educational and/or scientific purposes, without any fee on the condition that you credit the ESA Climate Change Initiative and in particular its Land Cover project as the source of the CCI-LC database. Should you write any scientific publication on the results of research activities that use one or several CCI-LC products as input, you shall acknowledge the ESA CCI Land Cover project in the text of the publication and provide the project with an electronic copy of the publication (contact@esa-landcover-cci.org). If you wish to use one or several CCI-LC products in advertising or in any commercial promotion, you shall acknowledge the ESA CCI Land Cover project and you must submit the layout to the project for approval beforehand (contact@esa-landcover-cci.org).\n\u00a9 ESA Climate Change Initiative - Land Cover led by UCLouvain (2017)\nGenerated using Copernicus Climate Change Service information [2024]. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.\n",
+        "data_citation": "Copernicus Climate Change Service, Climate Data Store, (2019): Land cover classification gridded maps from 1992 to present derived from satellite observation. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: 10.24381/cds.006f2c9a (Accessed on 09-AUG-2024)\n",
+        "data_license": {
+          "name": "ESA-CCI",
+          "title": "ESA CCI Land Cover licence",
+          "path": "https://object-store.os-api.cci2.ecmwf.int/cci2-prod-catalogue/licences/satellite-land-cover/satellite-land-cover_8423d13d3dfd95bbeca92d9355516f21de90d9b40083a915ead15a189d6120fa.pdf"
+        },
+        "data_origin_url": "https://cds-beta.climate.copernicus.eu/datasets/satellite-land-cover?tab=overview",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "openstreetmap",
+    "versions": [
+      {
+        "name": "openstreetmap.250414",
+        "description": "OpenStreetMap Road and Rail networks",
+        "version": "250414",
+        "dataset_name": "openstreetmap",
+        "data_author": "nismod/datapkg contributors and OpenStreetMap contributors",
+        "data_title": "OSM Road and Rail",
+        "data_title_long": "Road and Rail networks derived from OpenStreetMap",
+        "data_summary": "OpenStreetMap provides map data, including on road and railway networks. This dataset is a lightly processed extract from the global OpenStreetMap database, produced by researchers at the University of Oxford to support infrastructure systems analysis and climate risk and resilience assessments.\nOpenStreetMap is open data, licensed under the Open Data Commons Open Database License (ODbL) by the OpenStreetMap Foundation (OSMF). https://www.openstreetmap.org/copyright\nThe data is produced from a snapshot of OpenStreetMap by a reproducible pipeline which is under development and made freely available at https://github.com/nismod/datapkg.\n",
+        "data_citation": "Russell T., Thomas F., nismod/datapkg contributors and OpenStreetMap contributors (2025) Road and Rail networks derived from OpenStreetMap. [Dataset] Available at https://global.infrastructureresilience.org\n",
+        "data_license": {
+          "name": "ODbL-1.0",
+          "title": "Open Data Commons Open Database License 1.0",
+          "path": "https://opendefinition.org/licenses/odc-odbl"
+        },
+        "data_origin_url": "https://global.infrastructureresilience.org",
+        "data_formats": ["GeoPackage"]
+      }
+    ]
+  },
+  {
+    "name": "wri_powerplants",
+    "versions": [
+      {
+        "name": "wri_powerplants.v1.3.0",
+        "description": "World Resources Institute Global Power Plant Database",
+        "version": "v1.3.0",
+        "dataset_name": "wri_powerplants",
+        "data_author": "World Resources Institute",
+        "data_title": "WRI Global Power Plant Database",
+        "data_title_long": "World Resources Institute Global Power Plant Database",
+        "data_summary": "The Global Power Plant Database is a comprehensive, open source database of power plants around the world. It centralizes power plant data to make it easier to navigate, compare and draw insights for one\u2019s own analysis. The database covers approximately 35,000 power plants from 167 countries and includes thermal plants (e.g. coal, gas, oil, nuclear, biomass, waste, geothermal) and renewables (e.g. hydro, wind, solar). Each power plant is geolocated and entries contain information on plant capacity, generation, ownership, and fuel type.\n",
+        "data_citation": "Global Energy Observatory, Google, KTH Royal Institute of Technology in Stockholm, Enipedia, World Resources Institute. 2018. Global Power Plant Database. Published on Resource Watch and Google Earth Engine; http://resourcewatch.org/ https://earthengine.google.com/\n",
+        "data_license": {
+          "name": "CC-BY-4.0",
+          "title": "Creative Commons Attribution 4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        "data_origin_url": "https://datasets.wri.org/dataset/globalpowerplantdatabase",
+        "data_formats": ["GeoPackage"]
+      }
+    ]
+  },
+  {
+    "name": "gridfinder",
+    "versions": [
+      {
+        "name": "gridfinder.1.1.1",
+        "description": "gridfinder - Predictive mapping of the global power system using open data",
+        "version": "1.1.1",
+        "dataset_name": "gridfinder",
+        "data_author": "Arderne, C., Nicolas, C., Zorn, C., Koks, E. E.",
+        "data_title": "Gridfinder",
+        "data_title_long": "Gridfinder data from 'Predictive mapping of the global power system using open data'",
+        "data_summary": "Three primary global data outputs from the research:\ngrid.gpkg: Vectorized predicted distribution and transmission line network, with existing OpenStreetMap lines tagged in the 'source' column\ntargets.tif: Binary raster showing locations predicted to be connected to distribution grid.\nlv.tif: Raster of predicted low-voltage infrastructure in kilometres per cell.\nThis data was created with code in the following three repositories:\nhttps://github.com/carderne/gridfinder https://github.com/carderne/predictive-mapping-global-power https://github.com/carderne/access-estimator\nFull steps to reproduce are contained in this file:\nhttps://github.com/carderne/predictive-mapping-global-power/blob/master/README.md\nThe data can be visualized at the following location:\nhttps://gridfinder.org\n",
+        "data_citation": "Arderne, Christopher, Nicolas, Claire, Zorn, Conrad, & Koks, Elco E. (2020). Data from: Predictive mapping of the global power system using open data [Data set]. In Nature Scientific Data (1.1.1, Vol. 7, Number Article 19). Zenodo. https://doi.org/10.5281/zenodo.3628142\n",
+        "data_license": {
+          "name": "CC-BY-4.0",
+          "title": "Creative Commons Attribution 4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        "data_origin_url": "https://doi.org/10.5281/zenodo.3628142",
+        "data_formats": ["GeoPackage", "GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "jrc_floods",
+    "versions": [
+      {
+        "name": "jrc_floods.2024-03-20",
+        "description": "JRC Floods",
+        "version": "2024-03-20",
+        "dataset_name": "jrc_floods",
+        "data_title": "JRC Floods",
+        "data_title_long": "Global River Flood Hazard Maps",
+        "data_author": "Baugh, Calum; Colonese, Juan; D'Angelo, Claudia; Dottori, Francesco; Neal, Jeffrey; Prudhomme, Christel; Salamon, Peter",
+        "data_summary": "The global river flood hazard maps are a gridded data set representing inundation along the river network, for seven different flood return periods (from 1-in-10-years to 1-in-500-years). The input river flow data for the new maps are produced by means of the open-source hydrological model LISFLOOD, while inundation simulations are performed with the hydrodynamic model LISFLOOD-FP. The extent comprises the entire world with the exception of Greenland and Antarctica and small islands with river basins smaller than 500km2.\nCell values indicate water depth (in m). The maps can be used to assess the exposure of population and economic assets to river floods, and to perform flood risk assessments. The dataset is created as part of the Copernicus Emergency Management Service. NOTE: this dataset is not an official flood hazard map (for details and limitations please refer to related publications).\nFrancesco Dottori, Peter Salamon, Alessandra Bianchi, Lorenzo Alfieri, Feyera Aga Hirpa, Luc Feyen, Development and evaluation of a framework for global flood hazard mapping, Advances in Water Resources, Volume 94, 2016, Pages 87-102, ISSN 0309-1708, https://doi.org/10.1016/j.advwatres.2016.05.002.\n",
+        "data_citation": "Baugh, Calum; Colonese, Juan; D'Angelo, Claudia; Dottori, Francesco; Neal, Jeffrey; Prudhomme, Christel; Salamon, Peter (2024): Global river flood hazard maps. European Commission, Joint Research Centre (JRC) [Dataset] PID: http://data.europa.eu/89h/jrc-floods-floodmapgl_rp50y-tif\n",
+        "data_license": {
+          "name": "CC-BY",
+          "title": "European Commission Reuse and Copyright Notice",
+          "path": "http://creativecommons.org/licenses/by/4.0/legalcode"
+        },
+        "data_origin_url": "https://data.jrc.ec.europa.eu/dataset/jrc-floods-floodmapgl_rp50y-tif",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "aqueduct_flood",
+    "versions": [
+      {
+        "name": "aqueduct_flood.2",
+        "description": "WRI Aqueduct Floods",
+        "version": "2",
+        "dataset_name": "aqueduct_flood",
+        "data_title": "Aqueduct Flood Hazard Maps",
+        "data_title_long": "World Resource Institute - Aqueduct Flood Hazard Maps (Version 2, updated October 20, 2020)",
+        "data_author": "Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. D\u00edaz Loaiza, et al.",
+        "data_summary": "World Resource Institute - Aqueduct Flood Hazard Maps (Version 2 (updated October 20, 2020)).  Inundation depth in meters for coastal and riverine floods over 1km grid squares. 1 in 2 to 1 in 1000 year return periods. Baseline, RCP 4.5 & 8.5 emission scenarios. Current and future maps in 2030, 2050 and 2080\n",
+        "data_citation": "Ward, P.J., H.C. Winsemius, S. Kuzma, M.F.P. Bierkens, A. Bouwman, H. de Moel, A. D\u00edaz Loaiza, et al. 2020. Aqueduct Floods Methodology. Technical Note. Washington, D.C.: World Resources Institute. Available online at: www.wri.org/publication/aqueduct-floods-methodology.\n",
+        "data_license": {
+          "name": "CC-BY-4.0",
+          "title": "Creative Commons Attribution 4.0",
+          "path": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        "data_origin_url": "http://wri-projects.s3.amazonaws.com/AqueductFloodTool/download/v2/index.html",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "storm",
+    "versions": [
+      {
+        "name": "storm.1.0.0",
+        "description": "STORM tropical cyclones",
+        "version": "1.0.0",
+        "dataset_name": "STORM tropical cyclone wind speed maps",
+        "data_author": "Bloemendaal, Nadia; de Moel, Hans; Muis, S; Haigh, Ivan; Aerts, J.C.J.H.;  Dullaart, Job; Haarsma, Reindert; Martinez, Andrew B.; et al.",
+        "data_title": "STORM tropical cyclone wind speed maps",
+        "data_title_long": "STORM tropical cyclone wind speed return period maps",
+        "data_summary": "This dataset is derived with minimal processing from the following datasets created by Bloemendaal et al, which are released with a CC0 license:\n[1] Bloemendaal, Nadia; de Moel, H. (Hans); Muis, S; Haigh, I.D. (Ivan); Aerts, J.C.J.H. (Jeroen) (2020): STORM tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset. https://doi.org/10.4121/12705164.v3\n[2] Bloemendaal, Nadia; de Moel, Hans; Dullaart, Job; Haarsma, R.J. (Reindert); Haigh, I.D. (Ivan); Martinez, Andrew B.; et al. (2022): STORM climate change tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset. https://doi.org/10.4121/14510817.v3\nDatasets containing tropical cyclone maximum wind speed (in m/s) return periods, generated using the STORM datasets (see https://www.nature.com/articles/s41597-020-0381-2) and STORM climate change datasets (see https://figshare.com/s/397aff8631a7da2843fc). Return periods were empirically calculated using Weibull's plotting formula. The STORM_FIXED_RETURN_PERIOD dataset contains maximum wind speeds for a fixed set of return periods at 10 km resolution in every basin and for every climate model used here (see below).\nThe GeoTIFFs provided in the datasets linked above have been mosaicked into single files with global extent for each climate model/return period using the following code:\nhttps://github.com/nismod/open-gira/blob/219315e57cba54bb18f033844cff5e48dd5979d7/workflow/rules/download/storm-ibtracs.smk#L126-L151\nFiles are named on the pattern:\nSTORM_FIXED_RETURN_PERIODS_{STORM_MODEL}_{STORM_RP}_YR_RP.tif\nSTORM_MODEL is be one of constant, CMCC-CM2-VHR4, CNRM-CM6-1-HR, EC-Earth3P-HR or HadGEM3-GC31-HM. The \"constant\" files are for the present day, baseline climate scenario as explained in dataset [1]. All other files are for 2050, RCP8.5 under different models as explained in the paper linked from dataset [2].\nSTORM_RP is one of 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000 or 10000.\n",
+        "data_citation": "Russell, Tom. (2022). STORM tropical cyclone wind speed return periods as global GeoTIFFs (1.0.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7438145\nDerived from:\n[1] Bloemendaal, Nadia; de Moel, H. (Hans); Muis, S; Haigh, I.D. (Ivan); Aerts, J.C.J.H. (Jeroen) (2020): STORM tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset. https://doi.org/10.4121/12705164.v3\n[2] Bloemendaal, Nadia; de Moel, Hans; Dullaart, Job; Haarsma, R.J. (Reindert); Haigh, I.D. (Ivan); Martinez, Andrew B.; et al. (2022): STORM climate change tropical cyclone wind speed return periods. 4TU.ResearchData. Dataset. https://doi.org/10.4121/14510817.v3\n",
+        "data_license": {
+          "name": "CC0",
+          "title": "CC0",
+          "path": "https://creativecommons.org/share-your-work/public-domain/cc0/"
+        },
+        "data_origin_url": "https://doi.org/10.5281/zenodo.7438145",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  },
+  {
+    "name": "isimip_heat_drought",
+    "versions": [
+      {
+        "name": "isimip_heat_drought.2",
+        "description": "ISIMIP Heat and Drought",
+        "version": "2",
+        "dataset_name": "ISIMIP Heat and Drought",
+        "data_author": "Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020)",
+        "data_title": "ISIMIP Heat and Drought",
+        "data_title_long": "Annual probability of extreme heat and drought events, derived from Lange et al 2020",
+        "data_summary": "The time series of extreme events given by Lange et al has been processed into an annual probability of occurrence by researchers at the University of Oxford, using the pipeline available online at https://github.com/nismod/infra-risk-vis/blob/45d8974c311067141ee6fcaa1321c7ecdaa59752/etl/pipelines/isimip/Snakefile - this is a draft dataset, used for visualisation in https://global.infrastructureresilience.org/ but not otherwise reviewed or published.\nIf you use this, please cite: Lange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616\nThis is shared under a CC0 1.0 Universal Public Domain Dedication (CC0 1.0) When using ISIMIP data for your research, please appropriately credit the data providers, e.g. either by citing the DOI for the dataset, or by appropriate acknowledgment.\nAnnual probability of drought (soil moisture below a baseline threshold) or extreme heat (temperature and humidity-based indicators over a threshold) events on a 0.5\u00b0 grid. 8 hydrological models forced by 4 GCMs under baseline, RCP 2.6 & 6.0 emission scenarios. Current and future maps in 2030, 2050 and 2080.\nThe ISIMIP2b climate input data and impact model output data analyzed in this study are available in the ISIMIP data repository at ESGF, see https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=input and https://esg.pik-potsdam.de/search/isimip/?project=ISIMIP2b&product=output, respectively. More information about the GHM, GGCM, and GVM output data is provided by Gosling et al. (2020), Arneth et al. (2020), and Reyer et al. (2019), respectively.\nEvent definitions are given in Lange et al, table 1. Land area is exposed to drought if monthly soil moisture falls below the 2.5th percentile of the preindustrial baseline distribution for at least seven consecutive months. Land area is exposed to extreme heat if both a relative indicator based on temperature (Russo et al 2015, 2017) and an absolute indicator based on temperature and relative humidity (Masterton & Richardson, 1979) exceed their respective threshold values.\nPopulation exposure is calculated as annual expected population directly exposed to the occurrence of extreme heat or drought events, assuming any population directly within the footprint of an event is exposed, but not otherwise taking any other risk-mitigating or -propagating factors into account.\nPopulation is held constant at 2020 levels, using the JRC GHSL GHS-POP R2023A release, which can be cited as\nSchiavina M., Freire S., Carioli A., MacManus K. (2023) GHS-POP R2023A - GHS population grid multitemporal (1975-2030).European Commission, Joint Research Centre (JRC) PID: http://data.europa.eu/89h/2ff68a52-5b5b-4a22-8f40-c41da8332cfe, doi:10.2905/2FF68A52-5B5B-4A22-8F40-C41DA8332CFE\nand for the concept and methodology,\nFreire S., MacManus K., Pesaresi M., Doxsey-Whitfield E., Mills J. (2016) Development of new open and free multi-temporal global population grids at 250 m resolution. Geospatial Data in a Changing World; Association of Geographic Information Laboratories in Europe (AGILE), AGILE 2016\n",
+        "data_citation": "Russell, T., Nicholas, C., & Bernhofen, M. (2023). Annual probability of extreme heat and drought events, derived from Lange et al 2020 (Version 2) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.8147088\nLange, S., Volkholz, J., Geiger, T., Zhao, F., Vega, I., Veldkamp, T., et al. (2020). Projecting exposure to extreme climate impact events across six event categories and three spatial scales. Earth's Future, 8, e2020EF001616. DOI 10.1029/2020EF001616\n",
+        "data_license": {
+          "name": "CC0",
+          "title": "CC0",
+          "path": "https://creativecommons.org/share-your-work/public-domain/cc0/"
+        },
+        "data_origin_url": "https://doi.org/10.5281/zenodo.8147088",
+        "data_formats": ["GeoTIFF"]
+      }
+    ]
+  }
+]

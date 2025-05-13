@@ -13,3 +13,5 @@ BOUNDARY_ROUTE = BOUNDARIES_BASE_ROUTE + "/{name}"
 # Retrieval of information about packages
 PACKAGES_BASE_ROUTE = API_ROUTE_BASE + "/packages"
 PACKAGE_ROUTE = PACKAGES_BASE_ROUTE + "/{boundary_name}"
+
+PROCESSORS_BASE_ROUTE = API_ROUTE_BASE + "/processors"

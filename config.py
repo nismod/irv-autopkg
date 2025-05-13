@@ -2,8 +2,10 @@
 Global Config
 """
 
-from os import getenv, path
+import json
 import logging
+from pathlib import Path
+from os import getenv
 
 import sqlalchemy as sa
 
@@ -70,12 +72,12 @@ if DEPLOYMENT_ENV == "test":
     # The root-level folder when using localfs storage backend
     LOCALFS_STORAGE_BACKEND_ROOT = getenv(
         "AUTOPKG_LOCALFS_STORAGE_BACKEND_ROOT_TEST",
-        path.join(path.dirname(path.abspath(__file__)), "tests", "data", "packages"),
+        Path(__file__).parent / "tests" / "data" / "packages",
     )
     # The root-level folder when using localfs processing backend
     LOCALFS_PROCESSING_BACKEND_ROOT = getenv(
         "AUTOPKG_LOCALFS_PROCESSING_BACKEND_ROOT_TEST",
-        path.join(path.dirname(path.abspath(__file__)), "tests", "data", "processing"),
+        Path(__file__).parent / "tests" / "data" / "processing",
     )
     # Integration tests which require access to the GRIOSM Postgres instance will be run if this is set-True (1)
     TEST_GRI_OSM = True if getenv("AUTOPKG_TEST_GRI_OSM", "True") == "True" else False
@@ -102,3 +104,7 @@ else:
 
 # Initialised Startup Data
 DBURI_API = get_db_uri(API_POSTGRES_DB)
+
+PROCESSORS = []
+with open(Path(__file__).parent / "processors.json", "r") as fh:
+    PROCESSORS = json.load(fh)

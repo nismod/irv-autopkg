@@ -58,6 +58,33 @@ class Boundary(BoundarySummary):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProcessorVersionMetadata(BaseModel):
+    """Detail about a Data Processor"""
+
+    name: str
+    description: str
+    version: str
+    data_author: str
+    data_title: str
+    data_title_long: str
+    data_summary: str
+    data_citation: str
+    data_license: dict
+    data_origin_url: str
+    data_formats: List[str]
+    status: Optional[str] = ""  # Used while executing
+    uri: Optional[str] = ""  # Used when package is available
+
+
+class Processor(BaseModel):
+    """Summary information about a Processor"""
+
+    name: str  # Name of the processor
+    versions: List[
+        ProcessorVersionMetadata
+    ]  # Versions of the processor, which are created by versioned processors of the same name
+
+
 class Contributor(BaseModel):
     title: str = Field(
         ...,
@@ -157,6 +184,15 @@ class Resources(BaseModel):
         examples=['{\n  "name": "my-nice-name"\n}\n'],
         title="Name",
     )
+    version: Optional[Union[str, int]] = Field(
+        None,
+        description="Dataset version information.",
+        examples=[
+            '{\n  "version": 2\n}\n',
+            '{\n  "version": "v2.0.0"\n}\n',
+        ],
+        title="ID",
+    )
     path: Optional[Union[PathItem, List[PathItem]]] = Field(
         None,
         description="A reference to the data for this resource, as either a path as a string, or an array of paths as strings. of valid URIs.",
@@ -227,7 +263,7 @@ class Resources(BaseModel):
         examples=['{\n  "encoding": "utf-8"\n}\n'],
         title="Encoding",
     )
-    bytes: Optional[Union[int, List[int]]] = Field(
+    bytes: Optional[int] = Field(
         None,
         description="The size of this resource in bytes.",
         examples=['{\n  "bytes": 2082\n}\n'],
@@ -359,4 +395,5 @@ class PackageSummary(BaseModel):
 class Package(PackageSummary):
     """Detailed information about a package"""
 
+    processors: List[Processor]  # Datasets within this package
     datapackage: DataPackage
